@@ -1,0 +1,9 @@
+<resources>
+    <color name="cosmic_black">#0B0D17</color>
+    <color name="cosmic_surface">#141829</color>
+    <color name="sacred_gold">#FFB300</color>
+    <color name="gold_accent">#D4AF37</color>
+    <color name="sacred_saffron">#FF6F00</color>
+    <color name="text_gold_light">#FFE082</color>
+    <color name="text_white">#F5F5F7</color>
+</resources>

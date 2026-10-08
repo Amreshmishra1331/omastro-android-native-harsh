@@ -1,0 +1,109 @@
+package com.omastro.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
+import androidx.navigation.compose.*
+import androidx.navigation.navArgument
+import com.omastro.app.ui.navigation.BottomNavBar
+import com.omastro.app.ui.navigation.Screen
+import com.omastro.app.ui.screens.astrologers.AstrologersScreen
+import com.omastro.app.ui.screens.astrologers.ChatScreen
+import com.omastro.app.ui.screens.auth.AuthScreen
+import com.omastro.app.ui.screens.dashboard.DashboardScreen
+import com.omastro.app.ui.screens.horoscope.HoroscopeScreen
+import com.omastro.app.ui.screens.kundali.KundaliScreen
+import com.omastro.app.ui.screens.matching.MatchmakingScreen
+import com.omastro.app.ui.screens.panchang.PanchangScreen
+import com.omastro.app.ui.screens.settings.SettingsScreen
+import com.omastro.app.ui.screens.wallet.WalletScreen
+import com.omastro.app.ui.theme.OmAstroTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            OmAstroTheme {
+                val navController = rememberNavController()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
+                val showBottomBar = currentRoute in listOf(
+                    Screen.Home.route,
+                    Screen.Kundali.route,
+                    Screen.Horoscope.route,
+                    Screen.Astrologers.route,
+                    Screen.Settings.route
+                )
+
+                Scaffold(
+                    bottomBar = {
+                        if (showBottomBar) {
+                            BottomNavBar(navController = navController)
+                        }
+                    }
+                ) { innerPadding ->
+                    NavHost(
+                        navController = navController,
+                        startDestination = Screen.Home.route,
+                        modifier = Modifier.padding(innerPadding)
+                    ) {
+                        composable(Screen.Home.route) {
+                            DashboardScreen(navController = navController)
+                        }
+                        composable(Screen.Kundali.route) {
+                            KundaliScreen(onBack = { navController.popBackStack() })
+                        }
+                        composable(Screen.Horoscope.route) {
+                            HoroscopeScreen(onBack = { navController.popBackStack() })
+                        }
+                        composable(Screen.Panchang.route) {
+                            PanchangScreen(onBack = { navController.popBackStack() })
+                        }
+                        composable(Screen.Matchmaking.route) {
+                            MatchmakingScreen(onBack = { navController.popBackStack() })
+                        }
+                        composable(Screen.Astrologers.route) {
+                            AstrologersScreen(
+                                onAstrologerClick = { id ->
+                                    navController.navigate(Screen.Chat.createRoute(id))
+                                }
+                            )
+                        }
+                        composable(
+                            route = Screen.Chat.route,
+                            arguments = listOf(navArgument("astrologerId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val astrologerId = backStackEntry.arguments?.getString("astrologerId") ?: "1"
+                            ChatScreen(
+                                astrologerId = astrologerId,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable(Screen.Wallet.route) {
+                            WalletScreen(onBack = { navController.popBackStack() })
+                        }
+                        composable(Screen.Settings.route) {
+                            SettingsScreen(
+                                onNavigateToAuth = { navController.navigate(Screen.Auth.route) },
+                                onNavigateToWallet = { navController.navigate(Screen.Wallet.route) }
+                            )
+                        }
+                        composable(Screen.Auth.route) {
+                            AuthScreen(
+                                onLoginSuccess = { navController.popBackStack() }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

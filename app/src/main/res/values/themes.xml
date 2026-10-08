@@ -1,0 +1,9 @@
+<resources>
+    <!-- Base application theme for Jetpack Compose -->
+    <style name="Theme.OmAstro" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/cosmic_black</item>
+        <item name="android:navigationBarColor">@color/cosmic_black</item>
+        <item name="android:windowBackground">@color/cosmic_black</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

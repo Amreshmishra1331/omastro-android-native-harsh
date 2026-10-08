@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">OmAstro AI</string>
+    <string name="tagline">Vedic Wisdom Powered by Cosmic AI</string>
+    <string name="channel_general_name">General Notifications</string>
+    <string name="channel_general_desc">Important updates and auspicious alerts</string>
+    <string name="channel_horoscope_name">Daily Horoscope</string>
+    <string name="channel_horoscope_desc">Daily Rashifal and transit notifications</string>
+    <string name="channel_chat_name">Astrologer Consultation</string>
+    <string name="channel_chat_desc">Messages from your personal Vedic astrologer</string>
+</resources>
