@@ -164,8 +164,8 @@ class AstroRepository(
             maxScore = 36.0,
             percentage = 93,
             verdict = "Shubh Vivaah (Highly Recommended)",
-            manglikStatusBoy = "Non-Manglik",
-            manglikStatusGirl = "Non-Manglik",
+            manglikBoy = "Non-Manglik",
+            manglikGirl = "Non-Manglik",
             gunas = gunas,
             conclusion = "Exceptional 33.5/36 score! Excellent spiritual, physical, mental, and familial compatibility with zero Nadi or Bhakoot Dosha."
         )
