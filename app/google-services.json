@@ -1,0 +1,70 @@
+{
+  "project_info": {
+    "project_number": "613285624759",
+    "project_id": "om-astro-ai-7a3dc",
+    "storage_bucket": "om-astro-ai-7a3dc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:613285624759:android:c8baa8248a909ba83f4632",
+        "android_client_info": {
+          "package_name": "com.omastroai.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "613285624759-22tjrc86rq638en6q53nb45bs4f0uekm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.omastroai.app",
+            "certificate_hash": "7786f675f55d789ce62cac94d63621d88a0c8b75"
+          }
+        },
+        {
+          "client_id": "613285624759-3hkj2rq44kjsime63c5dmar4of0v36vt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.omastroai.app",
+            "certificate_hash": "2f05235f928c50c5a4d090c21e87aa1b2b5507d8"
+          }
+        },
+        {
+          "client_id": "613285624759-qiavhi2tceb864qeucldkmoq1lg3msob.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.omastroai.app",
+            "certificate_hash": "936bba2858dc068d4409662d47c9118b92a1fa6a"
+          }
+        },
+        {
+          "client_id": "613285624759-p3bksd1ersn333f4mqirv64are5uglsb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBG2rGcevoEwxni5wapCLl7qF9cPwSSpTg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "613285624759-p3bksd1ersn333f4mqirv64are5uglsb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "613285624759-goktrhscik6vbbm0jk8s0ikgtnvrs6fp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.omastroai.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
