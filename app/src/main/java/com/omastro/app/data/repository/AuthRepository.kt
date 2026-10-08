@@ -90,6 +90,15 @@ class AuthRepository(
         _currentUser.value = _currentUser.value?.copy(coinBalance = newBalance)
     }
 
+    suspend fun updateFcmToken(token: String): Result<Boolean> {
+        return try {
+            val response = api.updateFcmToken(UpdateFcmTokenRequest(token))
+            Result.success(response.isSuccessful)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun logout() {
         ApiClient.setAuthToken(null)
         _currentUser.value = null

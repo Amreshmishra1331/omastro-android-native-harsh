@@ -123,6 +123,76 @@ fun SettingsScreen(
                 }
             }
 
+            // Appearance & Theme Mode
+            var isDarkMode by remember { mutableStateOf(true) }
+            var selectedLanguage by remember { mutableStateOf("English (en)") }
+
+            item {
+                Text("Appearance & Display", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+
+            item {
+                CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
+                                    contentDescription = "Theme",
+                                    tint = SacredGold
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text("Theme Mode", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(if (isDarkMode) "Cosmic Deep Space (Dark)" else "Sacred Temple Gold (Light)", color = MysticPurple, fontSize = 12.sp)
+                                }
+                            }
+                            Switch(
+                                checked = isDarkMode,
+                                onCheckedChange = { isDarkMode = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = CosmicDeepBlue,
+                                    checkedTrackColor = SacredGold,
+                                    uncheckedThumbColor = SacredGold,
+                                    uncheckedTrackColor = CosmicNavy
+                                )
+                            )
+                        }
+
+                        Divider(color = CosmicNavy)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Language, contentDescription = "Language", tint = SacredGold)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text("Jyotish Language", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(selectedLanguage, color = MysticPurple, fontSize = 12.sp)
+                                }
+                            }
+                            Button(
+                                onClick = {
+                                    selectedLanguage = if (selectedLanguage.startsWith("English")) "हिन्दी (Hindi)" else "English (en)"
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = CosmicNavy),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text("Switch", color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+
             // Notification Preferences
             item {
                 Text("Notifications & Alerts", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)

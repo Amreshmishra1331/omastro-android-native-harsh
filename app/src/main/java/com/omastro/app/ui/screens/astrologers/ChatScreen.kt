@@ -44,17 +44,59 @@ fun ChatScreen(
         }
     }
 
+    val sessionDuration by viewModel.sessionDurationSeconds.collectAsState()
+    val remainingCoins by viewModel.remainingCoins.collectAsState()
+
+    val formattedTimer = remember(sessionDuration) {
+        val minutes = sessionDuration / 60
+        val seconds = sessionDuration % 60
+        String.format("%02d:%02d", minutes, seconds)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Live Consultation", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text("Vedic Astrologer Active", color = Color(0xFF4CAF50), fontSize = 11.sp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Live Consultation", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(Color(0xFF4CAF50))
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Active: $formattedTimer", color = SacredGold, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = CosmicNavy,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, SacredGold.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("🪙", fontSize = 11.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("$remainingCoins", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        viewModel.endConsultation()
+                        onBack()
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
                     }
                 },

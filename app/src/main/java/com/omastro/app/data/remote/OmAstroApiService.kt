@@ -73,4 +73,27 @@ interface OmAstroApiService {
     suspend fun verifyPayment(
         @Body request: PaymentVerifyRequest
     ): Response<PaymentVerifyResponse>
+
+    // FCM Device Token Registration
+    @POST("auth/fcm-token")
+    suspend fun updateFcmToken(
+        @Body request: UpdateFcmTokenRequest
+    ): Response<Map<String, Any>>
+
+    // Astro Health Deep Analysis
+    @POST("astro-health")
+    suspend fun getAstroHealth(
+        @Body request: KundaliRequest
+    ): Response<Map<String, Any>>
+
+    // BNN & Numerology Deep Analysis
+    @POST("kundali/bnn")
+    suspend fun getBnnAnalysis(
+        @Body request: KundaliRequest
+    ): Response<Map<String, Any>>
+
+    @POST("numerology")
+    suspend fun getNumerology(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
 }

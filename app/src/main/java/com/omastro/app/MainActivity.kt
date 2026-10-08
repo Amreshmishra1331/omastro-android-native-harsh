@@ -96,6 +96,16 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToWallet = { navController.navigate(Screen.Wallet.route) }
                             )
                         }
+                        composable(Screen.AstroHealth.route) {
+                            com.omastro.app.ui.screens.astrohealth.AstroHealthScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable(Screen.Numerology.route) {
+                            com.omastro.app.ui.screens.numerology.NumerologyScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
                         composable(Screen.Auth.route) {
                             AuthScreen(
                                 onLoginSuccess = { navController.popBackStack() }

@@ -16,6 +16,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     }
     object Wallet : Screen("wallet", "Wallet", Icons.Default.AccountBalanceWallet)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+    object AstroHealth : Screen("astro_health", "Astro Health", Icons.Default.HealthAndSafety)
+    object Numerology : Screen("numerology", "Numerology", Icons.Default.Calculate)
     object Auth : Screen("auth", "Sign In")
 }
 

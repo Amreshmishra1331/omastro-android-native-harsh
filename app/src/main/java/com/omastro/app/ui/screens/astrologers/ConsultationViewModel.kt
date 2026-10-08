@@ -23,6 +23,19 @@ class ConsultationViewModel : ViewModel() {
 
     val chatMessages: StateFlow<Map<String, List<ChatMessage>>> = consultationRepo.messages
 
+    private val authRepo = AppContainer.authRepository
+
+    private val _sessionActive = MutableStateFlow(false)
+    val sessionActive: StateFlow<Boolean> = _sessionActive.asStateFlow()
+
+    private val _sessionDurationSeconds = MutableStateFlow(0)
+    val sessionDurationSeconds: StateFlow<Int> = _sessionDurationSeconds.asStateFlow()
+
+    private val _remainingCoins = MutableStateFlow(authRepo.currentUser.value?.coinBalance ?: 500)
+    val remainingCoins: StateFlow<Int> = _remainingCoins.asStateFlow()
+
+    private var timerJob: kotlinx.coroutines.Job? = null
+
     init {
         loadAstrologers()
     }
@@ -44,7 +57,43 @@ class ConsultationViewModel : ViewModel() {
     fun initChat(astrologerId: String) {
         viewModelScope.launch {
             consultationRepo.loadChatHistory(astrologerId)
+            startConsultationTimer(astrologerId)
         }
+    }
+
+    private fun startConsultationTimer(astrologerId: String) {
+        if (_sessionActive.value) return
+        _sessionActive.value = true
+        _sessionDurationSeconds.value = 0
+
+        val astro = _astrologers.value.find { it.id == astrologerId }
+        val ratePerMin = astro?.pricePerMin ?: 20
+
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (_sessionActive.value) {
+                kotlinx.coroutines.delay(1000)
+                _sessionDurationSeconds.value += 1
+
+                // Every 60 seconds, auto-deduct coins for the consultation minute
+                if (_sessionDurationSeconds.value % 60 == 0) {
+                    val currentBal = authRepo.currentUser.value?.coinBalance ?: 500
+                    val updatedBal = (currentBal - ratePerMin).coerceAtLeast(0)
+                    authRepo.updateCoinBalance(updatedBal)
+                    _remainingCoins.value = updatedBal
+                }
+            }
+        }
+    }
+
+    fun endConsultation() {
+        _sessionActive.value = false
+        timerJob?.cancel()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timerJob?.cancel()
     }
 
     fun sendMessage(astrologerId: String, text: String) {

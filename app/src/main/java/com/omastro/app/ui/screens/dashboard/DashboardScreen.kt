@@ -181,6 +181,26 @@ fun DashboardScreen(
                     onClick = { navController.navigate(Screen.Astrologers.route) }
                 )
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickActionItem(
+                    title = "Astro Health",
+                    subtitle = "D6 & Organ Vitality",
+                    icon = Icons.Default.HealthAndSafety,
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController.navigate(Screen.AstroHealth.route) }
+                )
+                QuickActionItem(
+                    title = "Numerology",
+                    subtitle = "Mulank & Bhagyank",
+                    icon = Icons.Default.Calculate,
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController.navigate(Screen.Numerology.route) }
+                )
+            }
         }
 
         // Daily Mantra Widget

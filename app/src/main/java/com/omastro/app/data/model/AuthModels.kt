@@ -43,3 +43,7 @@ data class VerifyOtpResponse(
     @SerializedName("user") val user: UserProfile?,
     @SerializedName("message") val message: String?
 )
+
+data class UpdateFcmTokenRequest(
+    @SerializedName("fcm_token") val fcmToken: String
+)
