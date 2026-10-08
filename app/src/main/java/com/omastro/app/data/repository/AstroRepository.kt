@@ -102,14 +102,77 @@ class AstroRepository(
             "12" to listOf("Ke")
         )
 
+        val dashaTimeline = listOf(
+            VimshottariDashaItem("Jupiter (Guru)", "2018", "2034", 16, true),
+            VimshottariDashaItem("Saturn (Shani)", "2034", "2053", 19, false),
+            VimshottariDashaItem("Mercury (Budha)", "2053", "2070", 17, false),
+            VimshottariDashaItem("Ketu", "2070", "2077", 7, false),
+            VimshottariDashaItem("Venus (Shukra)", "2077", "2097", 20, false)
+        )
+
+        val yogas = listOf(
+            YogaDoshaItem("Gajakesari Yoga", "Raja Yoga", true, "Jupiter in Kendra from Ascendant/Moon. Bestows high wisdom, virtuous character, societal respect, and leadership.", null),
+            YogaDoshaItem("Ruchaka Yoga (Pancha Mahapurusha)", "Mahapurusha Yoga", true, "Mars exalted in 10th house. Gives executive authority, engineering brilliance, and indomitable courage.", null),
+            YogaDoshaItem("Budhaditya Yoga", "Dhana Yoga", true, "Sun and Mercury conjunction creates keen analytical mind and financial prosperity.", null),
+            YogaDoshaItem("Manglik Dosha (Kuja Dosha)", "Dosha", false, "Mars in 10th Kendra (partially mitigated). Indicates passionate drive in professional and domestic life.", "Chant Hanuman Chalisa on Tuesdays and offer red flowers."),
+            YogaDoshaItem("Shani Sade Sati Status", "Transit Effect", false, "Saturn transiting 11th house from Natal Moon. Period of immense career breakthroughs through hard discipline.", "Light sesame oil lamp under Peepal tree on Saturdays.")
+        )
+
+        val ashtakavarga = listOf(
+            AshtakavargaHouseBindu(1, "Aries", 32, "High"),
+            AshtakavargaHouseBindu(2, "Taurus", 28, "Moderate"),
+            AshtakavargaHouseBindu(3, "Gemini", 34, "High"),
+            AshtakavargaHouseBindu(4, "Cancer", 29, "Moderate"),
+            AshtakavargaHouseBindu(5, "Leo", 31, "High"),
+            AshtakavargaHouseBindu(6, "Virgo", 36, "High"),
+            AshtakavargaHouseBindu(7, "Libra", 22, "Low"),
+            AshtakavargaHouseBindu(8, "Scorpio", 25, "Low"),
+            AshtakavargaHouseBindu(9, "Sagittarius", 33, "High"),
+            AshtakavargaHouseBindu(10, "Capricorn", 35, "High"),
+            AshtakavargaHouseBindu(11, "Aquarius", 38, "High"),
+            AshtakavargaHouseBindu(12, "Pisces", 24, "Low")
+        )
+
+        val lalKitabRemedies = listOf(
+            LalKitabRemedyItem("Sun", 1, "Dharmi Teva (Radiant Aura)", "Drink water in a pure copper vessel at sunrise; avoid taking anything free of cost."),
+            LalKitabRemedyItem("Mercury", 3, "Intellectual Voice", "Wear a pure silver bangle on the right wrist without joint."),
+            LalKitabRemedyItem("Saturn", 11, "Nyayadhish in Labha Bhava", "Avoid intoxicants on Saturdays; feed cows and stray animals.")
+        )
+
+        val bnnCombinations = listOf(
+            BNNCombination("Jupiter + Moon Alignment", listOf("Jupiter", "Moon"), "Jiva-Manas Yoga: Intuitive spiritual intellect, auspicious long-distance travels, and benevolent wisdom."),
+            BNNCombination("Mars + Saturn Alignment", listOf("Mars", "Saturn"), "Karmic Drive: Technical mastery, real-estate investments, and immense perseverance.")
+        )
+
+        val jaiminiKarakas = listOf(
+            JaiminiKaraka("Atmakaraka (AK)", "Venus (27.05°)", "Soul's primary inclination: Universal compassion, artistic vision, and harmony."),
+            JaiminiKaraka("Amatyakaraka (AmK)", "Moon (22.18°)", "Mind & Career: Empathy, public communication, and advisory excellence."),
+            JaiminiKaraka("Bhratrikaraka (BK)", "Mercury (19.30°)", "Intellectual pursuits and spiritual guides.")
+        )
+
+        val healthIndicators = listOf(
+            AstroHealthIndicator("Vital Energy & Heart", "Strong", "Exalted Sun and powerful Mars in Kendra; strong Pranic vitality."),
+            AstroHealthIndicator("Mental Equilibrium & Mind", "Strong", "Exalted Moon in Taurus; serene psychological resilience."),
+            AstroHealthIndicator("Metabolism & Digestion", "Moderate", "Jupiter in Cancer; maintain sattvic diet with mindful hydration.")
+        )
+
         return KundaliResponse(
             success = true,
             ascendantSign = 1,
             ascendantSignName = "Aries (Mesha Lagna)",
             nakshatra = "Ashwini (Pada 2)",
+            currentDasha = "Jupiter Mahadasha / Saturn Antardasha",
             planets = planets,
             d1Houses = d1Houses,
-            d9Houses = d9Houses
+            d9Houses = d9Houses,
+            d10Houses = d1Houses,
+            dashaTimeline = dashaTimeline,
+            yogas = yogas,
+            ashtakavarga = ashtakavarga,
+            lalKitabRemedies = lalKitabRemedies,
+            bnnCombinations = bnnCombinations,
+            jaiminiKarakas = jaiminiKarakas,
+            healthIndicators = healthIndicators
         )
     }
 
