@@ -103,7 +103,7 @@ fun PanchangScreen(
                 item {
                     CosmicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        borderColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
+                        borderGold = true
                     ) {
                         Column {
                             Text("SHUBH MUHURAT (AUSPICIOUS)", color = Color(0xFF4CAF50), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -124,7 +124,7 @@ fun PanchangScreen(
                 item {
                     CosmicCard(
                         modifier = Modifier.fillMaxWidth(),
-                        borderColor = Color(0xFFFF5252).copy(alpha = 0.5f)
+                        borderGold = false
                     ) {
                         Column {
                             Text("ASHUBH KAAL (TO AVOID)", color = Color(0xFFFF5252), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)

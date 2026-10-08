@@ -70,7 +70,7 @@ fun WalletScreen(
             item {
                 CosmicCard(
                     modifier = Modifier.fillMaxWidth(),
-                    borderColor = SacredGold
+                    borderGold = true
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),

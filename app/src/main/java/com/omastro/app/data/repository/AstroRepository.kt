@@ -61,15 +61,15 @@ class AstroRepository(
 
     private fun createDefaultKundaliResponse(name: String): KundaliResponse {
         val planets = listOf(
-            PlanetInfo("Sun (Surya)", "Aries (Mesha)", 1, 14.52, 1, false, "Ashwini", 2),
-            PlanetInfo("Moon (Chandra)", "Taurus (Vrishabha)", 2, 22.18, 2, false, "Rohini", 4),
-            PlanetInfo("Mars (Mangal)", "Capricorn (Makara)", 10, 08.45, 10, false, "Uttara Ashadha", 1),
-            PlanetInfo("Mercury (Budha)", "Gemini (Mithuna)", 3, 19.30, 3, false, "Ardra", 3),
-            PlanetInfo("Jupiter (Guru)", "Cancer (Karka)", 4, 12.10, 4, true, "Pushya", 2),
-            PlanetInfo("Venus (Shukra)", "Pisces (Meena)", 12, 27.05, 12, false, "Revati", 1),
-            PlanetInfo("Saturn (Shani)", "Aquarius (Kumbha)", 11, 04.55, 11, false, "Dhanishta", 4),
-            PlanetInfo("Rahu", "Pisces (Meena)", 12, 15.22, 12, true, "Uttara Bhadrapada", 3),
-            PlanetInfo("Ketu", "Virgo (Kanya)", 6, 15.22, 6, true, "Hasta", 1)
+            PlanetInfo("Sun (Surya)", "Aries (Mesha)", 1, 14.52, 1, false, "Exalted", "Ashwini", 2),
+            PlanetInfo("Moon (Chandra)", "Taurus (Vrishabha)", 2, 22.18, 2, false, "Exalted", "Rohini", 4),
+            PlanetInfo("Mars (Mangal)", "Capricorn (Makara)", 10, 8.45, 10, false, "Exalted", "Uttara Ashadha", 1),
+            PlanetInfo("Mercury (Budha)", "Gemini (Mithuna)", 3, 19.30, 3, false, "Own Sign", "Ardra", 3),
+            PlanetInfo("Jupiter (Guru)", "Cancer (Karka)", 4, 12.10, 4, true, "Exalted", "Pushya", 2),
+            PlanetInfo("Venus (Shukra)", "Pisces (Meena)", 12, 27.05, 12, false, "Exalted", "Revati", 1),
+            PlanetInfo("Saturn (Shani)", "Aquarius (Kumbha)", 11, 4.55, 11, false, "Own Sign", "Dhanishta", 4),
+            PlanetInfo("Rahu", "Pisces (Meena)", 12, 15.22, 12, true, "Direct", "Uttara Bhadrapada", 3),
+            PlanetInfo("Ketu", "Virgo (Kanya)", 6, 15.22, 6, true, "Direct", "Hasta", 1)
         )
 
         val d1Houses = mapOf(

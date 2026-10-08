@@ -23,8 +23,11 @@ import com.omastro.app.ui.theme.*
 fun CosmicCard(
     modifier: Modifier = Modifier,
     borderGold: Boolean = false,
+    borderColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val resolvedBorderColor = borderColor
+        ?: if (borderGold) CosmicBorderGold else CosmicBorder
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -36,7 +39,7 @@ fun CosmicCard(
             )
             .border(
                 width = 1.dp,
-                color = if (borderGold) CosmicBorderGold else CosmicBorder,
+                color = resolvedBorderColor,
                 shape = RoundedCornerShape(16.dp)
             )
             .padding(16.dp),

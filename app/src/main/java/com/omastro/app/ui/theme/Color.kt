@@ -25,3 +25,10 @@ val TextGold = Color(0xFFFFD54F)
 val AuspiciousGreen = Color(0xFF10B981)
 val InauspiciousRed = Color(0xFFEF4444)
 val NeutralBlue = Color(0xFF38BDF8)
+
+// Aliases used by Panchang, Settings, Wallet, Numerology screens
+val CosmicDeepBlue = CosmicBackground          // 0xFF090A13 — deepest bg
+val CosmicNavy     = CosmicSurface             // 0xFF131728 — surface / divider
+val CosmicCharcoal = CosmicCardBg              // 0xFF1A1F36 — card bg
+val StarlightWhite = TextPrimary               // 0xFFF8FAFC — primary text / white
+val RadiantAmber   = SacredGold               // 0xFFFFB300 — gold accent

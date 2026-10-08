@@ -37,6 +37,8 @@ fun SettingsScreen(
     var dailyHoroscopeNotif by remember { mutableStateOf(true) }
     var panchangNotif by remember { mutableStateOf(true) }
     var whatsappUpdates by remember { mutableStateOf(true) }
+    var isDarkMode by remember { mutableStateOf(true) }
+    var selectedLanguage by remember { mutableStateOf("English (en)") }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -124,9 +126,6 @@ fun SettingsScreen(
             }
 
             // Appearance & Theme Mode
-            var isDarkMode by remember { mutableStateOf(true) }
-            var selectedLanguage by remember { mutableStateOf("English (en)") }
-
             item {
                 Text("Appearance & Display", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }

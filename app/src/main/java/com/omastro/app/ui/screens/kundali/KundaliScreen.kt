@@ -261,7 +261,7 @@ fun KundaliScreen(
                             items(dashaList) { dasha ->
                                 CosmicCard(
                                     modifier = Modifier.fillMaxWidth(),
-                                    borderColor = if (dasha.isCurrent) SacredGold else Color.White.opacity(0.1f)
+                                    borderColor = if (dasha.isCurrent) SacredGold else Color.White.copy(alpha = 0.1f)
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -451,6 +451,3 @@ private fun HouseQuickChip(houseNumber: Int, modifier: Modifier = Modifier, onCl
     }
 }
 
-private fun Color.Companion.opacity(value: Float): Color {
-    return this.copy(alpha = value)
-}

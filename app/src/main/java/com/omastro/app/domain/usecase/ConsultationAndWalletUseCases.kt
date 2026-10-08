@@ -8,7 +8,7 @@ import com.omastro.app.data.repository.ConsultationRepository
 import com.omastro.app.data.repository.WalletRepository
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 class GetAstrologersUseCase(private val repository: ConsultationRepository) {
     suspend operator fun invoke(category: String? = null): Result<List<Astrologer>> =
