@@ -125,12 +125,6 @@ class WalletViewModel : ViewModel() {
         }
     }
 
-    fun refreshBalance() {
-        viewModelScope.launch {
-            walletRepo.refreshBalance()
-        }
-    }
-
     fun clearMessage() {
         _message.value = null
     }
