@@ -26,12 +26,13 @@ class AstroRepository(
         }
     }
 
-    suspend fun getDailyHoroscope(sign: String, period: String = "today"): Result<DailyHoroscopeResponse> {
+    suspend fun getDailyHoroscope(sign: String, period: String = "today"): Result<RashifalData> {
         return try {
             val res = api.getRashifal(mapOf("sign" to sign, "period" to period))
             val body = res.body()
-            if (res.isSuccessful && body != null) {
-                Result.success(body)
+            val data = body?.data
+            if (res.isSuccessful && body != null && body.success && data != null) {
+                Result.success(data)
             } else {
                 Result.failure(IOException("Rashifal request failed: HTTP ${res.code()}"))
             }
@@ -64,6 +65,20 @@ class AstroRepository(
                 Result.success(body)
             } else {
                 Result.failure(IOException("Matchmaking request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getGochar(request: GocharRequest): Result<GocharResponse> {
+        return try {
+            val res = api.getGochar(request)
+            val body = res.body()
+            if (res.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                Result.failure(IOException("Gochar request failed: HTTP ${res.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

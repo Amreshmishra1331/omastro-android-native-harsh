@@ -4,6 +4,30 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Rashifal Screen Redesign to Match omastroai.com/rashifal/
+
+### Rashifal models rebuilt to match the REAL POST /rashifal response
+**What was broken:** `DailyHoroscopeResponse` expected flat fields (`prediction`, `love_score`, `career_score`, `health_score`, `lucky_number`, `lucky_color`, `remedy`) that the production API does NOT return, and carried fabricated default values (`loveScore = 85`, `luckyNumber = 7`, etc.) — a P0 data-integrity violation. The real API returns `{"success": true, "data": {...}}` with `data.summary`, `data.scores{overall,career,finance,health,love,family,travel}`, `data.areas{career|finance|health|love|family|travel: {label,score,text}}`, `data.lucky{number,color,direction,gem,time}`, `data.remedies[]`, `data.dasha{md,ad,pd,primary_name}`, `data.saturn_transit{active,type,name_en,name_hi,description_en}`. Verified live against production on 2026-10-09.
+**Removed:** Old flat `DailyHoroscopeResponse` class and all fabricated score/color/remedy defaults.
+**Added:**
+- `RashifalEnvelope` (success + data) — `OmAstroApiService.getRashifal` now returns `Response<RashifalEnvelope>`; `AstroRepository.getDailyHoroscope` unwraps `data` honestly and fails loudly on an empty envelope
+- `RashifalData`, `RashifalDasha`, `RashifalArea`, `RashifalLucky`, `SaturnTransit` models matching the live contract
+- `HoroscopeSign` extended with `ruler` (Mars/Venus/…) and `glyphColor` (website sign-circle colors: Aries red, Taurus/Gemini orange, Cancer/Leo yellow, Virgo/Libra green, Scorpio teal, Sagittarius blue, Capricorn/Aquarius purple, Pisces pink)
+
+### Screen redesigned to website flow (sign grid → detail panel → periods → results)
+**What was missing:** No sign selector (app auto-loaded Aries on open); periods were Today/Tomorrow/Weekly; only 3 scores; no alerts, no lucky details, no remedies list, no dasha info.
+**Removed:** Auto-fetch-on-open behavior; `LazyRow` sign carousel; Today/Tomorrow/Weekly chips; 3-metric "ENERGY SPECTRUM" card.
+**Added:**
+- Maroon banner card: "RASHIFAL" gold title + "Select your sign and read detailed horoscope" subtitle
+- "Select Your Sign" 12-sign grid (4 columns): colored circular zodiac glyph (♈..♓), bold sign name, "Ruler: X" gray caption; selected = orange border
+- Detail panel after selection: glyph circle + "♌ Leo / Lord: Sun" + "Change" outlined button
+- Period tabs Daily/Weekly/Monthly/Yearly (active = solid gold, inactive = gold outline) — reloading results when tapped after a result is shown
+- "View Rashifal" gold CTA button (website parity)
+- Results: title card with "Leo — Daily Rashifal" + "OVERALL X/10" (color-coded); red Saturn-transit alert card when `saturn_transit.active` (name + Active badge + description); "COSMIC GUIDANCE" summary paragraph; 6 "LIFE AREA ENERGIES" category cards with score bars (green 8–10, orange 6–7, red ≤5) + per-area text; "Lucky Signs" card (Number/Color/Direction/Gem/Lucky Time); "Vedic Remedies" numbered list; "CURRENT PLANETARY PERIOD" strip (Mahadasha/Antardasha/Dominant)
+- Honest states kept: "Reading the stars…" loading, "Rashifal Unavailable" + Retry on error
+
+---
+
 ## [2026-10-09] — Kundali Screen Redesign to Match Website API Depth
 
 ### Kundali models rewritten to match the REAL POST /kundali response

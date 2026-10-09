@@ -31,6 +31,7 @@ object AppContainer {
     val getDailyHoroscopeUseCase by lazy { GetDailyHoroscopeUseCase(astroRepository) }
     val getPanchangUseCase by lazy { GetPanchangUseCase(astroRepository) }
     val calculateMatchmakingUseCase by lazy { CalculateMatchmakingUseCase(astroRepository) }
+    val getGocharUseCase by lazy { GetGocharUseCase(astroRepository) }
 
     val getAstrologersUseCase by lazy { GetAstrologersUseCase(consultationRepository) }
     val openChatSessionUseCase by lazy { OpenChatSessionUseCase(consultationRepository) }

@@ -39,11 +39,11 @@ interface OmAstroApiService {
         @Body request: KundaliRequest
     ): Response<KundaliEnvelope>
 
-    // Rashifal (daily horoscope)
+    // Rashifal (daily horoscope) — envelope: {"success":true,"data":{...}}
     @POST("rashifal")
     suspend fun getRashifal(
         @Body request: Map<String, String>
-    ): Response<DailyHoroscopeResponse>
+    ): Response<RashifalEnvelope>
 
     // Panchang
     @POST("panchang")
@@ -56,6 +56,12 @@ interface OmAstroApiService {
     suspend fun calculateMatchmaking(
         @Body request: MatchmakingRequest
     ): Response<MatchmakingResponse>
+
+    // Gochar / Planetary Transits (birth chart + transit date analysis)
+    @POST("gochar")
+    suspend fun getGochar(
+        @Body request: GocharRequest
+    ): Response<GocharResponse>
 
     // Astrologers
     @GET("astrologers")
@@ -267,4 +273,26 @@ data class SaveChartResponse(
     @SerializedName("chart") val chart: SavedChart? = null,
     @SerializedName("id") val id: String? = null,
     @SerializedName("message") val message: String? = null
+)
+
+// Gochar / Planetary Transits models (POST /gochar)
+// Birth details drive the natal chart; transit_date selects the transit period.
+data class GocharRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("dob") val dob: String, // YYYY-MM-DD
+    @SerializedName("tob") val tob: String = "08:30", // HH:MM
+    @SerializedName("pob") val pob: String = "New Delhi",
+    @SerializedName("lat") val lat: Double = 28.6139,
+    @SerializedName("lon") val lon: Double = 77.2090,
+    @SerializedName("gender") val gender: String = "male",
+    @SerializedName("transit_date") val transitDate: String // YYYY-MM-DD
+)
+
+// Defensive envelope: {success, data{...}}. Nested detail blocks are kept as
+// generic maps because the backend transit payload shape is rich and evolving;
+// the screen renders only keys that are present, never invented values.
+data class GocharResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: Map<String, Any>? = null
 )
