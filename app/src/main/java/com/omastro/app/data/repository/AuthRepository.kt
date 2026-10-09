@@ -18,12 +18,22 @@ class AuthRepository(
         return try {
             val response = api.login(LoginRequest(email, password, remember))
             val body = response.body()
-            if (response.isSuccessful && body != null && body.token != null) {
-                ApiClient.setAuthToken(body.token)
-                body.user?.let { _currentUser.value = it }
+            val token = body?.data?.token
+            if (response.isSuccessful && body != null && !token.isNullOrBlank()) {
+                ApiClient.setAuthToken(token)
+                body.data?.let { d ->
+                    _currentUser.value = UserProfile(
+                        id = d.userId,
+                        name = d.displayName ?: d.username ?: "",
+                        email = d.email,
+                        phone = d.mobile
+                    )
+                }
                 Result.success(body)
             } else {
-                Result.failure(IOException("Login failed: HTTP ${response.code()}"))
+                val msg = body?.message?.takeIf { it.isNotBlank() }
+                    ?: "Login failed: HTTP ${response.code()}"
+                Result.failure(IOException(msg))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -40,10 +50,12 @@ class AuthRepository(
         return try {
             val response = api.register(RegisterRequest(name, email, password, mobile, otpChannel))
             val body = response.body()
-            if (response.isSuccessful && body != null) {
+            if (response.isSuccessful && body != null && body.success) {
                 Result.success(body)
             } else {
-                Result.failure(IOException("Registration failed: HTTP ${response.code()}"))
+                val msg = body?.message?.takeIf { it.isNotBlank() }
+                    ?: "Registration failed: HTTP ${response.code()}"
+                Result.failure(IOException(msg))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -58,12 +70,22 @@ class AuthRepository(
         return try {
             val response = api.verifySignupOtp(VerifySignupOtpRequest(email, otp, otpChannel))
             val body = response.body()
-            if (response.isSuccessful && body != null && body.token != null) {
-                ApiClient.setAuthToken(body.token)
-                body.user?.let { _currentUser.value = it }
+            val token = body?.data?.token
+            if (response.isSuccessful && body != null && !token.isNullOrBlank()) {
+                ApiClient.setAuthToken(token)
+                body.data?.let { d ->
+                    _currentUser.value = UserProfile(
+                        id = d.userId,
+                        name = d.displayName ?: d.username ?: "",
+                        email = d.email,
+                        phone = d.mobile
+                    )
+                }
                 Result.success(body)
             } else {
-                Result.failure(IOException("OTP verification failed: HTTP ${response.code()}"))
+                val msg = body?.message?.takeIf { it.isNotBlank() }
+                    ?: "OTP verification failed: HTTP ${response.code()}"
+                Result.failure(IOException(msg))
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -185,12 +185,13 @@ class AuthViewModel : ViewModel() {
             _errorMessage.value = null
             authRepository.login(identifier, password, _rememberPassword.value)
                 .onSuccess { response: com.omastro.app.data.model.LoginResponse ->
-                    val token = response.token
+                    val token = response.data?.token
                     if (!token.isNullOrBlank()) {
                         ApiClient.setAuthToken(token)
                         _loginSuccess.value = true
                     } else {
-                        _errorMessage.value = "Login failed: no session token received."
+                        _errorMessage.value = response.message?.takeIf { it.isNotBlank() }
+                            ?: "Login failed: no session token received."
                     }
                 }
                 .onFailure { err ->
@@ -265,12 +266,13 @@ class AuthViewModel : ViewModel() {
             _errorMessage.value = null
             authRepository.verifySignupOtp(email, code, _otpChannel.value)
                 .onSuccess { response: com.omastro.app.data.model.VerifySignupOtpResponse ->
-                    val token = response.token
+                    val token = response.data?.token
                     if (!token.isNullOrBlank()) {
                         ApiClient.setAuthToken(token)
                         _loginSuccess.value = true
                     } else {
-                        _errorMessage.value = "Login failed: no session token received."
+                        _errorMessage.value = response.message?.takeIf { it.isNotBlank() }
+                            ?: "Verification failed: no session token received."
                     }
                 }
                 .onFailure { err ->

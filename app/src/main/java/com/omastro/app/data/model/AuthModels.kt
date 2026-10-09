@@ -36,11 +36,27 @@ data class LoginRequest(
     @SerializedName("remember") val remember: Boolean = false
 )
 
+/**
+ * Real API envelope for POST /auth/login:
+ * {"success": true, "data": {"token": "...", "user_id": 123, "display_name": "...", ...}}
+ * The session token lives inside `data`, NOT at the top level.
+ */
 data class LoginResponse(
     @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: LoginData? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("code") val code: String? = null
+)
+
+data class LoginData(
     @SerializedName("token") val token: String? = null,
-    @SerializedName("user") val user: UserProfile? = null,
-    @SerializedName("message") val message: String? = null
+    @SerializedName("expires") val expires: Long? = null,
+    @SerializedName("user_id") val userId: Long = 0,
+    @SerializedName("display_name") val displayName: String? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("mobile") val mobile: String? = null,
+    @SerializedName("avatar") val avatar: String? = null
 )
 
 data class RegisterRequest(
@@ -80,11 +96,15 @@ data class ResendOtpRequest(
     @SerializedName("otp_channel") val otpChannel: String = OtpChannels.DEFAULT
 )
 
+/**
+ * Real API envelope for POST /auth/verify-signup-otp — same {"success","data"} shape
+ * as login; the session token lives inside `data`.
+ */
 data class VerifySignupOtpResponse(
     @SerializedName("success") val success: Boolean = false,
-    @SerializedName("token") val token: String? = null,
-    @SerializedName("user") val user: UserProfile? = null,
-    @SerializedName("message") val message: String? = null
+    @SerializedName("data") val data: LoginData? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("code") val code: String? = null
 )
 
 data class UserProfile(

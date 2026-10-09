@@ -4,6 +4,27 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — FIX: Login envelope mismatch (login buffered forever) + official Google G logo
+
+### Broken / missing
+- **Login never completed (buffered forever)**: `LoginResponse` expected `token` at the JSON top level, but the real API returns `{"success": true, "data": {"token": "...", ...}}`. `AuthRepository.login()` checked `body.token != null` which was always null → login silently failed and the UI stayed in loading state. Same latent bug in `VerifySignupOtpResponse`.
+- **API error messages were swallowed**: failures showed generic "Login failed: HTTP 200" instead of the server's `message` field.
+- **Google "G" logo was a rough approximation**: hand-drawn arcs that did not resemble the official multicolor Google G (user compared with Flutter and rejected it).
+
+### Removed
+- Old flat `LoginResponse(token, user, ...)` and `VerifySignupOtpResponse(token, user, ...)` shapes.
+- Old arc-based `GoogleGLogo` Canvas drawing.
+
+### Added
+- **Correct auth envelopes** (`AuthModels.kt`):
+  - `LoginResponse(success, data: LoginData?, message, code)` and `VerifySignupOtpResponse(success, data: LoginData?, message, code)`.
+  - New `LoginData(token, expires, userId, displayName, username, email, mobile, avatar)` matching the real `/auth/login` and `/auth/verify-signup-otp` `data` payloads.
+- **Repository + ViewModel now read `data.token`** (`AuthRepository.login/verifySignupOtp`, `AuthViewModel.login/verifySignupOtp`); user profile is built from `LoginData` (name/email/mobile).
+- **Server error messages surfaced**: repository failures now prefer `body.message` (e.g. wrong password / expired OTP) over the generic HTTP-code text; ViewModel shows the server message when no token is returned.
+- **Official Google G logo**: `GoogleGLogo` now draws Google's exact brand SVG paths (24x24 viewBox) with the four official colors — blue #4285F4, green #34A853, yellow #FBBC05, red #EA4335 — scaled via `withTransform` to the composable size.
+
+---
+
 ## [2026-10-09] — FIX: Google Sign-In broken + Auth UI matched to Flutter exactly
 
 ### Broken / missing

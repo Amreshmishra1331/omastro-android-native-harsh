@@ -40,8 +40,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -453,59 +452,71 @@ private fun AuthPrimaryButton(
 }
 
 /**
- * Official Google "G" mark drawn with Canvas in brand colors.
- * (Brand icon — not an emoji.)
+ * Official Google "G" mark drawn from Google's brand SVG paths
+ * (24x24 viewBox, 4 brand colors). (Brand icon — not an emoji.)
  */
+private fun googleGBluePath(): Path = Path().apply {
+    // M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z
+    moveTo(23.49f, 12.27f)
+    cubicTo(23.49f, 11.48f, 23.42f, 10.73f, 23.30f, 10.00f)
+    lineTo(12.00f, 10.00f)
+    lineTo(12.00f, 14.51f)
+    lineTo(18.47f, 14.51f)
+    cubicTo(18.18f, 15.99f, 17.33f, 17.24f, 16.07f, 18.09f)
+    lineTo(16.07f, 21.09f)
+    lineTo(19.93f, 21.09f)
+    cubicTo(22.19f, 19.00f, 23.49f, 15.92f, 23.49f, 12.27f)
+    close()
+}
+
+private fun googleGGreenPath(): Path = Path().apply {
+    // M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z
+    moveTo(12.00f, 24.00f)
+    cubicTo(15.24f, 24.00f, 17.95f, 22.92f, 19.93f, 21.09f)
+    lineTo(16.07f, 18.09f)
+    cubicTo(14.99f, 18.81f, 13.62f, 19.25f, 12.00f, 19.25f)
+    cubicTo(8.87f, 19.25f, 6.22f, 17.14f, 5.27f, 14.29f)
+    lineTo(1.29f, 14.29f)
+    lineTo(1.29f, 17.38f)
+    cubicTo(3.26f, 21.30f, 7.31f, 24.00f, 12.00f, 24.00f)
+    close()
+}
+
+private fun googleGYellowPath(): Path = Path().apply {
+    // M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z
+    moveTo(5.27f, 14.29f)
+    cubicTo(5.02f, 13.57f, 4.89f, 12.80f, 4.89f, 12.00f)
+    cubicTo(4.89f, 11.20f, 5.03f, 10.43f, 5.27f, 9.71f)
+    lineTo(5.27f, 6.62f)
+    lineTo(1.29f, 6.62f)
+    cubicTo(0.47f, 8.24f, 0.00f, 10.06f, 0.00f, 12.00f)
+    cubicTo(0.00f, 13.94f, 0.47f, 15.76f, 1.29f, 17.38f)
+    lineTo(5.27f, 14.29f)
+    close()
+}
+
+private fun googleGRedPath(): Path = Path().apply {
+    // M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z
+    moveTo(12.00f, 4.75f)
+    cubicTo(13.77f, 4.75f, 15.35f, 5.36f, 16.60f, 6.55f)
+    lineTo(20.02f, 3.13f)
+    cubicTo(17.95f, 1.19f, 15.24f, 0.00f, 12.00f, 0.00f)
+    cubicTo(7.31f, 0.00f, 3.26f, 2.70f, 1.29f, 6.62f)
+    lineTo(5.27f, 9.71f)
+    cubicTo(6.22f, 6.86f, 8.87f, 4.75f, 12.00f, 4.75f)
+    close()
+}
+
 @Composable
 private fun GoogleGLogo(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
-        val s = size.minDimension
-        val strokeW = s * 0.20f
-        val blue = Color(0xFF4285F4)
-        val green = Color(0xFF34A853)
-        val yellow = Color(0xFFFBBC05)
-        val red = Color(0xFFEA4335)
-
-        // Blue arc (main body of G)
-        drawArc(
-            color = blue,
-            startAngle = -50f,
-            sweepAngle = 250f,
-            useCenter = false,
-            topLeft = Offset(s * 0.08f, s * 0.08f),
-            size = androidx.compose.ui.geometry.Size(s * 0.84f, s * 0.84f),
-            style = Stroke(width = strokeW, cap = StrokeCap.Butt)
-        )
-        // Green lower-right segment
-        drawArc(
-            color = green,
-            startAngle = 35f,
-            sweepAngle = 55f,
-            useCenter = false,
-            topLeft = Offset(s * 0.08f, s * 0.08f),
-            size = androidx.compose.ui.geometry.Size(s * 0.84f, s * 0.84f),
-            style = Stroke(width = strokeW, cap = StrokeCap.Butt)
-        )
-        // Yellow lower-left segment
-        drawArc(
-            color = yellow,
-            startAngle = 90f,
-            sweepAngle = 55f,
-            useCenter = false,
-            topLeft = Offset(s * 0.08f, s * 0.08f),
-            size = androidx.compose.ui.geometry.Size(s * 0.84f, s * 0.84f),
-            style = Stroke(width = strokeW, cap = StrokeCap.Butt)
-        )
-        // Red horizontal bar
-        val barY = s * 0.50f
-        val barPath = Path().apply {
-            moveTo(s * 0.50f, barY - strokeW / 2f)
-            lineTo(s * 0.94f, barY - strokeW / 2f)
-            lineTo(s * 0.94f, barY + strokeW / 2f)
-            lineTo(s * 0.50f, barY + strokeW / 2f)
-            close()
+        val scale = size.minDimension / 24f
+        withTransform({ scale(scale, scale, Offset.Zero) }) {
+            drawPath(googleGBluePath(), Color(0xFF4285F4))
+            drawPath(googleGGreenPath(), Color(0xFF34A853))
+            drawPath(googleGYellowPath(), Color(0xFFFBBC05))
+            drawPath(googleGRedPath(), Color(0xFFEA4335))
         }
-        drawPath(barPath, red)
     }
 }
 
