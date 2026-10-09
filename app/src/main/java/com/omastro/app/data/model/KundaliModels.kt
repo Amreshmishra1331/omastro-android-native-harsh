@@ -48,7 +48,19 @@ data class KundaliResponse(
     @SerializedName("vimshottariDasha") val vimshottariDasha: VimshottariDasha? = null,
     @SerializedName("ashtakavarga") val ashtakavarga: AshtakavargaData? = null,
     @SerializedName("lalKitab") val lalKitab: LalKitabData? = null,
-    @SerializedName("divisionalCharts") val divisionalCharts: Map<String, DivisionalChart> = emptyMap()
+    @SerializedName("divisionalCharts") val divisionalCharts: Map<String, DivisionalChart> = emptyMap(),
+    // --- Expanded fields for the 23-tab Kundali (verified live 2026-10-09) ---
+    @SerializedName("chalitHouses") val chalitHouses: List<HouseInfo> = emptyList(),
+    @SerializedName("suryaChart") val suryaChart: ChartData? = null,
+    @SerializedName("chandraChart") val chandraChart: ChartData? = null,
+    @SerializedName("chalitChart") val chalitChart: ChartData? = null,
+    @SerializedName("allDivisionalCharts") val allDivisionalCharts: Map<String, DivisionalChart> = emptyMap(),
+    @SerializedName("panchang") val panchang: BirthPanchang? = null,
+    @SerializedName("sodasvarga") val sodasvarga: Map<String, List<SodasvargaEntry>>? = null,
+    @SerializedName("shadbala") val shadbala: ShadbalaData? = null,
+    @SerializedName("saturnTransit") val saturnTransit: SaturnTransit? = null,
+    @SerializedName("currentTransits") val currentTransits: Map<String, TransitInfo> = emptyMap(),
+    @SerializedName("analysis_tabs") val analysisTabs: AnalysisTabs? = null
 ) {
     /** Lagna rashi index 1..12, resolved from the houses list or lagna name. */
     fun lagnaSignIndex(): Int {
@@ -258,6 +270,9 @@ data class VimshottariDasha(
     @SerializedName("currentAntardasha") val currentAntardasha: DashaNode? = null,
     @SerializedName("currentPratyantar") val currentPratyantar: DashaNode? = null,
     @SerializedName("currentSookshma") val currentSookshma: DashaNode? = null,
+    @SerializedName("currentPrana") val currentPrana: DashaNode? = null,
+    @SerializedName("currentAdi") val currentAdi: DashaNode? = null,
+    @SerializedName("currentDeha") val currentDeha: DashaNode? = null,
     @SerializedName("allMahadashas") val allMahadashas: List<DashaNode> = emptyList()
 )
 
@@ -349,4 +364,327 @@ fun planetHindiFallback(name: String): String {
     if (n.startsWith("rahu")) return "राहु"
     if (n.startsWith("ketu")) return "केतु"
     return ""
+}
+
+// ---------------------------------------------------------------------------
+// Generic lagna-based chart (Surya / Chandra / Chalit).
+// Verified live: {"lagnaRashi","lagnaRashiHi","houses":[{number,rashi,lord,planets[]}]}.
+// Chalit houses additionally carry madyaDeg/startDeg/endDeg (ignored).
+// ---------------------------------------------------------------------------
+
+data class ChartData(
+    @SerializedName("lagnaRashi") val lagnaRashi: String = "",
+    @SerializedName("lagnaRashiHi") val lagnaRashiHi: String = "",
+    @SerializedName("houses") val houses: List<HouseInfo> = emptyList()
+) {
+    fun lagnaSignIndex(): Int {
+        if (lagnaRashi.isNotBlank()) return rashiNameToIndex(lagnaRashi)
+        houses.firstOrNull { it.number == 1 }?.rashi?.let { return rashiNameToIndex(it) }
+        return 1
+    }
+
+    fun planetsByHouse(): Map<Int, List<String>> =
+        houses.associate { it.number to it.planets.map { p -> p.name } }
+}
+
+// ---------------------------------------------------------------------------
+// Birth Panchang (verified live shape)
+// ---------------------------------------------------------------------------
+
+data class BirthPanchang(
+    @SerializedName("tithi") val tithi: String = "",
+    @SerializedName("tithiNum") val tithiNum: Int = 0,
+    @SerializedName("paksha") val paksha: String = "",
+    @SerializedName("vara") val vara: String = "",
+    @SerializedName("nakshatra") val nakshatra: String = "",
+    @SerializedName("nakshatraHi") val nakshatraHi: String = "",
+    @SerializedName("nakshatraLord") val nakshatraLord: String = "",
+    @SerializedName("pada") val pada: Int = 0,
+    @SerializedName("yoga") val yoga: String = "",
+    @SerializedName("karana") val karana: String = "",
+    @SerializedName("sunRashi") val sunRashi: String = "",
+    @SerializedName("moonRashi") val moonRashi: String = ""
+)
+
+// ---------------------------------------------------------------------------
+// Sodasvarga: varga code (D1..D60) -> per-planet rashi list (verified live)
+// ---------------------------------------------------------------------------
+
+data class SodasvargaEntry(
+    @SerializedName("name") val name: String = "",
+    @SerializedName("rashi") val rashi: String = "",
+    @SerializedName("rashiIdx") val rashiIdx: Int = 0
+)
+
+// ---------------------------------------------------------------------------
+// Shadbala + Bhavabala + Vimshopaka (verified live).
+// Strength maps use Any values because the server mixes doubles, ints and
+// booleans (e.g. "sufficient": true) inside the same object.
+// ---------------------------------------------------------------------------
+
+data class ShadbalaData(
+    @SerializedName("shadbala") val shadbala: Map<String, Map<String, Any>>? = null,
+    @SerializedName("bhavabala") val bhavabala: Map<String, Map<String, Any>>? = null,
+    @SerializedName("vimshopaka") val vimshopaka: Map<String, Map<String, Any>>? = null
+)
+
+// ---------------------------------------------------------------------------
+// Saturn transit (Sade Sati / Dhaiya) + current gochar (verified live).
+// currentTransits is a MAP keyed by planet name, not a list.
+// ---------------------------------------------------------------------------
+
+data class SaturnTransit(
+    @SerializedName("active") val active: Boolean = false,
+    @SerializedName("type") val type: String = "",
+    @SerializedName("phase") val phase: String = "",
+    @SerializedName("house_from_moon") val houseFromMoon: Int = 0,
+    @SerializedName("saturn_rashi") val saturnRashi: Int = 0,
+    @SerializedName("moon_rashi") val moonRashi: Int = 0,
+    @SerializedName("name_en") val nameEn: String = "",
+    @SerializedName("name_hi") val nameHi: String = "",
+    @SerializedName("description_en") val descriptionEn: String = "",
+    @SerializedName("description_hi") val descriptionHi: String = ""
+)
+
+data class TransitInfo(
+    @SerializedName("rashi") val rashi: String = "",
+    @SerializedName("rashi_deg") val rashiDeg: Double = 0.0,
+    @SerializedName("natal_moon_house") val natalMoonHouse: Int = 0,
+    @SerializedName("transit_focus") val transitFocus: String = "",
+    @SerializedName("retro") val retro: Boolean = false
+)
+
+// ---------------------------------------------------------------------------
+// analysis_tabs: pre-rendered website text blocks (pipe/line separated).
+// ---------------------------------------------------------------------------
+
+data class AnalysisTabs(
+    @SerializedName("ppills") val ppills: String = "",
+    @SerializedName("grahaDetail") val grahaDetail: String = "",
+    @SerializedName("d1Analysis") val d1Analysis: String = "",
+    @SerializedName("d9Analysis") val d9Analysis: String = "",
+    @SerializedName("dasha") val dasha: String = "",
+    @SerializedName("panchang") val panchang: String = "",
+    @SerializedName("shadbal") val shadbal: String = "",
+    @SerializedName("personality") val personality: String = "",
+    @SerializedName("bnn") val bnn: String = "",
+    @SerializedName("chartTableD1") val chartTableD1: String = "",
+    @SerializedName("chartTableD9") val chartTableD9: String = ""
+)
+
+// ---------------------------------------------------------------------------
+// Dedicated report endpoints: /kundali/personality, /kundali/bnn,
+// /kundali/lal-kitab -> {success, data: {htmlReport, textReport, analysis_text}}
+// (verified live 2026-10-09)
+// ---------------------------------------------------------------------------
+
+data class ReportData(
+    @SerializedName("htmlReport") val htmlReport: String = "",
+    @SerializedName("textReport") val textReport: String = "",
+    @SerializedName("analysis_text") val analysisText: String = ""
+) {
+    /** Best plain-text rendering of the report (server sends all three in sync). */
+    fun bestText(): String =
+        textReport.ifBlank { analysisText }.ifBlank { stripHtmlToText(htmlReport) }
+}
+
+data class ReportEnvelope(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: ReportData? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+/** Minimal HTML stripper for server htmlReport fallback (never invents content). */
+fun stripHtmlToText(html: String): String {
+    if (html.isBlank()) return ""
+    return html
+        .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+        .replace(Regex("</(p|div|h[1-6]|li|tr)>", RegexOption.IGNORE_CASE), "\n")
+        .replace(Regex("<[^>]+>"), "")
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace(Regex("[ \\t\\x0B\\f\\r]+"), " ")
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+}
+
+// ---------------------------------------------------------------------------
+// Jaimini endpoint: POST /kundali/jaimini (verified live 2026-10-09)
+// karakamshaHouses use 0-based rashi index (ri: 10 = Aquarius).
+// charDashas/charAntars use 0-based sign index + Julian-day date bounds.
+// ---------------------------------------------------------------------------
+
+data class JaiminiKarakaDetail(
+    @SerializedName("name") val name: String = "",
+    @SerializedName("deg") val deg: Double = 0.0,
+    @SerializedName("rashi") val rashi: String = ""
+)
+
+data class JaiminiKarakas(
+    @SerializedName("AK") val ak: JaiminiKarakaDetail? = null,
+    @SerializedName("AmK") val amk: JaiminiKarakaDetail? = null,
+    @SerializedName("BK") val bk: JaiminiKarakaDetail? = null,
+    @SerializedName("MK") val mk: JaiminiKarakaDetail? = null,
+    @SerializedName("PiK") val pik: JaiminiKarakaDetail? = null,
+    @SerializedName("GK") val gk: JaiminiKarakaDetail? = null,
+    @SerializedName("DK") val dk: JaiminiKarakaDetail? = null
+) {
+    fun ordered(): List<Pair<String, JaiminiKarakaDetail?>> = listOf(
+        "Atmakaraka (AK)" to ak,
+        "Amatyakaraka (AmK)" to amk,
+        "Bhratrukaraka (BK)" to bk,
+        "Matrukaraka (MK)" to mk,
+        "Putrakaraka (PiK)" to pik,
+        "Gnatikaraka (GK)" to gk,
+        "Darakaraka (DK)" to dk
+    )
+}
+
+data class JaiminiKarakaWrapper(
+    @SerializedName("details") val details: JaiminiKarakas? = null
+)
+
+data class KarakamshaInfo(
+    @SerializedName("sign_idx") val signIdx: Int = 0,
+    @SerializedName("sign_en") val signEn: String = "",
+    @SerializedName("sign_hi") val signHi: String = "",
+    @SerializedName("ak_planet") val akPlanet: String = ""
+)
+
+data class KarakamshaRashi(
+    @SerializedName("en") val en: String = "",
+    @SerializedName("hi") val hi: String = ""
+)
+
+data class KarakamshaPlanet(
+    @SerializedName("sym") val sym: String = "",
+    @SerializedName("en") val en: String = "",
+    @SerializedName("hi") val hi: String = ""
+)
+
+data class KarakamshaHouse(
+    @SerializedName("n") val n: Int = 1,
+    @SerializedName("ri") val ri: Int = 0,
+    @SerializedName("r") val r: KarakamshaRashi? = null,
+    @SerializedName("pl") val pl: List<KarakamshaPlanet> = emptyList(),
+    @SerializedName("isLg") val isLg: Boolean = false
+)
+
+data class CharDasha(
+    @SerializedName("sign") val sign: Int = 0,
+    @SerializedName("sign_en") val signEn: String = "",
+    @SerializedName("sign_hi") val signHi: String = "",
+    @SerializedName("abbr") val abbr: String = "",
+    @SerializedName("years") val years: Double = 0.0,
+    @SerializedName("balance") val balance: Double = 0.0,
+    @SerializedName("startJD") val startJD: Double = 0.0,
+    @SerializedName("endJD") val endJD: Double = 0.0
+)
+
+data class JaiminiData(
+    @SerializedName("karakas") val karakas: JaiminiKarakaWrapper? = null,
+    @SerializedName("karakamsha") val karakamsha: KarakamshaInfo? = null,
+    @SerializedName("karakamshaHouses") val karakamshaHouses: List<KarakamshaHouse> = emptyList(),
+    @SerializedName("charDashas") val charDashas: List<CharDasha> = emptyList(),
+    @SerializedName("curCharMD") val curCharMD: CharDasha? = null,
+    @SerializedName("curCharAD") val curCharAD: CharDasha? = null,
+    @SerializedName("charAntars") val charAntars: List<CharDasha> = emptyList()
+)
+
+data class JaiminiEnvelope(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: JaiminiData? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+/**
+ * Julian Day Number -> Gregorian date (Fliegel–Van Flandern algorithm).
+ * Used only to display the server's char-dasha JD bounds as calendar dates.
+ */
+fun julianDayToDateString(jd: Double): String {
+    if (jd <= 0) return ""
+    return try {
+        var l = (jd + 68569.0).toLong()
+        val n = (4 * l / 146097).toLong()
+        l -= (146097 * n + 3) / 4
+        val i = (4000 * (l + 1) / 1461001).toLong()
+        l -= (1461 * i / 4) + 31
+        val j = (80 * l / 2447).toLong()
+        val day = (l - 2447 * j / 80).toInt()
+        l = j / 11
+        val month = (j + 2 - 12 * l).toInt()
+        val year = (100 * (n - 49) + i + l).toInt()
+        "%02d-%02d-%04d".format(day, month, year)
+    } catch (e: Exception) {
+        ""
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Lucky Elements — standard Vedic correspondences for the Lagna rashi.
+// Derived ONLY from the server's lagna (rashi + lord); static reference data.
+// ---------------------------------------------------------------------------
+
+data class LuckyElements(
+    val color: String,
+    val number: Int,
+    val gemstone: String
+)
+
+/** Planet name -> Vedic lucky number (Sun 1, Moon 2, Jupiter 3, Mercury 5, Venus 6, Saturn 8, Mars 9). */
+fun planetLuckyNumber(planetName: String): Int {
+    val n = planetName.lowercase().trim()
+    return when {
+        n.startsWith("sun") || n == "surya" -> 1
+        n.startsWith("moon") || n == "chandra" -> 2
+        n.startsWith("jupiter") || n == "guru" -> 3
+        n.startsWith("mercury") || n == "budh" -> 5
+        n.startsWith("venus") || n == "shukra" -> 6
+        n.startsWith("saturn") || n == "shani" -> 8
+        n.startsWith("mars") || n == "mangal" -> 9
+        else -> 0
+    }
+}
+
+/** (lucky color, gemstone) per lagna rashi index 1..12 — standard Vedic mapping. */
+fun luckyColorGemForRashi(rashiIndex: Int): Pair<String, String> = when (rashiIndex) {
+    1 -> "Red" to "Red Coral (Moonga)"
+    2 -> "White / Cream" to "Diamond (Heera)"
+    3 -> "Green" to "Emerald (Panna)"
+    4 -> "White / Silver" to "Pearl (Moti)"
+    5 -> "Golden / Orange" to "Ruby (Manik)"
+    6 -> "Green" to "Emerald (Panna)"
+    7 -> "White / Pink" to "Diamond (Heera)"
+    8 -> "Deep Red / Maroon" to "Red Coral (Moonga)"
+    9 -> "Yellow" to "Yellow Sapphire (Pukhraj)"
+    10 -> "Dark Blue / Black" to "Blue Sapphire (Neelam)"
+    11 -> "Violet / Dark Blue" to "Amethyst (Jamunia)"
+    else -> "Yellow / Sea Green" to "Yellow Sapphire (Pukhraj)"
+}
+
+fun luckyElementsFor(lagnaRashiIndex: Int, lagnaLord: String): LuckyElements {
+    val (color, gem) = luckyColorGemForRashi(lagnaRashiIndex)
+    val number = planetLuckyNumber(lagnaLord).takeIf { it > 0 } ?: when (lagnaRashiIndex) {
+        1, 8 -> 9
+        2, 7 -> 6
+        3, 6 -> 5
+        4 -> 2
+        5 -> 1
+        9, 12 -> 3
+        10, 11 -> 8
+        else -> 1
+    }
+    return LuckyElements(color, number, gem)
+}
+
+/** Stringify a Gson-decoded Any (numbers render without trailing ".0"). */
+fun anyToDisplay(value: Any?): String = when (value) {
+    null -> ""
+    is Double -> if (value % 1.0 == 0.0) value.toLong().toString() else "%.2f".format(value)
+    is Float -> if (value % 1f == 0f) value.toLong().toString() else "%.2f".format(value)
+    is Boolean -> if (value) "Yes" else "No"
+    else -> value.toString()
 }

@@ -43,6 +43,14 @@ fun NumerologyToolScreen(
     val tool = NumerologyTool.fromId(toolId)
     val uiState by vm.uiState.collectAsState()
 
+    // Pre-fill from the Kundali Numerology tab (birth details carried over)
+    LaunchedEffect(Unit) {
+        com.omastro.app.ui.navigation.PendingNumerologyHolder.consume()?.let { (name, dob) ->
+            vm.setName(name)
+            vm.setDob(dob)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

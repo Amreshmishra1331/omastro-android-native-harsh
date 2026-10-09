@@ -156,6 +156,12 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToSavedCharts = {
                                     navController.navigate(Screen.SavedCharts.route)
                                 },
+                                onNavigateToNumerology = {
+                                    navController.navigate(Screen.Numerology.route)
+                                },
+                                onNavigateToAiChat = {
+                                    navController.navigate(Screen.AiChat.route)
+                                },
                                 onMenuClick = openDrawer
                             )
                         }

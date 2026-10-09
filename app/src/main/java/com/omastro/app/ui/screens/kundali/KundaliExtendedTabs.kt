@@ -1,0 +1,1980 @@
+package com.omastro.app.ui.screens.kundali
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.omastro.app.data.model.*
+import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.PlanetMark
+import com.omastro.app.ui.components.VedicDiamondChart
+import com.omastro.app.ui.theme.*
+
+// ---------------------------------------------------------------------------
+// Shared helpers (Kx- prefix: KundaliScreen.kt owns SectionTitle/EmptySection)
+// ---------------------------------------------------------------------------
+
+@Composable
+internal fun KxSectionTitle(text: String) {
+    Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+}
+
+@Composable
+internal fun KxEmpty(text: String) {
+    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = text,
+            color = TextSecondary,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun KxLabelValue(label: String, value: String) {
+    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+        Text(
+            label, color = TextSecondary, fontSize = 12.sp,
+            modifier = Modifier.width(110.dp)
+        )
+        Text(value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * Renders a website analysis_tabs text block. The server separates segments
+ * with "|" and newlines; each segment becomes its own paragraph.
+ */
+@Composable
+internal fun KxAnalysisTextBlock(text: String) {
+    val paras = text.split("|").map { it.trim() }.filter { it.isNotEmpty() }
+    if (paras.isEmpty()) {
+        KxEmpty("No analysis text returned for this section.")
+        return
+    }
+    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            paras.forEach { p ->
+                Text(p, color = StarlightWhite.copy(alpha = 0.88f), fontSize = 13.sp, lineHeight = 20.sp)
+            }
+        }
+    }
+}
+
+/** Chart legend: Exalted / Debilitated / Retrograde / Combust / Vargottama. */
+@Composable
+internal fun KxLegendCard() {
+    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Chart Legend", color = SacredGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            KxLabelValue("Exalted", "Planet at peak strength — best results")
+            KxLabelValue("Debilitated", "Planet at weakest — needs strengthening")
+            KxLabelValue("(R) Retrograde", "Apparent backward motion — inward, karmic energy")
+            KxLabelValue("Combust", "Too close to the Sun — subdued expression")
+            KxLabelValue("Vargottama", "Same sign in D1 and D9 — stable, dependable results")
+            KxLabelValue("Lg / Asc", "Lagna — the ascendant, House 1")
+        }
+    }
+}
+
+/** house number -> PlanetMark list from a houses list (any lagna-based chart). */
+internal fun kxNorthMarks(
+    houses: List<HouseInfo>,
+    symbolFor: (String) -> String
+): Map<Int, List<PlanetMark>> =
+    houses.associate { h ->
+        h.number to h.planets.map { PlanetMark(it.name, symbolFor(it.name)) }
+    }
+
+/** Synthetic ApiPlanet list (sign-relative) for the South-Indian grid. */
+internal fun kxSouthPlanets(houses: List<HouseInfo>): List<ApiPlanet> {
+    val out = mutableListOf<ApiPlanet>()
+    houses.forEach { h ->
+        val signIdx = rashiNameToIndex(h.rashi)
+        h.planets.forEach { p ->
+            out.add(ApiPlanet(name = p.name, nameHi = p.nameHi, rashiIndex = signIdx, symbol = planetGlyphFallback(p.name)))
+        }
+    }
+    return out
+}
+
+internal fun kxLagnaIndex(houses: List<HouseInfo>, lagnaRashi: String): Int {
+    if (lagnaRashi.isNotBlank()) return rashiNameToIndex(lagnaRashi)
+    houses.firstOrNull { it.number == 1 }?.rashi?.let { return rashiNameToIndex(it) }
+    return 1
+}
+
+/** NI + SI chart pair for any houses-based chart. */
+@Composable
+internal fun KxChartPair(
+    houses: List<HouseInfo>,
+    lagnaRashi: String,
+    lagnaIndex: Int,
+    symbolFor: (String) -> String,
+    chartStyle: String,
+    title: String
+) {
+    if (houses.isEmpty()) {
+        KxEmpty("No chart data returned for this section.")
+        return
+    }
+    if (chartStyle == "South Indian") {
+        SouthIndianChart(
+            planets = kxSouthPlanets(houses),
+            ascendantSign = lagnaIndex,
+            chartTitle = "South Indian — $title"
+        )
+    } else {
+        VedicDiamondChart(
+            lagnaSign = lagnaIndex,
+            housePlanets = kxNorthMarks(houses, symbolFor),
+            chartTitle = "North Indian Diamond — $title"
+        )
+    }
+}
+
+/** Planet table for a houses list (name, degree, status, dignity). */
+@Composable
+internal fun KxHousePlanetTable(houses: List<HouseInfo>, symbolFor: (String) -> String) {
+    val rows = houses.sortedBy { it.number }.flatMap { h ->
+        h.planets.map { p -> Triple(h.number, h.rashi, p) }
+    }
+    if (rows.isEmpty()) {
+        KxEmpty("No planet placements returned for this chart.")
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        rows.forEach { (house, rashi, p) ->
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Text(
+                            symbolFor(p.name).ifBlank { planetGlyphFallback(p.name) },
+                            color = SacredGold, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(p.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(
+                                "$rashi · House $house" + if (p.deg.isNotBlank()) " · ${p.deg}" else "",
+                                color = TextSecondary, fontSize = 11.sp
+                            )
+                        }
+                    }
+                    if (p.status.isNotBlank()) {
+                        Surface(color = SacredGold.copy(alpha = 0.14f), shape = RoundedCornerShape(8.dp)) {
+                            Text(
+                                p.status, color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Lazy report state renderer (Personality / BNN / Lal Kitab / Jaimini)
+// ---------------------------------------------------------------------------
+
+@Composable
+internal fun KxReportState(
+    state: ReportUiState,
+    tabIndex: Int,
+    onRetry: () -> Unit,
+    summaryText: String = ""
+) {
+    when {
+        state.loading -> {
+            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = SacredGold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Loading the full report from our servers…", color = TextSecondary, fontSize = 13.sp)
+                }
+            }
+        }
+        state.error != null -> {
+            CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = InauspiciousRed.copy(alpha = 0.4f)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text(state.error, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onRetry,
+                        colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Retry", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            if (summaryText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                KxSectionTitle("Summary")
+                KxAnalysisTextBlock(summaryText)
+            }
+        }
+        state.data != null -> {
+            val text = state.data.bestText()
+            if (text.isBlank()) {
+                KxEmpty("The server returned an empty report for this chart.")
+            } else {
+                KxAnalysisTextBlock(text)
+            }
+        }
+        else -> {
+            if (summaryText.isNotBlank()) KxAnalysisTextBlock(summaryText)
+            else KxEmpty("Report not loaded yet.")
+        }
+    }
+}
+
+@Composable
+internal fun KxJaiminiState(
+    state: JaiminiUiState,
+    tabIndex: Int,
+    onRetry: () -> Unit,
+    content: @Composable (JaiminiData) -> Unit
+) {
+    when {
+        state.loading -> {
+            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = SacredGold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("Loading Jaimini data from our servers…", color = TextSecondary, fontSize = 13.sp)
+                }
+            }
+        }
+        state.error != null -> {
+            CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = InauspiciousRed.copy(alpha = 0.4f)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text(state.error, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onRetry,
+                        colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Retry", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        state.data != null -> content(state.data)
+        else -> KxEmpty("Jaimini data not loaded yet.")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 1 — Birth Info (+ Lucky Elements)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.birthInfoTab(kundali: KundaliResponse?) {
+    item { KxSectionTitle("Birth Info") }
+    if (kundali == null) {
+        item { KxEmpty("No chart data available.") }
+        return
+    }
+    val birth = kundali.birth
+    val meta = kundali.meta
+    val lagna = kundali.lagna
+
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Seeker Profile", color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (birth.name.isNotBlank()) KxLabelValue("Name", birth.name)
+                if (birth.year > 0) KxLabelValue(
+                    "Date of Birth",
+                    "%02d-%02d-%04d".format(birth.day, birth.month, birth.year)
+                )
+                if (birth.hour > 0 || birth.minute > 0) KxLabelValue(
+                    "Time of Birth",
+                    "%02d:%02d".format(birth.hour, birth.minute)
+                )
+                if (birth.place.isNotBlank()) KxLabelValue("Birth Place", birth.place)
+                if (birth.gender.isNotBlank()) KxLabelValue(
+                    "Gender", birth.gender.replaceFirstChar { it.uppercase() }
+                )
+                if (meta.ayanamsa.isNotBlank()) KxLabelValue(
+                    "Ayanamsa", meta.ayanamsa.replaceFirstChar { it.uppercase() }
+                )
+            }
+        }
+    }
+
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Lagna & Moon", color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                KxLabelValue(
+                    "Lagna",
+                    "${lagna.rashi.ifBlank { meta.lagnaEn }}${if (lagna.rashiHi.isNotBlank()) " (${lagna.rashiHi})" else ""} · Lord ${lagna.lord} · ${lagna.deg}°${lagna.min}'"
+                )
+                if (meta.moonSignEn.isNotBlank() || meta.moonSign.isNotBlank())
+                    KxLabelValue("Moon Sign", meta.moonSignEn.ifBlank { meta.moonSign })
+                if (meta.nakshatra.isNotBlank())
+                    KxLabelValue("Nakshatra", "${meta.nakshatra}${if (meta.nakshatraPada > 0) " · Pada ${meta.nakshatraPada}" else ""}")
+                kundali.navamshaLagna?.let { d9 ->
+                    if (d9.rashi.isNotBlank()) KxLabelValue("Navamsha Lagna", d9.rashi)
+                }
+            }
+        }
+    }
+
+    item { KxSectionTitle("Lucky Elements") }
+    item {
+        val lagnaIdx = kundali.lagnaSignIndex()
+        val lucky = luckyElementsFor(lagnaIdx, lagna.lord)
+        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Derived from your Lagna (${lagna.rashi.ifBlank { meta.lagnaEn }})",
+                    color = TextSecondary, fontSize = 11.sp
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(luckySwatch(lagnaIdx))
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text("Lucky Colour", color = TextSecondary, fontSize = 11.sp)
+                        Text(lucky.color, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Lucky Number", color = TextSecondary, fontSize = 11.sp)
+                        Text("${lucky.number}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    }
+                    Column(modifier = Modifier.weight(2f)) {
+                        Text("Lucky Gemstone", color = TextSecondary, fontSize = 11.sp)
+                        Text(lucky.gemstone, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Approximate swatch colour per lagna rashi for the lucky-colour dot. */
+private fun luckySwatch(rashiIndex: Int): Color = when (rashiIndex) {
+    1, 8 -> Color(0xFFEF4444)
+    2, 7 -> Color(0xFFF8FAFC)
+    3, 6 -> Color(0xFF10B981)
+    4 -> Color(0xFFE2E8F0)
+    5 -> Color(0xFFFFB300)
+    9, 12 -> Color(0xFFFACC15)
+    10 -> Color(0xFF1E3A8A)
+    11 -> Color(0xFF7C3AED)
+    else -> SacredGold
+}
+
+// ---------------------------------------------------------------------------
+// Tab 2 — Birth Chart (D1): existing chartsTab + legend, pills, graha detail,
+// D1 analysis, Sade Sati strip, current-transits strip
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.birthChartTab(
+    viewModel: KundaliViewModel,
+    kundali: KundaliResponse?,
+    selectedDiv: String,
+    chartStyle: String
+) {
+    chartsTab(viewModel, kundali, selectedDiv, chartStyle)
+
+    item { Spacer(modifier = Modifier.height(2.dp)) }
+    item { KxSectionTitle("Chart Legend") }
+    item { KxLegendCard() }
+
+    kundali?.analysisTabs?.ppills?.takeIf { it.isNotBlank() }?.let { pills ->
+        item { KxSectionTitle("Planet Pills") }
+        item {
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Text(pills, color = StarlightWhite.copy(alpha = 0.88f), fontSize = 13.sp, lineHeight = 22.sp)
+            }
+        }
+    }
+
+    kundali?.analysisTabs?.grahaDetail?.takeIf { it.isNotBlank() }?.let { detail ->
+        item { KxSectionTitle("Graha Detail") }
+        item { KxAnalysisTextBlock(detail) }
+    }
+
+    kundali?.analysisTabs?.d1Analysis?.takeIf { it.isNotBlank() }?.let { analysis ->
+        item { KxSectionTitle("D1 Analysis") }
+        item { KxAnalysisTextBlock(analysis) }
+    }
+
+    kundali?.saturnTransit?.takeIf { it.active }?.let { st ->
+        item { KxSectionTitle("Saturn Transit Alert") }
+        item { KxSaturnAlertCard(st) }
+    }
+
+    if (!kundali?.currentTransits.isNullOrEmpty()) {
+        item { KxSectionTitle("Current Transits (Gochar)") }
+        item { KxTransitsStrip(kundali!!.currentTransits) }
+    }
+}
+
+@Composable
+internal fun KxSaturnAlertCard(st: SaturnTransit) {
+    CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = InauspiciousRed.copy(alpha = 0.5f)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("♄", color = InauspiciousRed, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    st.nameEn.ifBlank { "Saturn Transit Active" },
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (st.descriptionEn.isNotBlank()) {
+                Text(st.descriptionEn, color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 19.sp)
+            }
+            if (st.phase.isNotBlank() || st.type.isNotBlank()) {
+                Text(
+                    listOf(st.type, st.phase).filter { it.isNotBlank() }.joinToString(" · ")
+                        .replaceFirstChar { it.uppercase() },
+                    color = InauspiciousRed, fontSize = 11.sp, fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun KxTransitsStrip(transits: Map<String, TransitInfo>) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(transits.entries.toList()) { (planet, t) ->
+            CosmicCard(modifier = Modifier.width(190.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            planetGlyphFallback(planet), color = SacredGold,
+                            fontSize = 16.sp, fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(planet, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        if (t.retro) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("(R)", color = NeutralBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Text(
+                        "${rashiGlyph(rashiNameToIndex(t.rashi))} ${t.rashi}",
+                        color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp
+                    )
+                    if (t.natalMoonHouse > 0) {
+                        Text(
+                            "House ${t.natalMoonHouse} from Moon",
+                            color = TextSecondary, fontSize = 11.sp
+                        )
+                    }
+                    if (t.transitFocus.isNotBlank()) {
+                        Text(t.transitFocus, color = RadiantAmber, fontSize = 11.sp, lineHeight = 16.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 3 — Navamsha (D9)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.navamshaTab(kundali: KundaliResponse?, chartStyle: String) {
+    item { KxSectionTitle("Navamsha (D9) — Chart of Marriage & Inner Strength") }
+    if (kundali == null || kundali.d9Houses.isEmpty()) {
+        item { KxEmpty("No Navamsha data returned for this chart.") }
+        return
+    }
+    val symbolFor: (String) -> String = { kundali.symbolFor(it) }
+    item {
+        KxChartPair(
+            houses = kundali.d9Houses,
+            lagnaRashi = kundali.navamshaLagna?.rashi ?: "",
+            lagnaIndex = kundali.navamshaLagnaIndex(),
+            symbolFor = symbolFor,
+            chartStyle = chartStyle,
+            title = "Navamsha Chart (D9)"
+        )
+    }
+    item { KxLegendCard() }
+    item { KxSectionTitle("D9 Planet Placements") }
+    item { KxHousePlanetTable(kundali.d9Houses, symbolFor) }
+    kundali.analysisTabs?.d9Analysis?.takeIf { it.isNotBlank() }?.let { analysis ->
+        item { KxSectionTitle("D9 Analysis") }
+        item { KxAnalysisTextBlock(analysis) }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 4 — Karakamsha (Jaimini)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.karakamshaTab(
+    state: JaiminiUiState,
+    onRetry: () -> Unit,
+    chartStyle: String
+) {
+    item { KxSectionTitle("Karakamsha — Seat of the Soul's Desire") }
+    item {
+        KxJaiminiState(state, 3, onRetry) { data ->
+            KarakamshaContent(data, chartStyle)
+        }
+    }
+}
+
+@Composable
+private fun KarakamshaContent(data: JaiminiData, chartStyle: String) {
+    val kk = data.karakamsha
+    val akPlanet = kk?.akPlanet ?: data.karakas?.details?.ak?.name ?: ""
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Jaimini Karakamsha", color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "The Atmakaraka${if (akPlanet.isNotBlank()) " ($akPlanet)" else ""} is the soul significator. " +
+                        "The Navamsha sign it occupies becomes the Karakamsha Lagna — " +
+                        "the chart of the soul's deepest desires.",
+                    color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 19.sp
+                )
+                if (kk != null && kk.signEn.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(color = SacredGold.copy(alpha = 0.16f), shape = RoundedCornerShape(10.dp)) {
+                        Text(
+                            "Karakamsha Lagna: ${kk.signEn}${if (kk.signHi.isNotBlank()) " (${kk.signHi})" else ""}",
+                            color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        val houses = data.karakamshaHouses
+        if (houses.isNotEmpty()) {
+            val lgHouse = houses.firstOrNull { it.isLg }
+            val lagnaIdx = (lgHouse?.ri ?: (kk?.signIdx ?: 0)) + 1
+            val symbolFor: (String) -> String = { planetGlyphFallback(it) }
+            val houseInfos = houses.sortedBy { it.n }.map { h ->
+                HouseInfo(
+                    number = h.n,
+                    rashi = h.r?.en ?: "",
+                    rashiHi = h.r?.hi ?: "",
+                    planets = h.pl.map { p -> HousePlanet(name = p.en, nameHi = p.hi) }
+                )
+            }
+            if (chartStyle == "South Indian") {
+                val siPlanets = mutableListOf<ApiPlanet>()
+                houses.forEach { h ->
+                    h.pl.forEach { p ->
+                        siPlanets.add(ApiPlanet(name = p.en, nameHi = p.hi, symbol = p.sym.ifBlank { planetGlyphFallback(p.en) }, rashiIndex = h.ri + 1))
+                    }
+                }
+                SouthIndianChart(planets = siPlanets, ascendantSign = lagnaIdx, chartTitle = "South Indian — Karakamsha")
+            } else {
+                VedicDiamondChart(
+                    lagnaSign = lagnaIdx,
+                    housePlanets = houseInfos.associate { hi ->
+                        hi.number to hi.planets.map { p -> PlanetMark(p.name, symbolFor(p.name)) }
+                    },
+                    chartTitle = "North Indian Diamond — Karakamsha"
+                )
+            }
+            KxLegendCard()
+
+            Text("House-by-House Analysis", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            houses.sortedBy { it.n }.forEach { h ->
+                CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "House ${h.n} · ${h.r?.en ?: ""}${if (!h.r?.hi.isNullOrBlank()) " (${h.r?.hi})" else ""}",
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                            )
+                            if (h.isLg) {
+                                Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
+                                    Text(
+                                        "Karakamsha Lagna", color = CosmicDeepBlue, fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                        if (h.pl.isNotEmpty()) {
+                            Text(
+                                h.pl.joinToString(" · ") { "${it.sym.ifBlank { planetGlyphFallback(it.en) }} ${it.en}" },
+                                color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                            )
+                        } else {
+                            Text("No planets", color = TextSecondary, fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+        } else {
+            KxEmpty("Karakamsha house data not returned for this chart.")
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tabs 5/6/7 — Chandra Lagna, Surya Lagna, Chalit (generic lagna-chart tab)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.lagnaChartTab(
+    title: String,
+    subtitle: String,
+    chart: ChartData?,
+    kundali: KundaliResponse?,
+    chartStyle: String,
+    analysisText: String = ""
+) {
+    item { KxSectionTitle(title) }
+    if (!subtitle.isBlank()) {
+        item { Text(subtitle, color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp) }
+    }
+    if (chart == null || chart.houses.isEmpty()) {
+        item { KxEmpty("No $title data returned for this chart.") }
+        return
+    }
+    val symbolFor: (String) -> String = { kundali?.symbolFor(it) ?: planetGlyphFallback(it) }
+    item {
+        KxChartPair(
+            houses = chart.houses,
+            lagnaRashi = chart.lagnaRashi,
+            lagnaIndex = chart.lagnaSignIndex(),
+            symbolFor = symbolFor,
+            chartStyle = chartStyle,
+            title = title
+        )
+    }
+    item { KxLegendCard() }
+    item { KxSectionTitle("Planet Placements") }
+    item { KxHousePlanetTable(chart.houses, symbolFor) }
+    if (analysisText.isNotBlank()) {
+        item { KxSectionTitle("Analysis") }
+        item { KxAnalysisTextBlock(analysisText) }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 8 — Divisional (all vargas D1–D60)
+// ---------------------------------------------------------------------------
+
+/** Standard varga significations (reference knowledge). */
+internal val VARGA_MEANINGS = mapOf(
+    "D1" to "Lagna — body, self and the overall arc of life",
+    "D2" to "Hora — wealth, family and accumulated resources",
+    "D3" to "Drekkana — siblings, courage, vitality and initiative",
+    "D4" to "Chaturthamsha — property, mother, home and happiness",
+    "D7" to "Saptamsha — children, progeny and creativity",
+    "D9" to "Navamsha — marriage, dharma and inner strength",
+    "D10" to "Dashamsha — career, profession and status",
+    "D12" to "Dvadashamsha — parents, lineage and ancestry",
+    "D16" to "Shodashamsha — vehicles, comforts and luxuries",
+    "D20" to "Vimshamsha — spiritual progress and sadhana",
+    "D24" to "Chaturvimshamsha — education, learning and intellect",
+    "D27" to "Bhamsha — inherent strengths and weaknesses",
+    "D30" to "Trimshamsha — misfortunes, protection and resilience",
+    "D40" to "Khavedamsha — maternal legacy and inheritance",
+    "D45" to "Akshavedamsha — paternal legacy and inheritance",
+    "D60" to "Shashtiamsha — past-life karma and the finest detail"
+)
+
+private fun vargaSortKey(code: String): Int =
+    code.filter { it.isDigit() }.toIntOrNull() ?: 999
+
+internal fun LazyListScope.divisionalTab(
+    kundali: KundaliResponse?,
+    viewModel: KundaliViewModel,
+    selectedDiv: String,
+    chartStyle: String
+) {
+    item { KxSectionTitle("Divisional Charts — Vargas D1 to D60") }
+    if (kundali == null) {
+        item { KxEmpty("No chart data available.") }
+        return
+    }
+    val vargas = if (kundali.allDivisionalCharts.isNotEmpty()) kundali.allDivisionalCharts else kundali.divisionalCharts
+    if (vargas.isEmpty()) {
+        item { KxEmpty("No divisional chart data returned for this chart.") }
+        return
+    }
+    val codes = vargas.keys.sortedBy(::vargaSortKey)
+    val active = codes.firstOrNull { it.equals(selectedDiv, ignoreCase = true) } ?: codes.first()
+
+    item {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(codes) { code ->
+                val isSelected = code.equals(active, ignoreCase = true)
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isSelected) SacredGold else CosmicCharcoal,
+                    modifier = Modifier.clickable { viewModel.selectDivisional(code) }
+                ) {
+                    Text(
+                        text = code,
+                        color = if (isSelected) CosmicDeepBlue else Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    val varga = vargas[active] ?: vargas[codes.first()]!!
+    val symbolFor: (String) -> String = { kundali.symbolFor(it) }
+
+    item {
+        KxChartPair(
+            houses = varga.houses,
+            lagnaRashi = varga.lagnaRashi,
+            lagnaIndex = kxLagnaIndex(varga.houses, varga.lagnaRashi),
+            symbolFor = symbolFor,
+            chartStyle = chartStyle,
+            title = varga.title.ifBlank { "$active Chart" }
+        )
+    }
+    item { KxLegendCard() }
+
+    item { KxSectionTitle("Significance of $active") }
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    varga.title.ifBlank { active },
+                    color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                )
+                Text(
+                    VARGA_MEANINGS[active.uppercase()] ?: "A divisional chart refining the promises of the birth chart.",
+                    color = StarlightWhite.copy(alpha = 0.88f), fontSize = 13.sp, lineHeight = 20.sp
+                )
+                val lagnaTxt = varga.lagnaRashi.ifBlank {
+                    varga.houses.firstOrNull { it.number == 1 }?.rashi ?: ""
+                }
+                if (lagnaTxt.isNotBlank()) {
+                    Text("$active Lagna: $lagnaTxt", color = TextSecondary, fontSize = 12.sp)
+                }
+                val placed = varga.houses.flatMap { h -> h.planets.map { it.name } }.distinct()
+                if (placed.isNotEmpty()) {
+                    Text(
+                        "Planets placed: " + placed.joinToString(", "),
+                        color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 11 — Sodasvarga (16-varga table)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.sodasvargaTab(kundali: KundaliResponse?) {
+    item { KxSectionTitle("Sodasvarga — 16 Vargas × Planets") }
+    val sv = kundali?.sodasvarga
+    if (sv.isNullOrEmpty()) {
+        item { KxEmpty("No Sodasvarga data returned for this chart.") }
+        return
+    }
+    val vargaCodes = sv.keys.sortedBy(::vargaSortKey)
+    // Planet order follows the birth chart when possible
+    val chartOrder = kundali?.planets?.map { it.name }?.filter { it.isNotBlank() } ?: emptyList()
+    val planetNames = (chartOrder + sv.values.flatten().map { it.name }.distinct())
+        .distinct().filter { it.isNotBlank() }
+    if (planetNames.isEmpty()) {
+        item { KxEmpty("No Sodasvarga data returned for this chart.") }
+        return
+    }
+    item {
+        Text(
+            "Each cell shows the sign a planet occupies in that varga.",
+            color = TextSecondary, fontSize = 11.sp
+        )
+    }
+    item {
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            Column {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .background(CosmicCharcoal, RoundedCornerShape(10.dp))
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.width(96.dp).padding(horizontal = 4.dp)) {
+                        Text("GRAHA", color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    vargaCodes.forEach { code ->
+                        Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                            Text(code, color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                planetNames.forEachIndexed { index, planet ->
+                    val bg = if (index % 2 == 0) Color.Transparent else CosmicCharcoal.copy(alpha = 0.45f)
+                    Row(
+                        modifier = Modifier
+                            .background(bg, RoundedCornerShape(8.dp))
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.width(96.dp).padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                planetGlyphFallback(planet), color = SacredGold,
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(planet, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        vargaCodes.forEach { code ->
+                            val entry = sv[code]?.firstOrNull { it.name.equals(planet, ignoreCase = true) }
+                            Box(modifier = Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    val rashi = entry?.rashi ?: ""
+                                    Text(
+                                        rashiGlyph(rashiNameToIndex(rashi)).takeIf { rashi.isNotBlank() } ?: "—",
+                                        color = if (rashi.isNotBlank()) Color.White else TextSecondary.copy(alpha = 0.4f),
+                                        fontSize = 15.sp, fontWeight = FontWeight.Bold
+                                    )
+                                    if (rashi.isNotBlank()) {
+                                        Text(rashi.take(3), color = TextSecondary, fontSize = 8.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text("Scroll horizontally to see all 16 vargas.", color = TextSecondary, fontSize = 11.sp)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 14 — Personality (lazy: POST /kundali/personality)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.personalityTab(
+    kundali: KundaliResponse?,
+    state: ReportUiState,
+    onRetry: () -> Unit
+) {
+    item { KxSectionTitle("Personality — Five-Chart Combined Analysis") }
+    item {
+        KxReportState(
+            state = state,
+            tabIndex = 13,
+            onRetry = onRetry,
+            summaryText = kundali?.analysisTabs?.personality ?: ""
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 15 — Planets (12-column website table)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.planetsFullTab(kundali: KundaliResponse?) {
+    item { KxSectionTitle("Grahas — Complete 12-Column Table") }
+    val planets = kundali?.planets
+        ?.filter { it.name.isNotBlank() }
+        ?.sortedBy { it.house } ?: emptyList()
+    if (planets.isEmpty()) {
+        item { KxEmpty("No planetary data returned for this chart.") }
+        return
+    }
+    item {
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .background(CosmicCharcoal, RoundedCornerShape(10.dp))
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    KxTableCell("PLANET", 118, isHeader = true)
+                    KxTableCell("SYMBOL", 62, isHeader = true)
+                    KxTableCell("SIGN", 104, isHeader = true)
+                    KxTableCell("DEGREE", 76, isHeader = true)
+                    KxTableCell("DMS", 96, isHeader = true)
+                    KxTableCell("NAKSHATRA", 128, isHeader = true)
+                    KxTableCell("PADA", 48, isHeader = true)
+                    KxTableCell("NAK. LORD", 96, isHeader = true)
+                    KxTableCell("HOUSE", 58, isHeader = true)
+                    KxTableCell("D9 SIGN", 96, isHeader = true)
+                    KxTableCell("D9 HOUSE", 70, isHeader = true)
+                    KxTableCell("STATUS", 170, isHeader = true)
+                }
+                planets.forEachIndexed { index, planet ->
+                    val bg = if (index % 2 == 0) Color.Transparent else CosmicCharcoal.copy(alpha = 0.45f)
+                    Row(
+                        modifier = Modifier
+                            .background(bg, RoundedCornerShape(8.dp))
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Planet
+                        Column(modifier = Modifier.width(118.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            val hi = planet.nameHi.ifBlank { planetHindiFallback(planet.name) }
+                            if (hi.isNotBlank()) Text(hi, color = TextSecondary, fontSize = 10.sp)
+                        }
+                        // Symbol
+                        Box(modifier = Modifier.width(62.dp), contentAlignment = Alignment.Center) {
+                            Text(
+                                planet.symbol.ifBlank { planetGlyphFallback(planet.name) },
+                                color = SacredGold, fontSize = 18.sp, fontWeight = FontWeight.Bold
+                            )
+                        }
+                        // Sign
+                        Column(modifier = Modifier.width(104.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.rashi, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            if (planet.rashiHi.isNotBlank()) Text(planet.rashiHi, color = TextSecondary, fontSize = 10.sp)
+                        }
+                        // Degree
+                        Box(modifier = Modifier.width(76.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.degreeFormatted(), color = Color.White, fontSize = 12.sp)
+                        }
+                        // DMS
+                        Box(modifier = Modifier.width(96.dp).padding(horizontal = 4.dp)) {
+                            Text(
+                                "${planet.deg}°${planet.min}'${planet.sec}\"",
+                                color = Color.White, fontSize = 12.sp
+                            )
+                        }
+                        // Nakshatra
+                        Box(modifier = Modifier.width(128.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.nakshatra.ifBlank { "—" }, color = Color.White, fontSize = 12.sp)
+                        }
+                        // Pada
+                        Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
+                            Text(if (planet.pada > 0) "${planet.pada}" else "—", color = RadiantAmber, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        // Nakshatra lord
+                        Box(modifier = Modifier.width(96.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.nakshatraLord.ifBlank { "—" }, color = Color.White, fontSize = 12.sp)
+                        }
+                        // House
+                        Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.Center) {
+                            Text("${planet.house}", color = RadiantAmber, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        // D9 sign
+                        Box(modifier = Modifier.width(96.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.d9Rashi.ifBlank { "—" }, color = Color.White, fontSize = 12.sp)
+                        }
+                        // D9 house
+                        Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.Center) {
+                            Text(if (planet.d9House > 0) "${planet.d9House}" else "—", color = Color.White, fontSize = 12.sp)
+                        }
+                        // Status chips
+                        Column(
+                            modifier = Modifier.width(170.dp).padding(horizontal = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            val chips = planet.dignityChips().toMutableList()
+                            if (planet.isRetrograde() && !chips.contains("Retrograde")) chips.add("Retrograde")
+                            if (planet.combust && !chips.contains("Combust")) chips.add("Combust")
+                            if (chips.isEmpty()) {
+                                Text(planet.status.ifBlank { "—" }, color = TextSecondary, fontSize = 11.sp)
+                            } else {
+                                Row(
+                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    chips.forEach { chip -> KxDignityChip(chip) }
+                                }
+                                if (planet.status.isNotBlank() && !chips.any { planet.status.contains(it, ignoreCase = true) }) {
+                                    Text(planet.status, color = TextSecondary, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text("Scroll horizontally to see all 12 columns.", color = TextSecondary, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun KxTableCell(text: String, widthDp: Int, isHeader: Boolean = false) {
+    Box(modifier = Modifier.width(widthDp.dp).padding(horizontal = 4.dp)) {
+        Text(
+            text = text,
+            color = if (isHeader) SacredGold else Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun KxDignityChip(label: String) {
+    val color = when (label.lowercase()) {
+        "exalted" -> Color(0xFF10B981)
+        "debilitated", "combust" -> Color(0xFFEF4444)
+        "own sign", "yogakaraka", "vargottama" -> SacredGold
+        "retrograde" -> Color(0xFF38BDF8)
+        else -> TextSecondary
+    }
+    Surface(color = color.copy(alpha = 0.16f), shape = RoundedCornerShape(8.dp)) {
+        Text(
+            label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 16 — Panchang (birth)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.panchangTab(kundali: KundaliResponse?) {
+    item { KxSectionTitle("Birth Panchang") }
+    val p = kundali?.panchang
+    if (p == null) {
+        item { KxEmpty("No birth Panchang returned for this chart.") }
+    } else {
+        item {
+            CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Panchang at Birth", color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    if (p.tithi.isNotBlank())
+                        KxLabelValue("Tithi", "$p.tithi${if (p.tithiNum > 0) " · ${p.tithiNum}/30" else ""}")
+                    if (p.paksha.isNotBlank()) KxLabelValue("Paksha", p.paksha)
+                    if (p.vara.isNotBlank()) KxLabelValue("Vara (Weekday)", p.vara)
+                    if (p.nakshatra.isNotBlank()) KxLabelValue(
+                        "Nakshatra",
+                        "${p.nakshatra}${if (p.nakshatraHi.isNotBlank()) " (${p.nakshatraHi})" else ""}" +
+                            "${if (p.pada > 0) " · Pada ${p.pada}" else ""}" +
+                            "${if (p.nakshatraLord.isNotBlank()) " · Lord ${p.nakshatraLord}" else ""}"
+                    )
+                    if (p.yoga.isNotBlank()) KxLabelValue("Yoga", p.yoga)
+                    if (p.karana.isNotBlank()) KxLabelValue("Karana", p.karana)
+                    if (p.sunRashi.isNotBlank()) KxLabelValue("Sun Rashi", p.sunRashi)
+                    if (p.moonRashi.isNotBlank()) KxLabelValue("Moon Rashi (Rashi)", p.moonRashi)
+                }
+            }
+        }
+    }
+    kundali?.analysisTabs?.panchang?.takeIf { it.isNotBlank() }?.let { text ->
+        item { KxSectionTitle("Panchang Analysis") }
+        item { KxAnalysisTextBlock(text) }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 17 — Shadbal (Shadbala + Bhavabala + Vimshopaka)
+// ---------------------------------------------------------------------------
+
+private val SHADBALA_COLS = listOf(
+    "sthana" to "Sthana",
+    "dig" to "Dig",
+    "kala" to "Kala",
+    "chesta" to "Cheshta",
+    "naisargika" to "Naisargika",
+    "drik" to "Drik"
+)
+
+internal fun LazyListScope.shadbalTab(kundali: KundaliResponse?) {
+    item { KxSectionTitle("Shadbal — Planetary & House Strength") }
+    val sb = kundali?.shadbala
+    if (sb == null || sb.shadbala.isNullOrEmpty()) {
+        item { KxEmpty("No Shadbala data returned for this chart.") }
+    } else {
+        val shadbalaMap: Map<String, Map<String, Any>> = sb.shadbala ?: emptyMap()
+        val order = kundali?.planets?.map { it.name }?.filter { it.isNotBlank() } ?: emptyList()
+        val planets = (order + (shadbalaMap.keys - order.toSet())).distinct()
+        item { KxSectionTitle("Shadbala — Six Strengths (in Rupas)") }
+        item {
+            Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                Column {
+                    Row(
+                        modifier = Modifier.background(CosmicCharcoal, RoundedCornerShape(10.dp))
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        KxTableCell("GRAHA", 100, isHeader = true)
+                        SHADBALA_COLS.forEach { (_, label) -> KxTableCell(label.uppercase(), 84, isHeader = true) }
+                        KxTableCell("TOTAL", 84, isHeader = true)
+                        KxTableCell("VERDICT", 110, isHeader = true)
+                    }
+                    planets.forEachIndexed { index, planet ->
+                        val m = shadbalaMap[planet] ?: shadbalaMap.entries
+                            .firstOrNull { it.key.equals(planet, ignoreCase = true) }?.value
+                        val bg = if (index % 2 == 0) Color.Transparent else CosmicCharcoal.copy(alpha = 0.45f)
+                        Row(
+                            modifier = Modifier.background(bg, RoundedCornerShape(8.dp))
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(modifier = Modifier.width(100.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(planetGlyphFallback(planet), color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(planet, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            SHADBALA_COLS.forEach { (key, _) ->
+                                Box(modifier = Modifier.width(84.dp), contentAlignment = Alignment.Center) {
+                                    Text(anyToDisplay(m?.get(key)), color = Color.White, fontSize = 12.sp)
+                                }
+                            }
+                            val total = (m?.get("total_rupa") as? Number)?.toDouble()
+                                ?: (m?.get("total") as? Number)?.toDouble()
+                            Box(modifier = Modifier.width(84.dp), contentAlignment = Alignment.Center) {
+                                Text(
+                                    total?.let { "%.2f".format(it) } ?: anyToDisplay(m?.get("total_rupa")),
+                                    color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold
+                                )
+                            }
+                            val sufficient = m?.get("sufficient") as? Boolean
+                            val minReq = (m?.get("min_required") as? Number)?.toDouble()
+                            Box(modifier = Modifier.width(110.dp), contentAlignment = Alignment.Center) {
+                                when {
+                                    sufficient == true -> KxVerdictChip("Strong", AuspiciousGreen)
+                                    sufficient == false -> KxVerdictChip("Weak", InauspiciousRed)
+                                    total != null && minReq != null ->
+                                        KxVerdictChip(
+                                            if (total >= minReq) "Strong" else "Weak",
+                                            if (total >= minReq) AuspiciousGreen else InauspiciousRed
+                                        )
+                                    else -> Text("—", color = TextSecondary, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Scroll horizontally to see all six strengths.", color = TextSecondary, fontSize = 11.sp)
+        }
+
+        if (!sb.bhavabala.isNullOrEmpty()) {
+            item { KxSectionTitle("Bhavabala — House Strengths") }
+            items(sb.bhavabala.entries.sortedBy { it.key.toIntOrNull() ?: 99 }) { (house, m) ->
+                CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("House $house", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            val lord = anyToDisplay(m["lord"])
+                            if (lord.isNotBlank()) Text("Lord: $lord", color = TextSecondary, fontSize = 11.sp)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                anyToDisplay(m["total"]).ifBlank { anyToDisplay(m["score"]) },
+                                color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 15.sp
+                            )
+                            val sav = anyToDisplay(m["sav"])
+                            if (sav.isNotBlank()) Text("SAV $sav", color = TextSecondary, fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!sb.vimshopaka.isNullOrEmpty()) {
+            item { KxSectionTitle("Vimshopaka — Varga Dignity Score (out of 20)") }
+            items(sb.vimshopaka.entries.toList()) { (planet, m) ->
+                val total = (m["total"] as? Number)?.toDouble() ?: 0.0
+                val outOf = (m["out_of"] as? Number)?.toDouble() ?: 20.0
+                val pct = (m["percent"] as? Number)?.toDouble() ?: if (outOf > 0) total / outOf * 100 else 0.0
+                CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(planetGlyphFallback(planet), color = SacredGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(planet, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            Text(
+                                "${anyToDisplay(m["total"])} / ${anyToDisplay(m["out_of"])}",
+                                color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = (pct / 100.0).toFloat().coerceIn(0f, 1f),
+                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                            color = if (pct >= 50) AuspiciousGreen else if (pct >= 30) SacredGold else InauspiciousRed,
+                            trackColor = CosmicCharcoal
+                        )
+                    }
+                }
+            }
+        }
+    }
+    kundali?.analysisTabs?.shadbal?.takeIf { it.isNotBlank() }?.let { text ->
+        item { KxSectionTitle("Shadbal Analysis") }
+        item { KxAnalysisTextBlock(text) }
+    }
+}
+
+@Composable
+private fun KxVerdictChip(label: String, color: Color) {
+    Surface(color = color.copy(alpha = 0.16f), shape = RoundedCornerShape(8.dp)) {
+        Text(
+            label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 18 — Bhrigu Nadi (lazy: POST /kundali/bnn)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.bnnTab(
+    kundali: KundaliResponse?,
+    state: ReportUiState,
+    onRetry: () -> Unit
+) {
+    item { KxSectionTitle("Bhrigu Nandi Nadi — Venus · Jupiter · Saturn Triangle") }
+    item {
+        KxReportState(
+            state = state,
+            tabIndex = 17,
+            onRetry = onRetry,
+            summaryText = kundali?.analysisTabs?.bnn ?: ""
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 19 — Lal Kitab (lazy: POST /kundali/lal-kitab, full report)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.lalKitabFullTab(
+    kundali: KundaliResponse?,
+    state: ReportUiState,
+    onRetry: () -> Unit
+) {
+    item { KxSectionTitle("Lal Kitab — Complete Analysis & Remedies") }
+    val summary = kundali?.lalKitab
+    if (summary != null && (summary.note.isNotBlank() || summary.yogas.isNotEmpty())) {
+        if (summary.lagnaRashi.isNotBlank()) {
+            item {
+                CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+                    Text(
+                        "Lal Kitab Lagna: ${summary.lagnaRashi}",
+                        color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                    )
+                }
+            }
+        }
+    }
+    item {
+        KxReportState(state = state, tabIndex = 18, onRetry = onRetry)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 20 — Numerology (embedded hub link, birth data pre-filled)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.numerologyTab(
+    kundali: KundaliResponse?,
+    onOpenNumerology: () -> Unit
+) {
+    item { KxSectionTitle("Numerology — Ank Jyotish") }
+    item {
+        Text(
+            "Your numerology is computed from the same birth details as this Kundali.",
+            color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp
+        )
+    }
+    if (kundali == null) {
+        item { KxEmpty("No chart data available.") }
+        return
+    }
+    val birth = kundali.birth
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Birth Details for Numerology", color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (birth.name.isNotBlank()) KxLabelValue("Name", birth.name)
+                if (birth.year > 0) KxLabelValue(
+                    "Date of Birth",
+                    "%04d-%02d-%02d".format(birth.year, birth.month, birth.day)
+                )
+                val dobApi = "%04d-%02d-%02d".format(birth.year, birth.month, birth.day)
+                Spacer(modifier = Modifier.height(6.dp))
+                Button(
+                    onClick = {
+                        if (birth.year > 0) {
+                            com.omastro.app.ui.navigation.PendingNumerologyHolder.set(
+                                birth.name, dobApi
+                            )
+                        }
+                        onOpenNumerology()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        "Open Numerology Hub",
+                        color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+                Text(
+                    "Your name and birth date are carried over — no need to type them again.",
+                    color = TextSecondary, fontSize = 11.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Inside the hub", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "Life Path, Destiny, Name, Mobile, Karmic, Lucky numbers, Lo Shu grid and more — each tool opens with your details pre-filled.",
+                    color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 21 — Char Dasha / Jaimini (lazy: POST /kundali/jaimini)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.charDashaTab(
+    state: JaiminiUiState,
+    onRetry: () -> Unit
+) {
+    item { KxSectionTitle("Char Dasha — Jaimini Rashi Dashas") }
+    item {
+        KxJaiminiState(state, 20, onRetry) { data ->
+            CharDashaContent(data)
+        }
+    }
+}
+
+@Composable
+private fun CharDashaContent(data: JaiminiData) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Chara Karakas
+        val karakas = data.karakas?.details
+        if (karakas != null) {
+            Text("Chara Karakas — Seven Soul Significators", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            karakas.ordered().forEach { (label, k) ->
+                if (k != null && k.name.isNotBlank()) {
+                    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(label, color = TextSecondary, fontSize = 11.sp)
+                                Text(
+                                    "${planetGlyphFallback(k.name)} ${k.name}",
+                                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                )
+                            }
+                            Text(
+                                "${rashiGlyph(rashiNameToIndex(k.rashi))} ${k.rashi}",
+                                color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Current Char MD / AD hero
+        val curMD = data.curCharMD
+        val curAD = data.curCharAD
+        if (curMD != null && curMD.signEn.isNotBlank()) {
+            Text("Current Char Period", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Current Char Dasha", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
+                            Text(
+                                "ACTIVE", color = CosmicDeepBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    KxCharDashaRow("Mahadasha", curMD)
+                    if (curAD != null && curAD.signEn.isNotBlank()) {
+                        KxCharDashaRow("Antardasha", curAD)
+                    }
+                }
+            }
+        }
+
+        // Char Mahadasha sequence
+        if (data.charDashas.isNotEmpty()) {
+            Text(
+                "Char Mahadasha Sequence — ${data.charDashas.size} periods",
+                color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+            )
+            val curSign = curMD?.sign
+            data.charDashas.forEach { cd ->
+                val isCurrent = curSign != null && cd.sign == curSign &&
+                    cd.startJD == curMD?.startJD && cd.endJD == curMD?.endJD
+                CosmicCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    borderColor = if (isCurrent) SacredGold else Color.White.copy(alpha = 0.08f)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                            Text(
+                                rashiGlyph(cd.sign + 1), color = SacredGold,
+                                fontSize = 20.sp, fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(cd.signEn, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    if (isCurrent) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
+                                            Text(
+                                                "ACTIVE", color = CosmicDeepBlue, fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                val start = julianDayToDateString(cd.startJD)
+                                val end = julianDayToDateString(cd.endJD)
+                                Text(
+                                    if (start.isNotBlank() && end.isNotBlank()) "$start → $end" else "",
+                                    color = TextSecondary, fontSize = 11.sp
+                                )
+                            }
+                        }
+                        if (cd.years > 0) {
+                            Text(
+                                "${if (cd.years % 1.0 == 0.0) cd.years.toInt().toString() else "%.1f".format(cd.years)}y",
+                                color = RadiantAmber, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Char Antardashas
+        if (data.charAntars.isNotEmpty()) {
+            Text(
+                "Char Antardashas (current cycle)",
+                color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+            )
+            data.charAntars.forEach { ca ->
+                val isCurrent = curAD != null && ca.sign == curAD.sign &&
+                    ca.startJD == curAD.startJD && ca.endJD == curAD.endJD
+                CosmicCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    borderColor = if (isCurrent) SacredGold else Color.White.copy(alpha = 0.08f)
+                ) {
+                    KxCharDashaRow(
+                        label = if (isCurrent) "${ca.signEn} — ACTIVE" else ca.signEn,
+                        cd = ca
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KxCharDashaRow(label: String, cd: CharDasha) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, color = TextSecondary, fontSize = 10.sp)
+            Text(
+                "${rashiGlyph(cd.sign + 1)} ${cd.signEn}",
+                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            val start = julianDayToDateString(cd.startJD)
+            val end = julianDayToDateString(cd.endJD)
+            if (start.isNotBlank() && end.isNotBlank()) {
+                Text("$start → $end", color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+            if (cd.years > 0) {
+                Text(
+                    "${if (cd.years % 1.0 == 0.0) cd.years.toInt().toString() else "%.2f".format(cd.years)} years",
+                    color = TextSecondary, fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 22 — Faladesh (transit forecast + AI chat note)
+// ---------------------------------------------------------------------------
+
+internal fun LazyListScope.faladeshTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
+    item { KxSectionTitle("Faladesh — Transit-Based Forecast") }
+    item {
+        Text(
+            "Predictions from live planetary transits (Gochar) measured against your Moon sign.",
+            color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp
+        )
+    }
+    kundali?.saturnTransit?.let { st ->
+        if (st.active || st.nameEn.isNotBlank()) {
+            item { KxSectionTitle("Saturn Transit") }
+            item { KxSaturnAlertCard(st.copy(active = true)) }
+        }
+    }
+    val transits = kundali?.currentTransits ?: emptyMap()
+    if (transits.isEmpty()) {
+        item { KxEmpty("No current transit data returned for this chart.") }
+    } else {
+        item { KxSectionTitle("Current Gochar — Planet by Planet") }
+        items(transits.entries.toList()) { (planet, t) ->
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            planetGlyphFallback(planet), color = SacredGold,
+                            fontSize = 22.sp, fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(planet, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                if (t.retro) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(color = NeutralBlue.copy(alpha = 0.16f), shape = RoundedCornerShape(6.dp)) {
+                                        Text(
+                                            "Retrograde", color = NeutralBlue, fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                "${rashiGlyph(rashiNameToIndex(t.rashi))} ${t.rashi}" +
+                                    if (t.rashiDeg > 0) " · ${"%.1f".format(t.rashiDeg)}°" else "",
+                                color = TextSecondary, fontSize = 12.sp
+                            )
+                        }
+                        if (t.natalMoonHouse > 0) {
+                            Surface(color = SacredGold.copy(alpha = 0.14f), shape = RoundedCornerShape(8.dp)) {
+                                Text(
+                                    "House ${t.natalMoonHouse}\nfrom Moon",
+                                    color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                    if (t.transitFocus.isNotBlank()) {
+                        Text(
+                            t.transitFocus,
+                            color = StarlightWhite.copy(alpha = 0.88f), fontSize = 13.sp, lineHeight = 20.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Want a personalised reading of this Faladesh?",
+                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "Chat with Om Astro AI about these transits and what they mean for you.",
+                    color = TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center
+                )
+                Button(
+                    onClick = onOpenAiChat,
+                    colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        "Chat with Om Astro AI",
+                        color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 23 — Remedies (5 sub-tabs, auto-computed from chart data — no AI call)
+// ---------------------------------------------------------------------------
+
+/** Standard Vedic remedy correspondences per planet (reference data). */
+private data class PlanetRemedy(
+    val gem: String,
+    val rudraksha: String,
+    val metal: String,
+    val root: String,
+    val mantra: String,
+    val daan: String,
+    val day: String
+)
+
+private val PLANET_REMEDIES = mapOf(
+    "sun" to PlanetRemedy(
+        "Ruby (Manik)", "1 or 12 Mukhi", "Gold / Copper", "Bel (Bilva) root",
+        "Om Suryaya Namah", "Wheat, jaggery, copper vessel", "Sunday"
+    ),
+    "moon" to PlanetRemedy(
+        "Pearl (Moti)", "2 Mukhi", "Silver", "Khirni root",
+        "Om Chandraya Namah", "Rice, milk, white cloth", "Monday"
+    ),
+    "mars" to PlanetRemedy(
+        "Red Coral (Moonga)", "3 Mukhi", "Copper", "Anantmool root",
+        "Om Mangalaya Namah", "Red lentils (masoor dal)", "Tuesday"
+    ),
+    "mercury" to PlanetRemedy(
+        "Emerald (Panna)", "4 Mukhi", "Brass", "Vidhara root",
+        "Om Budhaya Namah", "Green moong, books", "Wednesday"
+    ),
+    "jupiter" to PlanetRemedy(
+        "Yellow Sapphire (Pukhraj)", "5 Mukhi", "Gold", "Banana (Kela) root",
+        "Om Gurave Namah", "Turmeric, chana dal, yellow cloth", "Thursday"
+    ),
+    "venus" to PlanetRemedy(
+        "Diamond (Heera) / Opal", "6 Mukhi", "Silver", "Sarponkha root",
+        "Om Shukraya Namah", "White sweets, rice, perfume", "Friday"
+    ),
+    "saturn" to PlanetRemedy(
+        "Blue Sapphire (Neelam)", "7 Mukhi", "Iron / Steel", "Shami root",
+        "Om Sham Shanicharaya Namah", "Black sesame, mustard oil", "Saturday"
+    ),
+    "rahu" to PlanetRemedy(
+        "Hessonite (Gomed)", "8 Mukhi", "Lead", "Durva grass",
+        "Om Rahave Namah", "Black blanket, black sesame", "Saturday"
+    ),
+    "ketu" to PlanetRemedy(
+        "Cat's Eye (Lehsunia)", "9 Mukhi", "", "Kusha (Darbha) grass",
+        "Om Ketave Namah", "Feed dogs, donate blankets", "Tuesday"
+    )
+)
+
+private fun remedyKey(planetName: String): String {
+    val n = planetName.lowercase().trim()
+    return when {
+        n.startsWith("sun") || n == "surya" -> "sun"
+        n.startsWith("moon") || n == "chandra" -> "moon"
+        n.startsWith("mars") || n == "mangal" -> "mars"
+        n.startsWith("mercury") || n == "budh" -> "mercury"
+        n.startsWith("jupiter") || n == "guru" -> "jupiter"
+        n.startsWith("venus") || n == "shukra" -> "venus"
+        n.startsWith("saturn") || n == "shani" -> "saturn"
+        n.startsWith("rahu") -> "rahu"
+        n.startsWith("ketu") -> "ketu"
+        else -> ""
+    }
+}
+
+private val REMEDY_SUBTABS = listOf("Ratna", "Rudraksh", "Dhatu", "Jad", "Vedic Upay")
+
+internal fun LazyListScope.remediesTab(kundali: KundaliResponse?) {
+    item { KxSectionTitle("Remedies — Upay & Ratna") }
+    item {
+        Text(
+            "Auto-calculated from your chart data — no AI call. " +
+                "Remedies target the planets that are weak or afflicted in this Kundali.",
+            color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp
+        )
+    }
+    if (kundali == null || kundali.planets.isEmpty()) {
+        item { KxEmpty("No chart data available.") }
+        return
+    }
+
+    // Weak/afflicted planets drive every sub-tab; strong planets get strengthening notes
+    val planets = kundali.planets.filter { it.name.isNotBlank() }
+    val weak = planets.filter {
+        it.dignityChips().contains("Debilitated") || it.combust
+    }
+    val lagnaLord = kundali.lagna.lord
+    val focusPlanets = (weak.map { it.name } + listOf(lagnaLord)).filter { it.isNotBlank() }.distinct()
+
+    item {
+        var selected by remember { mutableStateOf(0) }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(REMEDY_SUBTABS.size) { i ->
+                    val isSelected = selected == i
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isSelected) SacredGold else CosmicCharcoal,
+                        modifier = Modifier.clickable { selected = i }
+                    ) {
+                        Text(
+                            REMEDY_SUBTABS[i],
+                            color = if (isSelected) CosmicDeepBlue else Color.White,
+                            fontWeight = FontWeight.Bold, fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+            }
+            when (selected) {
+                0 -> RatnaContent(planets, focusPlanets, weak.map { it.name }.toSet())
+                1 -> RudrakshContent(planets, focusPlanets)
+                2 -> DhatuContent(planets, focusPlanets)
+                3 -> JadContent(planets, focusPlanets)
+                else -> VedicUpayContent(kundali, planets, focusPlanets)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemedyHeader(planetName: String, note: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            planetGlyphFallback(planetName), color = SacredGold,
+            fontSize = 20.sp, fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(planetName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            if (note.isNotBlank()) Text(note, color = TextSecondary, fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun RatnaContent(planets: List<ApiPlanet>, focus: List<String>, weakNames: Set<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "Gemstones strengthen a planet's energy. Wear only after a qualified astrologer's confirmation — especially for Saturn, Rahu and Ketu.",
+            color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp
+        )
+        focus.forEach { name ->
+            val r = PLANET_REMEDIES[remedyKey(name)] ?: return@forEach
+            val planet = planets.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            val chips = planet?.dignityChips()?.joinToString(", ") ?: ""
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RemedyHeader(
+                        name,
+                        when {
+                            weakNames.any { it.equals(name, ignoreCase = true) } -> "Afflicted in this chart${if (chips.isNotBlank()) " · $chips" else ""}"
+                            else -> "Lagna lord — strengthening the ascendant${if (chips.isNotBlank()) " · $chips" else ""}"
+                        }
+                    )
+                    Text(
+                        "Recommended: ${r.gem}",
+                        color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    )
+                    Text(
+                        "Wear on ${r.day}. ${r.metal.ifBlank { "As advised" }} setting is traditional for this gem.",
+                        color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RudrakshContent(planets: List<ApiPlanet>, focus: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "Rudraksha beads pacify malefic influences and strengthen weak planets. Choose by the planet that needs support in your chart.",
+            color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp
+        )
+        focus.forEach { name ->
+            val r = PLANET_REMEDIES[remedyKey(name)] ?: return@forEach
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RemedyHeader(name, "For ${planetHindiFallback(name).ifBlank { name }}-related afflictions")
+                    Text(
+                        "Wear: ${r.rudraksha} Rudraksha",
+                        color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    )
+                    Text(
+                        "Energise with \"${r.mantra}\" 108 times on ${r.day}.",
+                        color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DhatuContent(planets: List<ApiPlanet>, focus: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "Wearing or donating the planet's metal balances its energy. Metals work gently and suit long-term strengthening.",
+            color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp
+        )
+        focus.forEach { name ->
+            val r = PLANET_REMEDIES[remedyKey(name)] ?: return@forEach
+            if (r.metal.isBlank()) return@forEach
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RemedyHeader(name, "")
+                    Text(
+                        "Metal: ${r.metal}",
+                        color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    )
+                    Text(
+                        "Wear ${r.metal.lowercase()} or donate it on ${r.day} to strengthen ${name}.",
+                        color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun JadContent(planets: List<ApiPlanet>, focus: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "Sacred roots (Jad) worn on the arm carry the planet's herbal energy — a gentle, traditional alternative to gemstones.",
+            color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp
+        )
+        focus.forEach { name ->
+            val r = PLANET_REMEDIES[remedyKey(name)] ?: return@forEach
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RemedyHeader(name, "")
+                    Text(
+                        "Root: ${r.root}",
+                        color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    )
+                    Text(
+                        "Purify with Ganga jal, chant \"${r.mantra}\", and tie the ${r.root.lowercase()} in cloth on ${r.day}.",
+                        color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VedicUpayContent(kundali: KundaliResponse, planets: List<ApiPlanet>, focus: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "Mantra, daan and discipline — the classical Vedic way to propitiate planets, personalised to this chart.",
+            color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp
+        )
+        // Chart-driven planet upay
+        focus.forEach { name ->
+            val r = PLANET_REMEDIES[remedyKey(name)] ?: return@forEach
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    RemedyHeader(name, "Every ${r.day}")
+                    Text("Mantra: \"${r.mantra}\" — 108 times", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Daan: ${r.daan}.",
+                        color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+        // Dosha remedies straight from the server
+        val doshaRemedies = kundali.doshas.filter { it.active }
+            .flatMap { d -> d.remedies.map { r -> d.name to r } }
+        if (doshaRemedies.isNotEmpty()) {
+            Text("Dosha-specific Upay (from your chart analysis)", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            doshaRemedies.forEach { (doshaName, remedy) ->
+                CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Text(doshaName, color = InauspiciousRed, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(remedy, color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                    }
+                }
+            }
+        }
+    }
+}

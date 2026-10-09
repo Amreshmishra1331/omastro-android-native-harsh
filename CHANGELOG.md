@@ -4,6 +4,32 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Kundali: 8 tabs → 23 website-parity tabs (full A-Z rebuild)
+
+### Broken / missing
+- **Only 8 of 23 website tabs**: Charts, Grahas, Dasha, Yogas, Doshas, Ashtaka, Lal Kitab, Analysis. Missing entirely: Birth Info (+Lucky Elements), Navamsha, Karakamsha, Chandra Lagna, Surya Lagna, Chalit, Divisional (D1–D60), Sodasvarga, Personality, Panchang, Shadbal, Bhrigu Nadi, Numerology embed, Char Dasha, Faladesh, Remedies.
+- **Dasha only 3 levels**: website shows 7 (MD→AD→PD→Sookshma→Prana→Adi→Deha); the app rendered MD/AD/PD only.
+- **Grahas only 6 columns**: website Planets tab has 12 (Planet, Symbol, Sign, Degree, DMS, Nakshatra, Pada, Nakshatra Lord, House, Navamsha Sign, Navamsha House, Status).
+- **Lal Kitab was a summary stub**: website renders the full server report via `POST /kundali/lal-kitab`.
+- **Unused response data**: `suryaChart`, `chandraChart`, `chalitChart`, `chalitHouses`, `allDivisionalCharts`, `panchang`, `sodasvarga`, `shadbala`, `saturnTransit`, `currentTransits`, `analysis_tabs` were returned by `POST /kundali` but never parsed or shown.
+- **No dedicated endpoints**: `kundali/personality`, `kundali/bnn` (typed), `kundali/lal-kitab`, `kundali/jaimini` were never called.
+
+### Removed
+- Old 8-tab list (`Charts, Grahas, Dasha, Yogas, Doshas, Ashtaka, Lal Kitab, Analysis`).
+- Superseded `grahasTab` (6-col), `lalKitabTab` (summary stub), `analysisTab` + exclusive helpers (`LIFE_AREAS`, `PlanetAnalysisCard`, `HouseAnalysisCard`, `BirthPanchangCard`, `RemediesCard`, `buildPlanetRemedies`, `houseSignificance`, `planetInterpretation`, `TableCell`, `DignityChip`) — content now covered by dedicated tabs.
+- Old `ExpandableDashaNode` 3-level expansion (now expands to whatever depth the server provides, up to 7).
+
+### Added
+- **Models (`KundaliModels.kt`)**: `KundaliResponse` gains `chalitHouses`, `suryaChart`, `chandraChart`, `chalitChart` (`ChartData`: lagnaRashi + houses, verified live), `allDivisionalCharts` (D1–D60 keys, verified), `panchang` (`BirthPanchang`), `sodasvarga` (D1–D60 → planet/rashi list, verified), `shadbala` (`ShadbalaData`: shadbala/bhavabala/vimshopaka as `Map<String, Map<String, Any>>` — server mixes doubles/ints/booleans), `saturnTransit` (`SaturnTransit`), `currentTransits` (MAP planet→`TransitInfo`, verified — not a list), `analysisTabs` (`AnalysisTabs`: ppills, grahaDetail, d1Analysis, d9Analysis, dasha, panchang, shadbal, personality, bnn). `VimshottariDasha` gains `currentSookshma/Prana/Adi/Deha`. New: `ReportEnvelope`/`ReportData` (htmlReport/textReport/analysis_text + `bestText()` + HTML stripper), `JaiminiEnvelope`/`JaiminiData` (karakas 7 Chara karakas, karakamsha, karakamshaHouses 0-based `ri`, charDashas/charAntars with JD bounds, curCharMD/AD), `julianDayToDateString()` (Fliegel–Van Flandern), `LuckyElements` (standard Vedic lagna mapping: colour/gem per rashi, number from lagna lord), `anyToDisplay()`.
+- **API (`OmAstroApiService.kt`)**: `POST kundali/personality`, `POST kundali/bnn` (typed `getBnnReport`; untyped `getBnnAnalysis` kept), `POST kundali/lal-kitab`, `POST kundali/jaimini` — all take `KundaliRequest`, all shapes verified live 2026-10-09.
+- **Repository (`AstroRepository.kt`)**: `getPersonality()`, `getBnnFull()`, `getLalKitabFull()` (shared typed `getReport` helper), `getJaimini()`.
+- **ViewModel (`KundaliViewModel.kt`)**: `KUNDALI_TABS` (23, website order); `ReportUiState`/`JaiminiUiState`; lazy one-shot loading on tab select (13=Personality, 17=BNN, 18=Lal Kitab, 3/20=Jaimini) reusing `_lastRequest`; `retryReport()`; report caches reset on every new chart.
+- **UI — new `KundaliExtendedTabs.kt`** (same package): Birth Info (+Lucky Elements card); Birth Chart extras (legend, planet pills, graha detail, D1 analysis, Sade Sati alert, Gochar strip); Navamsha (NI/SI + D9 planet table + D9 analysis); Karakamsha (AK→Karakamsha explainer, lagna badge, NI/SI charts, house-by-house table); Chandra/Surya/Chalit via generic `lagnaChartTab`; Divisional (16-varga selector, NI/SI, legend, varga significance essay); Sodasvarga (16×planet table); Personality (lazy report); Planets (12-column table); Panchang (birth panchang + analysis); Shadbal (6-strengths table + verdict, Bhavabala, Vimshopaka bars + analysis); Bhrigu Nadi (lazy report); Lal Kitab (full lazy report); Numerology (birth-data card → hub with `PendingNumerologyHolder` pre-fill); Char Dasha (7 karakas, current MD/AD hero, 36-period sequence with JD→date, antardashas); Faladesh (Sade Sati alert, per-planet Gochar cards, "Chat with Om Astro AI" button); Remedies (5 sub-tabs Ratna/Rudraksh/Dhatu/Jad/Vedic Upay driven by weak/afflicted planets + lagna lord, roots verified against published sources).
+- **UI — `KundaliScreen.kt`**: 23-tab `ScrollableTabRow` (11sp); `when` dispatches all 23 tabs; Dasha hero shows all 7 current levels + `analysis_tabs.dasha`; `chartsTab` promoted to `internal` for reuse.
+- **Navigation**: `KundaliScreen` gains `onNavigateToNumerology` / `onNavigateToAiChat` (wired in `MainActivity` to Numerology hub and AI Chat); new `PendingNumerologyHolder`; `NumerologyToolScreen` pre-fills name+DOB from it on open.
+
+---
+
 ## [2026-10-09] — Astrologer consultation A-Z rebuild (website parity)
 
 ### Broken / missing

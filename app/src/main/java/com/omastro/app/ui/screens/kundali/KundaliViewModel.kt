@@ -2,13 +2,39 @@ package com.omastro.app.ui.screens.kundali
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.omastro.app.data.model.JaiminiData
 import com.omastro.app.data.model.KundaliRequest
 import com.omastro.app.data.model.KundaliResponse
+import com.omastro.app.data.model.ReportData
 import com.omastro.app.di.AppContainer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+/**
+ * The 23 website-parity Kundali tabs, in website order.
+ */
+val KUNDALI_TABS = listOf(
+    "Birth Info", "Birth Chart", "Navamsha", "Karakamsha", "Chandra Lagna",
+    "Surya Lagna", "Chalit", "Divisional", "Dasha", "Ashtaka", "Sodasvarga",
+    "Yogas", "Doshas", "Personality", "Planets", "Panchang", "Shadbal",
+    "Bhrigu Nadi", "Lal Kitab", "Numerology", "Char Dasha", "Faladesh", "Remedies"
+)
+
+/** Lazy-load state for a server-generated report (Personality / BNN / Lal Kitab). */
+data class ReportUiState(
+    val loading: Boolean = false,
+    val data: ReportData? = null,
+    val error: String? = null
+)
+
+/** Lazy-load state for the Jaimini (Char Dasha / Karakamsha) payload. */
+data class JaiminiUiState(
+    val loading: Boolean = false,
+    val data: JaiminiData? = null,
+    val error: String? = null
+)
 
 /**
  * Kundali workbench state.
@@ -64,11 +90,11 @@ class KundaliViewModel : ViewModel() {
     fun setBirthLon(v: String) { _birthLon.value = v.filter { it.isDigit() || it == '.' || it == '-' }; _formError.value = null }
     fun setBirthGender(v: String) { _birthGender.value = v; _formError.value = null }
 
-    // Tab state: 0=Charts, 1=Grahas, 2=Dasha, 3=Yogas, 4=Doshas, 5=Ashtakavarga, 6=LalKitab
+    // Tab state: index into KUNDALI_TABS (23 website-parity tabs)
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
-    // Divisional chart backed by real API maps: D1, D9, D10
+    // Divisional chart backed by real API maps: D1..D60 from allDivisionalCharts
     private val _selectedDivisional = MutableStateFlow("D1")
     val selectedDivisional: StateFlow<String> = _selectedDivisional.asStateFlow()
 
@@ -76,9 +102,76 @@ class KundaliViewModel : ViewModel() {
     private val _chartStyle = MutableStateFlow("North Indian")
     val chartStyle: StateFlow<String> = _chartStyle.asStateFlow()
 
-    fun selectTab(tabIndex: Int) { _selectedTab.value = tabIndex }
+    // --- Lazy-loaded dedicated reports (fetched once per chart, on tab select) ---
+    private val _personalityState = MutableStateFlow(ReportUiState())
+    val personalityState: StateFlow<ReportUiState> = _personalityState.asStateFlow()
+    private val _bnnState = MutableStateFlow(ReportUiState())
+    val bnnState: StateFlow<ReportUiState> = _bnnState.asStateFlow()
+    private val _lalKitabState = MutableStateFlow(ReportUiState())
+    val lalKitabState: StateFlow<ReportUiState> = _lalKitabState.asStateFlow()
+    private val _jaiminiState = MutableStateFlow(JaiminiUiState())
+    val jaiminiState: StateFlow<JaiminiUiState> = _jaiminiState.asStateFlow()
+
+    fun selectTab(tabIndex: Int) {
+        _selectedTab.value = tabIndex
+        ensureLazyReports(tabIndex)
+    }
     fun selectDivisional(divisional: String) { _selectedDivisional.value = divisional }
     fun selectChartStyle(style: String) { _chartStyle.value = style }
+
+    /**
+     * Tabs backed by dedicated endpoints load on first select and cache per
+     * chart: 13=Personality, 17=Bhrigu Nadi, 18=Lal Kitab, 3/20=Jaimini.
+     */
+    private fun ensureLazyReports(tabIndex: Int) {
+        val req = _lastRequest.value ?: return
+        val repo = AppContainer.astroRepository
+        when (tabIndex) {
+            13 -> if (!_personalityState.value.loading && _personalityState.value.data == null && _personalityState.value.error == null) {
+                _personalityState.value = ReportUiState(loading = true)
+                viewModelScope.launch {
+                    repo.getPersonality(req)
+                        .onSuccess { _personalityState.value = ReportUiState(data = it) }
+                        .onFailure { _personalityState.value = ReportUiState(error = it.message ?: "Could not load Personality report.") }
+                }
+            }
+            17 -> if (!_bnnState.value.loading && _bnnState.value.data == null && _bnnState.value.error == null) {
+                _bnnState.value = ReportUiState(loading = true)
+                viewModelScope.launch {
+                    repo.getBnnFull(req)
+                        .onSuccess { _bnnState.value = ReportUiState(data = it) }
+                        .onFailure { _bnnState.value = ReportUiState(error = it.message ?: "Could not load Bhrigu Nadi report.") }
+                }
+            }
+            18 -> if (!_lalKitabState.value.loading && _lalKitabState.value.data == null && _lalKitabState.value.error == null) {
+                _lalKitabState.value = ReportUiState(loading = true)
+                viewModelScope.launch {
+                    repo.getLalKitabFull(req)
+                        .onSuccess { _lalKitabState.value = ReportUiState(data = it) }
+                        .onFailure { _lalKitabState.value = ReportUiState(error = it.message ?: "Could not load Lal Kitab report.") }
+                }
+            }
+            3, 20 -> if (!_jaiminiState.value.loading && _jaiminiState.value.data == null && _jaiminiState.value.error == null) {
+                _jaiminiState.value = JaiminiUiState(loading = true)
+                viewModelScope.launch {
+                    repo.getJaimini(req)
+                        .onSuccess { _jaiminiState.value = JaiminiUiState(data = it) }
+                        .onFailure { _jaiminiState.value = JaiminiUiState(error = it.message ?: "Could not load Jaimini data.") }
+                }
+            }
+        }
+    }
+
+    /** Retry a failed lazy report (clears the error so ensureLazyReports refires). */
+    fun retryReport(tabIndex: Int) {
+        when (tabIndex) {
+            13 -> _personalityState.value = ReportUiState()
+            17 -> _bnnState.value = ReportUiState()
+            18 -> _lalKitabState.value = ReportUiState()
+            3, 20 -> _jaiminiState.value = JaiminiUiState()
+        }
+        ensureLazyReports(tabIndex)
+    }
 
     /** Return to the birth form to enter different details. */
     fun editBirthDetails() {
@@ -177,6 +270,12 @@ class KundaliViewModel : ViewModel() {
                     _lastRequest.value = req
                     _hasData.value = true
                     _selectedTab.value = 0
+                    _selectedDivisional.value = "D1"
+                    // Fresh chart -> drop cached dedicated reports
+                    _personalityState.value = ReportUiState()
+                    _bnnState.value = ReportUiState()
+                    _lalKitabState.value = ReportUiState()
+                    _jaiminiState.value = JaiminiUiState()
                     _isLoading.value = false
                 }
                 .onFailure {

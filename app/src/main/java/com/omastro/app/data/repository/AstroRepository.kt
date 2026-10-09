@@ -178,6 +178,47 @@ class AstroRepository(
         }
     }
 
+    /** Typed wrapper around the same POST /kundali/bnn envelope. */
+    private suspend fun getReport(
+        label: String,
+        call: suspend () -> retrofit2.Response<ReportEnvelope>
+    ): Result<ReportData> {
+        return try {
+            val res = call()
+            val data = res.body()?.data
+            if (res.isSuccessful && data != null) {
+                Result.success(data)
+            } else {
+                Result.failure(IOException("$label request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPersonality(request: KundaliRequest): Result<ReportData> =
+        getReport("Personality") { api.getPersonality(request) }
+
+    suspend fun getBnnFull(request: KundaliRequest): Result<ReportData> =
+        getReport("Bhrigu Nadi") { api.getBnnReport(request) }
+
+    suspend fun getLalKitabFull(request: KundaliRequest): Result<ReportData> =
+        getReport("Lal Kitab") { api.getLalKitabFull(request) }
+
+    suspend fun getJaimini(request: KundaliRequest): Result<JaiminiData> {
+        return try {
+            val res = api.getJaimini(request)
+            val data = res.body()?.data
+            if (res.isSuccessful && data != null) {
+                Result.success(data)
+            } else {
+                Result.failure(IOException("Jaimini request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getAstroHealth(request: KundaliRequest): Result<Map<String, Any>> {
         return try {
             val res = api.getAstroHealth(request)
