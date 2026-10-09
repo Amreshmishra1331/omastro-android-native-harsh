@@ -4,6 +4,34 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — NEW: Rich Left Navigation Drawer + Settings Overhaul (omastroai.com parity)
+
+### Missing
+The app had no navigation drawer at all — the website's left sidebar (profile header, grouped menu, legal pages, log out) had zero app equivalent. Main screens could only be reached via the bottom bar; deep features (Gochar, Muhurat, Saved Kundalis) were unreachable from several screens. Settings was a thin page: account card, one wallet shortcut, rate-us, disclaimers, and a hardcoded wrong version string ("v1.0.0 (Build 100)" while build.gradle says versionCode 1). No language row, no terms, no saved-charts/activity shortcuts, no refer-and-earn entry.
+
+### Removed
+- Nothing user-facing removed. Fake toggles (notifications/theme/language) were already removed in an earlier pass and stay removed.
+
+### Added
+- **Navigation drawer** (`ui/components/NavigationDrawer.kt`, new):
+  - Profile header: gold-gradient avatar with name initial, user name + email/phone, tappable wallet chip (₹ balance → Wallet screen)
+  - Grouped menu matching the website sidebar — Menu (Dashboard, AI Chat, Janam Kundali, Rashifal, Panchang, Kundali Milan, Astrologers, Numerology, Gochar, Muhurat), Account (Add Money, Saved Kundalis, AI Chat History, Activity History → Wallet transactions, Refer & Earn, Rate this App, Settings), Preferences (Language), Legal (Privacy Policy, Terms of Service, Report a Bug), plus a red Log Out row with confirmation
+  - Selected-route highlighting; drawer closes before every navigation/dialog
+  - `DrawerDialog` sealed interface + `DrawerDialogHost` composable: honest dialogs for Coming Soon (AI Chat History, Refer & Earn, Report a Bug — no API exists for these), Privacy Policy (real disclaimer text), Terms of Service, Language (English active, हिन्दी marked coming soon — no fake locale switching), and Log Out confirmation
+- **MainActivity wiring**: `ModalNavigationDrawer` wraps the app scaffold (edge-swipe disabled while closed to avoid carousel conflicts); hamburger menu added to all six bottom-nav screens (Dashboard, Kundali, Rashifal, AI Chat, Astrologers, Settings) via a new optional `onMenuClick` parameter — screens keep their back arrow when the parameter is absent, so standalone behavior is unchanged; logout clears the session and returns to the auth gate with a cleared back stack; Play Store in-app review launches from the drawer
+- **Settings overhaul** (`ui/screens/settings/SettingsScreen.kt`, rewritten):
+  - Profile card now shows wallet balance (₹) next to the name/email
+  - Wallet card shows live balance with "Add Money" subtitle
+  - New "My Astrology" section: Saved Kundalis, Activity History (→ Wallet transactions)
+  - New "Rewards" section: Refer & Earn (honest coming-soon dialog)
+  - New "Preferences" section: App Language (English active, हिन्दी coming soon)
+  - Support & Feedback extended: Report a Bug (coming soon), Terms of Service (real dialog)
+  - About footer now reads the real version from `BuildConfig` (was hardcoded "Build 100")
+  - Reuses `DrawerDialogHost` so drawer and settings share identical dialogs
+- No emojis anywhere; every drawer/settings entry either navigates to a real screen, performs a real action (review, logout), or shows an honest coming-soon state.
+
+---
+
 ## [2026-10-09] — Auth Redesign: Rich Login/Signup UI + `otp_channel` API Support
 
 ### What was basic

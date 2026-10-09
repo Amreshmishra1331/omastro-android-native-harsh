@@ -7,14 +7,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import com.omastro.app.di.AppContainer
+import com.omastro.app.ui.components.DrawerDialog
+import com.omastro.app.ui.components.DrawerDialogHost
+import com.omastro.app.ui.components.OmAstroDrawerContent
 import com.omastro.app.ui.navigation.BottomNavBar
 import com.omastro.app.ui.navigation.PendingChartHolder
 import com.omastro.app.ui.navigation.Screen
+import kotlinx.coroutines.launch
 import com.omastro.app.ui.screens.astrologers.AstrologersScreen
 import com.omastro.app.ui.screens.astrologers.ChatScreen
 import com.omastro.app.ui.screens.auth.AuthScreen
@@ -65,6 +75,31 @@ class MainActivity : ComponentActivity() {
                             Screen.Auth.route
                         }
 
+                        // Navigation drawer state
+                        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                        val drawerScope = rememberCoroutineScope()
+                        var drawerDialog by remember { mutableStateOf<DrawerDialog?>(null) }
+                        val drawerUser by AppContainer.authRepository.currentUser.collectAsState()
+                        val drawerBalance by AppContainer.walletRepository.coinBalance.collectAsState()
+                        val openDrawer: () -> Unit = { drawerScope.launch { drawerState.open() } }
+                        val activity = this@MainActivity
+
+                        fun drawerNavigate(route: String) {
+                            drawerScope.launch { drawerState.close() }
+                            if (currentRoute != route) {
+                                navController.navigate(route) {
+                                    popUpTo(Screen.Home.route) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        }
+
+                        fun drawerShowDialog(kind: DrawerDialog) {
+                            drawerScope.launch { drawerState.close() }
+                            drawerDialog = kind
+                        }
+
                 val showBottomBar = currentRoute in listOf(
                     Screen.Home.route,
                     Screen.Kundali.route,
@@ -81,20 +116,47 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
+                    ModalNavigationDrawer(
+                        drawerState = drawerState,
+                        gesturesEnabled = drawerState.isOpen,
+                        drawerContent = {
+                            OmAstroDrawerContent(
+                                userName = drawerUser?.name,
+                                userEmail = drawerUser?.email ?: drawerUser?.phone,
+                                walletBalance = drawerBalance,
+                                currentRoute = currentRoute,
+                                onNavigate = ::drawerNavigate,
+                                onWalletClick = { drawerNavigate(Screen.Wallet.route) },
+                                onRateApp = {
+                                    drawerScope.launch { drawerState.close() }
+                                    drawerScope.launch {
+                                        AppContainer.requestInAppReviewUseCase.launchReview(activity)
+                                    }
+                                },
+                                onLogout = { drawerShowDialog(DrawerDialog.LogoutConfirm) },
+                                onComingSoon = { feature -> drawerShowDialog(DrawerDialog.ComingSoon(feature)) },
+                                onShowDialog = ::drawerShowDialog
+                            )
+                        }
+                    ) {
                     NavHost(
                         navController = navController,
                         startDestination = startDestination,
                         modifier = Modifier.padding(innerPadding)
                     ) {
                         composable(Screen.Home.route) {
-                            DashboardScreen(navController = navController)
+                            DashboardScreen(
+                                navController = navController,
+                                onMenuClick = openDrawer
+                            )
                         }
                         composable(Screen.Kundali.route) {
                             KundaliScreen(
                                 onBack = { navController.popBackStack() },
                                 onNavigateToSavedCharts = {
                                     navController.navigate(Screen.SavedCharts.route)
-                                }
+                                },
+                                onMenuClick = openDrawer
                             )
                         }
                         composable(Screen.SavedCharts.route) {
@@ -109,11 +171,15 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Screen.Horoscope.route) {
-                            HoroscopeScreen(onBack = { navController.popBackStack() })
+                            HoroscopeScreen(
+                                onBack = { navController.popBackStack() },
+                                onMenuClick = openDrawer
+                            )
                         }
                         composable(Screen.AiChat.route) {
                             com.omastro.app.ui.screens.aichat.AiChatScreen(
-                                onBack = { navController.popBackStack() }
+                                onBack = { navController.popBackStack() },
+                                onMenuClick = openDrawer
                             )
                         }
                         composable(Screen.Panchang.route) {
@@ -131,7 +197,8 @@ class MainActivity : ComponentActivity() {
                             AstrologersScreen(
                                 onAstrologerClick = { id ->
                                     navController.navigate(Screen.Chat.createRoute(id))
-                                }
+                                },
+                                onMenuClick = openDrawer
                             )
                         }
                         composable(
@@ -150,7 +217,9 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Settings.route) {
                             SettingsScreen(
                                 onNavigateToAuth = { navController.navigate(Screen.Auth.route) },
-                                onNavigateToWallet = { navController.navigate(Screen.Wallet.route) }
+                                onNavigateToWallet = { navController.navigate(Screen.Wallet.route) },
+                                onNavigateToSavedCharts = { navController.navigate(Screen.SavedCharts.route) },
+                                onMenuClick = openDrawer
                             )
                         }
                         composable(Screen.AstroHealth.route) {
@@ -191,7 +260,20 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                    } // ModalNavigationDrawer content
                 } // Scaffold
+                    // Drawer dialogs (coming-soon, privacy, terms, language, logout)
+                    DrawerDialogHost(
+                        dialog = drawerDialog,
+                        onDismiss = { drawerDialog = null },
+                        onLogoutConfirmed = {
+                            drawerDialog = null
+                            AppContainer.authRepository.logout()
+                            navController.navigate(Screen.Auth.route) {
+                                popUpTo(Screen.Home.route) { inclusive = true }
+                            }
+                        }
+                    )
                 } // else -> block
                 } // when (isLoggedIn)
             } // OmAstroTheme

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -107,6 +108,7 @@ private val modeSuggestions: Map<AiChatMode, List<String>> = mapOf(
 @Composable
 fun AiChatScreen(
     onBack: () -> Unit,
+    onMenuClick: (() -> Unit)? = null,
     viewModel: AiChatViewModel = viewModel()
 ) {
     val selectedMode by viewModel.selectedMode.collectAsState()
@@ -158,12 +160,22 @@ fun AiChatScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = SacredGold
-                        )
+                    if (onMenuClick != null) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = "Menu",
+                                tint = SacredGold
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = SacredGold
+                            )
+                        }
                     }
                 },
                 actions = {

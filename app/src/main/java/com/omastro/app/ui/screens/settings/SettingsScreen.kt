@@ -12,12 +12,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.omastro.app.BuildConfig
 import com.omastro.app.di.AppContainer
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.DrawerDialog
+import com.omastro.app.ui.components.DrawerDialogHost
 import com.omastro.app.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -25,21 +29,46 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
-    onNavigateToWallet: () -> Unit
+    onNavigateToWallet: () -> Unit,
+    onNavigateToSavedCharts: () -> Unit = {},
+    onMenuClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val authRepo = AppContainer.authRepository
     val user by authRepo.currentUser.collectAsState()
+    val walletBalance by AppContainer.walletRepository.coinBalance.collectAsState()
 
     var showDisclaimerDialog by remember { mutableStateOf(false) }
+    var drawerDialog by remember { mutableStateOf<DrawerDialog?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    fun launchReview() {
+        val activity = context as? Activity
+        if (activity != null) {
+            coroutineScope.launch {
+                val reviewed = AppContainer.requestInAppReviewUseCase.launchReview(activity)
+                if (reviewed) {
+                    snackbarHostState.showSnackbar("Thank you for rating OmAstro!")
+                } else {
+                    snackbarHostState.showSnackbar("Play Store review flow initiated.")
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Settings & Profile", color = Color.White, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onMenuClick != null) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = SacredGold)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
             )
         },
@@ -55,7 +84,7 @@ fun SettingsScreen(
         ) {
             item { Spacer(modifier = Modifier.height(6.dp)) }
 
-            // Account Status Card
+            // ============ PROFILE CARD ============
             item {
                 CosmicCard(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -65,16 +94,27 @@ fun SettingsScreen(
                     ) {
                         Column {
                             Text(
-                                text = user?.name ?: "Vedic Seeker",
+                                text = user?.name?.takeIf { it.isNotBlank() } ?: "Vedic Seeker",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
                             Text(
-                                text = user?.email ?: user?.phone ?: "Sign in for synced reports",
+                                text = user?.email?.takeIf { it.isNotBlank() }
+                                    ?: user?.phone?.takeIf { it.isNotBlank() }
+                                    ?: "Sign in for synced reports",
                                 color = StarlightWhite.copy(alpha = 0.6f),
                                 fontSize = 12.sp
                             )
+                            if (user != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Wallet balance: ₹$walletBalance",
+                                    color = SacredGold,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                         if (user != null) {
                             OutlinedButton(
@@ -97,95 +137,161 @@ fun SettingsScreen(
                 }
             }
 
-            // Wallet Shortcut (INR terminology to match website)
+            // ============ WALLET ============
             item {
                 CosmicCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onNavigateToWallet() }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = SacredGold)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("Wallet Balance & Add Money", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                        }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SacredGold)
-                    }
+                    SettingsRow(
+                        icon = Icons.Default.AccountBalanceWallet,
+                        title = "Wallet Balance & Add Money",
+                        subtitle = "Current balance: ₹$walletBalance"
+                    )
                 }
             }
 
-            // App Actions & Store Review
+            // ============ MY ASTROLOGY ============
             item {
-                Text("Support & Feedback", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("My Astrology", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
-
             item {
                 CosmicCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            val activity = context as? Activity
-                            if (activity != null) {
-                                coroutineScope.launch {
-                                    val reviewed = AppContainer.requestInAppReviewUseCase.launchReview(activity)
-                                    if (reviewed) {
-                                        snackbarHostState.showSnackbar("Thank you for rating OmAstro!")
-                                    } else {
-                                        snackbarHostState.showSnackbar("Play Store review flow initiated.")
-                                    }
-                                }
-                            }
-                        }
+                        .clickable { onNavigateToSavedCharts() }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = SacredGold)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("Rate Us on Google Play Store", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                        }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SacredGold)
-                    }
+                    SettingsRow(
+                        icon = Icons.Default.Bookmarks,
+                        title = "Saved Kundalis",
+                        subtitle = "Your saved birth charts"
+                    )
+                }
+            }
+            item {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToWallet() }
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.ReceiptLong,
+                        title = "Activity History",
+                        subtitle = "Wallet transactions & payments"
+                    )
                 }
             }
 
-            // Privacy & Astrological Disclaimers (now opens a real dialog)
+            // ============ REWARDS ============
+            item {
+                Text("Rewards", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+            item {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { drawerDialog = DrawerDialog.ComingSoon("Refer & Earn") }
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.CardGiftcard,
+                        title = "Refer & Earn",
+                        subtitle = "Invite friends, earn rewards"
+                    )
+                }
+            }
+
+            // ============ PREFERENCES ============
+            item {
+                Text("Preferences", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+            item {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { drawerDialog = DrawerDialog.Language }
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Language,
+                        title = "App Language",
+                        subtitle = "English · हिन्दी coming soon"
+                    )
+                }
+            }
+
+            // ============ SUPPORT & FEEDBACK ============
+            item {
+                Text("Support & Feedback", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+            item {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { launchReview() }
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Star,
+                        title = "Rate Us on Google Play Store",
+                        subtitle = "Your feedback helps us grow"
+                    )
+                }
+            }
+            item {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { drawerDialog = DrawerDialog.ComingSoon("Report a Bug") }
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.BugReport,
+                        title = "Report a Bug",
+                        subtitle = "Help us improve the app"
+                    )
+                }
+            }
             item {
                 CosmicCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showDisclaimerDialog = true }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Security, contentDescription = null, tint = SacredGold)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("Privacy & Astrological Disclaimers", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                        }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SacredGold)
-                    }
+                    SettingsRow(
+                        icon = Icons.Default.Security,
+                        title = "Privacy & Astrological Disclaimers"
+                    )
+                }
+            }
+            item {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { drawerDialog = DrawerDialog.Terms }
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Description,
+                        title = "Terms of Service"
+                    )
                 }
             }
 
-            // App Version Footer
+            // ============ ABOUT ============
+            item {
+                Text("About", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
             item {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("OmAstro AI v1.0.0 (Build 100)", color = StarlightWhite.copy(alpha = 0.5f), fontSize = 12.sp)
+                        Text(
+                            "OmAstro AI v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE})",
+                            color = StarlightWhite.copy(alpha = 0.5f),
+                            fontSize = 12.sp
+                        )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text("100% Native Android • Vedic AI Engine", color = SacredGold.copy(alpha = 0.7f), fontSize = 11.sp)
+                        Text(
+                            "100% Native Android · Vedic AI Engine",
+                            color = SacredGold.copy(alpha = 0.7f),
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
@@ -194,7 +300,7 @@ fun SettingsScreen(
         }
     }
 
-    // Disclaimer Dialog
+    // Privacy & Astrological Disclaimers dialog
     if (showDisclaimerDialog) {
         AlertDialog(
             onDismissRequest = { showDisclaimerDialog = false },
@@ -223,5 +329,37 @@ fun SettingsScreen(
             containerColor = CosmicNavy,
             titleContentColor = Color.White
         )
+    }
+
+    // Shared drawer-style dialogs (coming soon, language, terms)
+    DrawerDialogHost(
+        dialog = drawerDialog,
+        onDismiss = { drawerDialog = null }
+    )
+}
+
+@Composable
+private fun SettingsRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Icon(icon, contentDescription = null, tint = SacredGold, modifier = Modifier.size(22.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(title, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                subtitle?.let {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(it, color = StarlightWhite.copy(alpha = 0.55f), fontSize = 12.sp)
+                }
+            }
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SacredGold)
     }
 }

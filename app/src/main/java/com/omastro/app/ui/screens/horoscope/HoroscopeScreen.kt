@@ -37,6 +37,7 @@ private val MaroonBannerLight = Color(0xFF7A1515)
 @Composable
 fun HoroscopeScreen(
     onBack: () -> Unit,
+    onMenuClick: (() -> Unit)? = null,
     viewModel: HoroscopeViewModel = viewModel()
 ) {
     val selectedSign by viewModel.selectedSign.collectAsState()
@@ -50,8 +51,14 @@ fun HoroscopeScreen(
             TopAppBar(
                 title = { Text("Rashifal", color = Color.White, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                    if (onMenuClick != null) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = SacredGold)
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)

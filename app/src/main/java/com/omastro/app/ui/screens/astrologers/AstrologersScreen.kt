@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
@@ -29,6 +30,7 @@ import com.omastro.app.ui.theme.*
 @Composable
 fun AstrologersScreen(
     onAstrologerClick: (String) -> Unit,
+    onMenuClick: (() -> Unit)? = null,
     viewModel: ConsultationViewModel = viewModel()
 ) {
     val astrologers by viewModel.astrologers.collectAsState()
@@ -38,6 +40,13 @@ fun AstrologersScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Consult Astrologers", color = Color.White, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    if (onMenuClick != null) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = SacredGold)
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
             )
         },

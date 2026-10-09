@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 fun KundaliScreen(
     onBack: () -> Unit,
     onNavigateToSavedCharts: () -> Unit = {},
+    onMenuClick: (() -> Unit)? = null,
     viewModel: KundaliViewModel = viewModel()
 ) {
     val hasData by viewModel.hasData.collectAsState()
@@ -63,8 +64,14 @@ fun KundaliScreen(
             TopAppBar(
                 title = { Text("Janam Kundali", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                    if (onMenuClick != null) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = SacredGold)
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                        }
                     }
                 },
                 actions = {

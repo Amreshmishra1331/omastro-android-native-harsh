@@ -38,7 +38,8 @@ import java.util.Locale
 @Composable
 fun DashboardScreen(
     navController: NavController,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    onMenuClick: (() -> Unit)? = null
 ) {
     val user by viewModel.currentUser.collectAsState()
     val walletBalance by viewModel.coinBalance.collectAsState()
@@ -62,10 +63,20 @@ fun DashboardScreen(
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                if (onMenuClick != null) {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(
+                            imageVector = Icons.Default.Menu,
+                            contentDescription = "Menu",
+                            tint = SacredGold,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = if (user != null) "Namaste, ${user?.name}" else "Namaste, Seeker",
                         color = Color.White,
