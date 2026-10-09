@@ -40,6 +40,9 @@ class HoroscopeViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     init {
         fetchHoroscope(zodiacSigns[0].id, "today")
     }
@@ -57,14 +60,21 @@ class HoroscopeViewModel : ViewModel() {
     fun fetchHoroscope(sign: String, period: String) {
         viewModelScope.launch {
             _isLoading.value = true
+            _errorMessage.value = null
             getDailyHoroscopeUseCase(sign, period)
                 .onSuccess {
                     _horoscope.value = it
                     _isLoading.value = false
                 }
-                .onFailure {
+                .onFailure { err ->
                     _isLoading.value = false
+                    _errorMessage.value = err.message
+                        ?: "Could not load horoscope. Please check your connection and try again."
                 }
         }
+    }
+
+    fun retry() {
+        fetchHoroscope(_selectedSign.value.id, _selectedPeriod.value)
     }
 }

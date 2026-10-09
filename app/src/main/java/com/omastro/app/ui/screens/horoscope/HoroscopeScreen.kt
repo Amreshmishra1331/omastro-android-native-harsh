@@ -34,6 +34,7 @@ fun HoroscopeScreen(
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val horoscope by viewModel.horoscope.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     Scaffold(
         topBar = {
@@ -89,7 +90,37 @@ fun HoroscopeScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = SacredGold)
                 }
+            } else if (errorMessage != null || horoscope == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Horoscope Unavailable",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage ?: "No horoscope data available for this selection.",
+                            color = StarlightWhite.copy(alpha = 0.7f),
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = { viewModel.retry() },
+                            colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
+                        ) {
+                            Text("Retry", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             } else {
+                val h = horoscope!!
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -135,7 +166,7 @@ fun HoroscopeScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = horoscope?.prediction ?: "Planetary alignments favor bold initiatives today. Focus on clarity in personal relations and strategic patience in career decisions.",
+                                    text = h.prediction,
                                     color = Color.White,
                                     fontSize = 14.sp,
                                     lineHeight = 22.sp
@@ -155,9 +186,9 @@ fun HoroscopeScreen(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
                                 )
-                                MetricBar(label = "Love & Relationships", score = horoscope?.loveScore ?: 85, color = Color(0xFFFF5252))
-                                MetricBar(label = "Career & Wealth", score = horoscope?.careerScore ?: 78, color = RadiantAmber)
-                                MetricBar(label = "Health & Vitality", score = horoscope?.healthScore ?: 92, color = Color(0xFF4CAF50))
+                                MetricBar(label = "Love & Relationships", score = h.loveScore, color = Color(0xFFFF5252))
+                                MetricBar(label = "Career & Wealth", score = h.careerScore, color = RadiantAmber)
+                                MetricBar(label = "Health & Vitality", score = h.healthScore, color = Color(0xFF4CAF50))
                             }
                         }
                     }
@@ -172,14 +203,14 @@ fun HoroscopeScreen(
                                 Column {
                                     Text("LUCKY NUMBER", color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text("${horoscope?.luckyNumber ?: 7}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text("${h.luckyNumber}", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                             CosmicCard(modifier = Modifier.weight(1f)) {
                                 Column {
                                     Text("LUCKY COLOR", color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(horoscope?.luckyColor ?: "Saffron", color = RadiantAmber, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text(h.luckyColor, color = RadiantAmber, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -194,7 +225,7 @@ fun HoroscopeScreen(
                                 Text("VEDIC REMEDY (UPAY)", color = MysticPurple, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = horoscope?.remedy ?: "Chant Gayatri Mantra 11 times in the morning for enhanced clarity.",
+                                    text = h.remedy,
                                     color = Color.White,
                                     fontSize = 13.sp
                                 )

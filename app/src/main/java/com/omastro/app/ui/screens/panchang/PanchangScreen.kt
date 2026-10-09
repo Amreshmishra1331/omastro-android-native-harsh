@@ -26,6 +26,7 @@ fun PanchangScreen(
 ) {
     val panchang by viewModel.panchang.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     Scaffold(
         topBar = {
@@ -46,11 +47,45 @@ fun PanchangScreen(
         },
         containerColor = CosmicDeepBlue
     ) { padding ->
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = SacredGold)
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = SacredGold)
+                }
             }
-        } else {
+            errorMessage != null || panchang == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Panchang Unavailable",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage ?: "No Panchang data available.",
+                            color = StarlightWhite.copy(alpha = 0.7f),
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = { viewModel.loadPanchang() },
+                            colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
+                        ) {
+                            Text("Retry", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+            else -> {
+                val p = panchang!!
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -67,9 +102,9 @@ fun PanchangScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            TimingColumn("Sunrise", panchang?.sunrise ?: "06:18 AM")
-                            TimingColumn("Sunset", panchang?.sunset ?: "06:22 PM")
-                            TimingColumn("Moonrise", panchang?.moonrise ?: "08:45 PM")
+                            TimingColumn("Sunrise", p.sunrise)
+                            TimingColumn("Sunset", p.sunset)
+                            TimingColumn("Moonrise", p.moonrise)
                         }
                     }
                 }
@@ -80,19 +115,19 @@ fun PanchangScreen(
                 }
 
                 item {
-                    PanchangDetailRow("Tithi (Lunar Day)", panchang?.tithi ?: "Shukla Paksha Ekadashi")
+                    PanchangDetailRow("Tithi (Lunar Day)", p.tithi)
                 }
                 item {
-                    PanchangDetailRow("Nakshatra (Constellation)", panchang?.nakshatra ?: "Rohini")
+                    PanchangDetailRow("Nakshatra (Constellation)", p.nakshatra)
                 }
                 item {
-                    PanchangDetailRow("Yoga (Luni-Solar Day)", panchang?.yoga ?: "Siddhi")
+                    PanchangDetailRow("Yoga (Luni-Solar Day)", p.yoga)
                 }
                 item {
-                    PanchangDetailRow("Karana (Half Tithi)", panchang?.karana ?: "Bava")
+                    PanchangDetailRow("Karana (Half Tithi)", p.karana)
                 }
                 item {
-                    PanchangDetailRow("Vaar (Day)", panchang?.day ?: "Brihaspativar (Thursday)")
+                    PanchangDetailRow("Vaar (Day)", p.day)
                 }
 
                 // Shubh Muhurat vs Ashubh Kaal
@@ -110,12 +145,12 @@ fun PanchangScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Abhijit Muhurat:", color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
-                                Text(panchang?.abhijitMuhurat ?: "11:51 AM - 12:38 PM", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(p.abhijitMuhurat, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Amrit Kaal:", color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
-                                Text(panchang?.amritKaal ?: "02:15 PM - 03:45 PM", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(p.amritKaal, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }
@@ -131,17 +166,17 @@ fun PanchangScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Rahu Kaal:", color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
-                                Text(panchang?.rahuKaal ?: "01:30 PM - 03:00 PM", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(p.rahuKaal, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Yamaganda:", color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
-                                Text(panchang?.yamaganda ?: "06:00 AM - 07:30 AM", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(p.yamaganda, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("Gulika Kaal:", color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
-                                Text(panchang?.gulikaKaal ?: "09:00 AM - 10:30 AM", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(p.gulikaKaal, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }
@@ -151,6 +186,7 @@ fun PanchangScreen(
             }
         }
     }
+}
 }
 
 @Composable

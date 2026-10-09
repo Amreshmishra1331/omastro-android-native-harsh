@@ -109,13 +109,13 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = panchang?.tithi ?: "Shukla Paksha Dashami",
+                            text = panchang?.tithi ?: "—",
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Nakshatra: ${panchang?.nakshatra ?: "Rohini"} | Yog: ${panchang?.yoga ?: "Siddhi"}",
+                            text = "Nakshatra: ${panchang?.nakshatra ?: "—"} | Yog: ${panchang?.yoga ?: "—"}",
                             color = StarlightWhite.copy(alpha = 0.7f),
                             fontSize = 12.sp
                         )

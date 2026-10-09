@@ -39,25 +39,29 @@ class MainActivity : ComponentActivity() {
                 // Auth gate: check login state on startup
                 var isLoggedIn by remember { mutableStateOf<Boolean?>(null) }
                 LaunchedEffect(Unit) {
-                    isLoggedIn = ApiClient.isLoggedIn()
-                }
-
-                // Show splash/loading while checking auth
-                if (isLoggedIn == null) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = androidx.compose.ui.Alignment.Center
-                    ) {
-                        androidx.compose.material3.CircularProgressIndicator()
+                    isLoggedIn = try {
+                        ApiClient.isLoggedIn()
+                    } catch (e: Exception) {
+                        false
                     }
-                    return@OmAstroTheme
                 }
 
-                val startDestination = if (isLoggedIn == true) {
-                    Screen.Home.route
-                } else {
-                    Screen.Auth.route
-                }
+                when (isLoggedIn) {
+                    null -> {
+                        // Show splash/loading while checking auth
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = androidx.compose.ui.Alignment.Center
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator()
+                        }
+                    }
+                    else -> {
+                        val startDestination = if (isLoggedIn == true) {
+                            Screen.Home.route
+                        } else {
+                            Screen.Auth.route
+                        }
 
                 val showBottomBar = currentRoute in listOf(
                     Screen.Home.route,
@@ -146,8 +150,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
-                }
-            }
-        }
-    }
-}
+                } // Scaffold
+                } // else -> block
+                } // when (isLoggedIn)
+            } // OmAstroTheme
+        } // setContent
+    } // onCreate
+} // MainActivity

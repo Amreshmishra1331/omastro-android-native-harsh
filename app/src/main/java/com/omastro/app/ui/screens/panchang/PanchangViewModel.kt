@@ -18,6 +18,9 @@ class PanchangViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     init {
         loadPanchang()
     }
@@ -25,13 +28,16 @@ class PanchangViewModel : ViewModel() {
     fun loadPanchang(date: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
+            _errorMessage.value = null
             getPanchangUseCase(date)
                 .onSuccess {
                     _panchang.value = it
                     _isLoading.value = false
                 }
-                .onFailure {
+                .onFailure { err ->
                     _isLoading.value = false
+                    _errorMessage.value = err.message
+                        ?: "Could not load Panchang. Please check your connection and try again."
                 }
         }
     }
