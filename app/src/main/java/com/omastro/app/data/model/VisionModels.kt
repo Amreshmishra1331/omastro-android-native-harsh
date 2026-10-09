@@ -123,6 +123,108 @@ data class VastuAnalysis(
             )
         }
     }
+
+    /**
+     * FULL Vastu analysis rendered as chat context for follow-up AI questions.
+     *
+     * Includes score + grade, dosha counts, the inputs that were analyzed
+     * (manual form values, or the parsed inputs from a house-map photo),
+     * every direction/placement verdict, every dosha with severity, classical
+     * rule, detail and all non-demolition remedies, and the disclaimer —
+     * so the AI can explain anything in the report
+     * ("ye dosh kaise theek karun?").
+     *
+     * @param request the manual-form request (null for photo mode)
+     * @param photoParse the `photo_parse` map from /vastu/analyze-photo
+     * @param photoNotes user notes sent with the photo
+     */
+    fun toFullContextBlock(
+        request: VastuAnalyzeRequest?,
+        photoParse: Map<String, Any?>?,
+        photoNotes: String?
+    ): String {
+        val sb = StringBuilder("=== VASTU ANALYSIS ===\n")
+        sb.append("Score: ").append(score).append("/100\n")
+        if (grade.isNotBlank()) sb.append("Grade: ").append(grade).append('\n')
+        sb.append("Dosha counts: high=").append(highCount)
+            .append(", medium=").append(mediumCount)
+            .append(", low=").append(lowCount).append('\n')
+
+        if (request != null) {
+            sb.append("\n--- Inputs analyzed (manual entry) ---\n")
+            sb.append("Facing: ").append(request.facing).append('\n')
+            request.entrancePada?.let { sb.append("Entrance pada: ").append(it).append('\n') }
+            request.plotShape?.let { sb.append("Plot shape: ").append(it).append('\n') }
+            request.plotLength?.let { sb.append("Plot length (ft): ").append(it).append('\n') }
+            request.plotBreadth?.let { sb.append("Plot breadth (ft): ").append(it).append('\n') }
+            request.slope?.let { sb.append("Slope towards: ").append(it).append('\n') }
+            request.road?.let { sb.append("Road direction: ").append(it).append('\n') }
+            request.waterSource?.let { sb.append("Water source: ").append(it).append('\n') }
+            request.overheadTank?.let { sb.append("Overhead tank: ").append(it).append('\n') }
+            request.septicTank?.let { sb.append("Septic tank: ").append(it).append('\n') }
+            request.staircase?.let { sb.append("Staircase: ").append(it).append('\n') }
+            if (request.rooms.isNotEmpty()) {
+                sb.append("Rooms:\n")
+                request.rooms.forEach { r ->
+                    sb.append("- ").append(r.type).append(" → ").append(r.direction).append('\n')
+                }
+            }
+        }
+        if (!photoParse.isNullOrEmpty()) {
+            sb.append("\n--- Inputs parsed from house-map photo ---\n")
+            renderGeneric(sb, "", photoParse)
+        }
+        if (!photoNotes.isNullOrBlank()) {
+            sb.append("Photo notes: ").append(photoNotes.trim()).append('\n')
+        }
+
+        if (checks.isNotEmpty()) {
+            sb.append("\n--- Direction / placement verdicts ---\n")
+            checks.forEach { c ->
+                sb.append("- ").append(c.title)
+                if (c.value.isNotBlank()) sb.append(" (").append(c.value).append(')')
+                sb.append(": ").append(c.verdict.replace('_', ' ')).append('\n')
+                if (c.rule.isNotBlank()) sb.append("  Rule: ").append(c.rule).append('\n')
+                if (c.detail.isNotBlank()) sb.append("  Detail: ").append(c.detail).append('\n')
+            }
+        }
+
+        if (doshas.isNotEmpty()) {
+            sb.append("\n--- Doshas (by severity) ---\n")
+            doshas.forEach { d ->
+                sb.append('[').append(d.severity).append("] ").append(d.title).append('\n')
+                if (d.category.isNotBlank()) sb.append("  Category: ").append(d.category).append('\n')
+                if (d.rule.isNotBlank()) sb.append("  Classical rule: ").append(d.rule).append('\n')
+                if (d.detail.isNotBlank()) sb.append("  Detail: ").append(d.detail).append('\n')
+                if (d.remedies.isNotEmpty()) {
+                    sb.append("  Remedies (non-demolition):\n")
+                    d.remedies.forEach { sb.append("  - ").append(it).append('\n') }
+                }
+            }
+        } else {
+            sb.append("\nNo doshas found. The layout follows classical Vastu principles well.\n")
+        }
+
+        if (disclaimer.isNotBlank()) {
+            sb.append("\nDisclaimer: ").append(disclaimer.trim()).append('\n')
+        }
+        sb.append("\nAnswer follow-up questions strictly from this analysis. ")
+        sb.append("When the user asks how to fix a dosha, suggest the listed ")
+        sb.append("non-demolition remedies first. Do not invent details that are not in it.")
+        return sb.toString().trim()
+    }
+}
+
+/** Renders an arbitrary parsed-facts map as key: value lines. */
+internal fun renderGeneric(sb: StringBuilder, prefix: String, v: Any?) {
+    when (v) {
+        null -> Unit
+        is String -> if (v.isNotBlank()) sb.append(prefix).append(v).append('\n')
+        is Number, is Boolean -> sb.append(prefix).append(v).append('\n')
+        is Map<*, *> -> v.forEach { (k, vv) -> renderGeneric(sb, "$prefix$k: ", vv) }
+        is List<*> -> v.forEach { renderGeneric(sb, "$prefix- ", it) }
+        else -> sb.append(prefix).append(v.toString()).append('\n')
+    }
 }
 
 /** One pada entry from GET /vastu/reference (for the pada picker helper). */
@@ -271,21 +373,69 @@ data class PalmistryReading(
         }
     }
 
-    /** parsed_facts rendered as chat context for follow-up AI questions. */
+    /**
+     * FULL palmistry reading rendered as chat context for follow-up AI questions.
+     *
+     * Includes the hand summary, the complete reading text, every line, every
+     * mount, all key observations, all guidance, uncertainties, the disclaimer,
+     * and any extra parsed_facts — so the AI can explain or expand on anything
+     * in the report ("meri health line kya kehti hai?").
+     */
     fun toContextBlock(): String {
-        if (parsedFactsRaw.isEmpty()) return ""
         val sb = StringBuilder("=== PALMISTRY READING (from palm photo) ===\n")
-        fun render(prefix: String, v: Any?) {
-            when (v) {
-                null -> Unit
-                is String -> if (v.isNotBlank()) sb.append(prefix).append(v).append('\n')
-                is Number, is Boolean -> sb.append(prefix).append(v).append('\n')
-                is Map<*, *> -> v.forEach { (k, vv) -> render("$prefix$k: ", vv) }
-                is List<*> -> v.forEach { render("$prefix- ", it) }
-                else -> sb.append(prefix).append(v.toString()).append('\n')
+        if (hand.isNotBlank()) {
+            sb.append("Hand: ").append(hand)
+            if (handType.isNotBlank()) sb.append(" (").append(handType).append(')')
+            sb.append('\n')
+        }
+        if (reading.isNotBlank()) {
+            sb.append("\n--- Full reading ---\n").append(reading.trim()).append('\n')
+        }
+        if (lines.isNotEmpty()) {
+            sb.append("\n--- Lines ---\n")
+            lines.forEach { l ->
+                sb.append("- ").append(l.name)
+                if (l.quality.isNotBlank()) sb.append(" [").append(l.quality).append(']')
+                if (l.note.isNotBlank()) sb.append(": ").append(l.note)
+                sb.append('\n')
             }
         }
-        render("", parsedFactsRaw)
+        if (mounts.isNotEmpty()) {
+            sb.append("\n--- Mounts ---\n")
+            mounts.forEach { m ->
+                sb.append("- ").append(m.name)
+                if (m.state.isNotBlank()) sb.append(" [").append(m.state).append(']')
+                if (m.note.isNotBlank()) sb.append(": ").append(m.note)
+                sb.append('\n')
+            }
+        }
+        if (keyObservations.isNotEmpty()) {
+            sb.append("\n--- Key observations ---\n")
+            keyObservations.forEach { sb.append("- ").append(it).append('\n') }
+        }
+        if (guidance.isNotEmpty()) {
+            sb.append("\n--- Guidance ---\n")
+            guidance.forEach { sb.append("- ").append(it).append('\n') }
+        }
+        if (uncertainties.isNotEmpty()) {
+            sb.append("\n--- Unclear in photo ---\n")
+            uncertainties.forEach { sb.append("- ").append(it).append('\n') }
+        }
+        // Any extra parsed_facts not covered above (raw key: value).
+        val covered = setOf(
+            "hand", "hand_type", "lines", "mounts",
+            "key_observations", "guidance", "uncertainties"
+        )
+        val extras = parsedFactsRaw.filterKeys { it !is String || (it as String) !in covered }
+        if (extras.isNotEmpty()) {
+            sb.append("\n--- Additional parsed facts ---\n")
+            renderGeneric(sb, "", extras)
+        }
+        if (disclaimer.isNotBlank()) {
+            sb.append("\nDisclaimer: ").append(disclaimer.trim()).append('\n')
+        }
+        sb.append("\nAnswer follow-up questions strictly from this reading. ")
+        sb.append("Do not invent details that are not in it.")
         return sb.toString().trim()
     }
 }

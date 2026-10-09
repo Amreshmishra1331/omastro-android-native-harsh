@@ -37,10 +37,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +62,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.omastro.app.data.model.VisionAnalysis
 import com.omastro.app.data.repository.VisionRepository
+import com.omastro.app.data.local.LangPrefs
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicNavy
 import com.omastro.app.ui.theme.SacredGold
@@ -117,6 +121,8 @@ fun PhotoAttachDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Collect global language so the dialog auto-switches EN/हिन्दी.
+    val lang by LangPrefs.language.collectAsState()
     var stage by remember { mutableStateOf(0) } // 0=chooser, 1=preview+question, 2=uploading
     var imageFile by remember { mutableStateOf<File?>(null) }
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -124,16 +130,16 @@ fun PhotoAttachDialog(
 
     val cameraPermission = rememberPermissionRequest(
         permission = Manifest.permission.CAMERA,
-        title = "Camera access",
-        rationale = "Taking a photo needs camera access — e.g. a palm photo or a house-map photo for analysis."
+        title = W.t("photo_cam_title"),
+        rationale = W.t("photo_cam_rationale")
     )
     val galleryPermission = rememberPermissionRequest(
         permission = if (Build.VERSION.SDK_INT >= 33)
             Manifest.permission.READ_MEDIA_IMAGES
         else
             Manifest.permission.READ_EXTERNAL_STORAGE,
-        title = "Photo access",
-        rationale = "Choosing a photo from your gallery needs photo-library access."
+        title = W.t("photo_lib_title"),
+        rationale = W.t("photo_lib_rationale")
     )
 
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -147,7 +153,7 @@ fun PhotoAttachDialog(
                     previewBitmap = bitmap
                     stage = 1
                 } else {
-                    onError("Could not save the photo. Please try again.")
+                    onError(W.t("photo_err_save"))
                 }
             }
         }
@@ -163,7 +169,7 @@ fun PhotoAttachDialog(
                     previewBitmap = null
                     stage = 1
                 } else {
-                    onError("Could not read the selected photo.")
+                    onError(W.t("photo_err_read"))
                 }
             }
         }
@@ -179,7 +185,7 @@ fun PhotoAttachDialog(
                     previewBitmap = null
                     stage = 1
                 } else {
-                    onError("Could not read the selected file.")
+                    onError(W.t("photo_err_read_file"))
                 }
             }
         }
@@ -204,13 +210,13 @@ fun PhotoAttachDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Analyze a Photo",
+                        W.t("photo_title"),
                         color = StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, "Close", tint = StarlightWhite)
+                        Icon(Icons.Default.Close, W.t("chat_close"), tint = StarlightWhite)
                     }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -218,15 +224,15 @@ fun PhotoAttachDialog(
                 when (stage) {
                     0 -> {
                         Text(
-                            "Take or choose a photo — palm, house map, chart — and ask AI about it.",
+                            W.t("photo_sub"),
                             color = StarlightWhite.copy(alpha = 0.7f),
                             fontSize = 13.sp
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         PhotoSourceRow(
                             icon = Icons.Default.CameraAlt,
-                            title = "Take Photo",
-                            subtitle = "Use the camera",
+                            title = W.t("photo_take"),
+                            subtitle = W.t("photo_take_sub"),
                             onClick = {
                                 cameraPermission.request(context) { granted ->
                                     if (granted) cameraLauncher.launch()
@@ -236,8 +242,8 @@ fun PhotoAttachDialog(
                         Spacer(modifier = Modifier.height(10.dp))
                         PhotoSourceRow(
                             icon = Icons.Default.Image,
-                            title = "Choose from Gallery",
-                            subtitle = "Pick a saved photo",
+                            title = W.t("photo_gallery"),
+                            subtitle = W.t("photo_gallery_sub"),
                             onClick = {
                                 galleryPermission.request(context) { granted ->
                                     if (granted) galleryLauncher.launch("image/*")
@@ -247,8 +253,8 @@ fun PhotoAttachDialog(
                         Spacer(modifier = Modifier.height(10.dp))
                         PhotoSourceRow(
                             icon = Icons.Default.Description,
-                            title = "Choose File",
-                            subtitle = "Any image file",
+                            title = W.t("photo_file"),
+                            subtitle = W.t("photo_file_sub"),
                             onClick = {
                                 galleryPermission.request(context) { granted ->
                                     if (granted) fileLauncher.launch("image/*")
@@ -261,7 +267,7 @@ fun PhotoAttachDialog(
                         if (bmp != null) {
                             Image(
                                 bitmap = bmp.asImageBitmap(),
-                                contentDescription = "Photo preview",
+                                contentDescription = W.t("photo_preview_cd"),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(max = 220.dp)
@@ -278,7 +284,7 @@ fun PhotoAttachDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    imageFile?.name ?: "Photo ready",
+                                    imageFile?.name ?: W.t("photo_ready"),
                                     color = StarlightWhite.copy(alpha = 0.7f),
                                     fontSize = 13.sp
                                 )
@@ -288,12 +294,12 @@ fun PhotoAttachDialog(
                         OutlinedTextField(
                             value = question,
                             onValueChange = { question = it },
-                            label = { Text("Your question about this photo") },
-                            placeholder = { Text("e.g. What does my palm say about career?") },
+                            label = { Text(W.t("photo_question_label")) },
+                            placeholder = { Text(W.t("photo_question_hint")) },
                             modifier = Modifier.fillMaxWidth(),
                             minLines = 2,
                             maxLines = 4,
-                            colors = TextFieldDefaults.colors(
+                            colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = StarlightWhite,
                                 unfocusedTextColor = StarlightWhite,
                                 focusedLabelColor = SacredGold,
@@ -309,7 +315,7 @@ fun PhotoAttachDialog(
                             horizontalArrangement = Arrangement.End
                         ) {
                             TextButton(onClick = { stage = 0 }) {
-                                Text("Retake", color = StarlightWhite.copy(alpha = 0.7f))
+                                Text(W.t("photo_retake"), color = StarlightWhite.copy(alpha = 0.7f))
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
@@ -324,7 +330,7 @@ fun PhotoAttachDialog(
                                             }
                                             .onFailure { e ->
                                                 stage = 1
-                                                onError(e.message ?: "Photo analysis failed.")
+                                                onError(e.message ?: W.t("photo_err_failed"))
                                             }
                                     }
                                 },
@@ -335,7 +341,7 @@ fun PhotoAttachDialog(
                                     disabledContainerColor = SacredGold.copy(alpha = 0.35f)
                                 )
                             ) {
-                                Text("Analyze", fontWeight = FontWeight.Bold)
+                                Text(W.t("photo_analyze_btn"), fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -349,7 +355,7 @@ fun PhotoAttachDialog(
                             CircularProgressIndicator(color = SacredGold)
                             Spacer(modifier = Modifier.height(14.dp))
                             Text(
-                                "Analyzing your photo...",
+                                W.t("photo_analyzing"),
                                 color = StarlightWhite.copy(alpha = 0.75f),
                                 fontSize = 14.sp
                             )

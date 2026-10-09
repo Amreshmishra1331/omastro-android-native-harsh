@@ -83,6 +83,8 @@ import com.omastro.app.data.model.AiModel
 import com.omastro.app.data.model.ChatMessage
 import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.model.VisionAnalysis
+import com.omastro.app.data.local.LangPrefs
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicDeepBlue
 import com.omastro.app.ui.theme.CosmicNavy
@@ -146,6 +148,9 @@ fun AiChatScreen(
     val focusManager = LocalFocusManager.current
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    // Global UI language: voice/photo UI auto-switches EN/हिन्दी with Settings.
+    val lang by LangPrefs.language.collectAsState()
+
     // ---- Voice typing + photo attach + voice mode (world-class additions) ----
     val voiceInput = rememberVoiceInputManager()
     var isListening by remember { mutableStateOf(false) }
@@ -155,8 +160,8 @@ fun AiChatScreen(
     val ttsSpeaking by VoiceModeManager.isSpeaking
     val micPermission = rememberPermissionRequest(
         permission = Manifest.permission.RECORD_AUDIO,
-        title = "Microphone access",
-        rationale = "Voice typing converts your speech into text for the chat. The microphone is only used while you tap the mic button."
+        title = W.t("chat_mic_title"),
+        rationale = W.t("chat_mic_rationale")
     )
     voiceInput.onListeningChange = { isListening = it }
     voiceInput.onResult = { text ->
@@ -169,7 +174,7 @@ fun AiChatScreen(
     // Handoff from Palmistry / Vastu / photo screens: attach parsed facts.
     LaunchedEffect(Unit) {
         if (viewModel.consumePendingPhotoContext()) {
-            snackbarHostState.showSnackbar("Photo analysis attached. Ask anything about it.")
+            snackbarHostState.showSnackbar(W.t("chat_photo_attached"))
         }
     }
 
@@ -263,7 +268,7 @@ fun AiChatScreen(
                         VoiceModePrefs.setEnabled(!voiceModeOn)
                         if (!voiceModeOn) {
                             scope.launch {
-                                snackbarHostState.showSnackbar("Voice mode on. AI replies will be read aloud.")
+                                snackbarHostState.showSnackbar(W.t("chat_voice_on_snack"))
                             }
                         }
                     }) {
@@ -271,7 +276,9 @@ fun AiChatScreen(
                             if (ttsSpeaking) Icons.Default.Stop
                             else if (voiceModeOn) Icons.Default.VolumeUp
                             else Icons.Default.VolumeOff,
-                            contentDescription = if (voiceModeOn) "Voice mode on" else "Voice mode off",
+                            contentDescription = if (ttsSpeaking) W.t("chat_voice_stop_cd")
+                                else if (voiceModeOn) W.t("chat_voice_on_cd")
+                                else W.t("chat_voice_off_cd"),
                             tint = if (voiceModeOn) SacredGold else StarlightWhite.copy(alpha = 0.55f)
                         )
                     }
@@ -820,7 +827,7 @@ private fun ChatInputBar(
                 onValueChange = onValueChange,
                 placeholder = {
                     Text(
-                        "Ask your question...",
+                        W.t("chat_input_hint"),
                         color = StarlightWhite.copy(alpha = 0.4f),
                         fontSize = 14.sp
                     )
@@ -873,7 +880,7 @@ private fun ChatInputBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.Mic,
-                    contentDescription = if (isListening) "Stop listening" else "Voice typing",
+                    contentDescription = if (isListening) W.t("chat_stop_listening") else W.t("chat_voice_typing"),
                     tint = if (isListening) SacredGold else StarlightWhite.copy(alpha = 0.8f),
                     modifier = Modifier.size(22.dp)
                 )
@@ -895,7 +902,7 @@ private fun ChatInputBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.PhotoCamera,
-                    contentDescription = "Analyze a photo",
+                    contentDescription = W.t("chat_analyze_photo_cd"),
                     tint = SacredGold,
                     modifier = Modifier.size(22.dp)
                 )

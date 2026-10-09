@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.CosmicNavy
 import com.omastro.app.ui.theme.SacredGold
 import com.omastro.app.ui.theme.StarlightWhite
@@ -54,7 +55,7 @@ class VoiceInputManager(private val context: Context) {
 
     fun startListening(language: String) {
         if (!isAvailable) {
-            onError?.invoke("Voice typing is not available on this device.")
+            onError?.invoke(W.t("voice_unavailable"))
             return
         }
         stopListening()
@@ -85,15 +86,15 @@ class VoiceInputManager(private val context: Context) {
                         val msg = when (error) {
                             SpeechRecognizer.ERROR_NO_MATCH,
                             SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
-                                "Did not catch that. Please try again."
+                                W.t("voice_no_match")
                             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
-                                "Microphone permission is required for voice typing."
+                                W.t("voice_need_mic_perm")
                             SpeechRecognizer.ERROR_NETWORK,
                             SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
-                                "Voice typing needs an internet connection."
+                                W.t("voice_need_net")
                             SpeechRecognizer.ERROR_CLIENT,
                             SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> null // silent retry path
-                            else -> "Voice typing failed. Please try again."
+                            else -> W.t("voice_failed")
                         }
                         msg?.let { onError?.invoke(it) }
                     }
@@ -103,7 +104,7 @@ class VoiceInputManager(private val context: Context) {
                             results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val best = matches?.firstOrNull()?.trim()
                         if (!best.isNullOrBlank()) onResult?.invoke(best)
-                        else onError?.invoke("Did not catch that. Please try again.")
+                        else onError?.invoke(W.t("voice_no_match"))
                     }
                     override fun onPartialResults(partialResults: Bundle?) = Unit
                     override fun onEvent(eventType: Int, params: Bundle?) = Unit
@@ -112,7 +113,7 @@ class VoiceInputManager(private val context: Context) {
             }
         } catch (e: Exception) {
             onListeningChange?.invoke(false)
-            onError?.invoke("Voice typing could not start.")
+            onError?.invoke(W.t("voice_could_not_start"))
         }
     }
 
@@ -278,11 +279,15 @@ object VoiceModePrefs {
  */
 class PermissionRequest(
     private val permission: String,
-    val title: String,
-    val rationale: String
+    title: String,
+    rationale: String
 ) {
     private var launcher: ((String) -> Unit)? = null
     private var pendingCallback: ((Boolean) -> Unit)? = null
+    var title: String = title
+        private set
+    var rationale: String = rationale
+        private set
     var showRationale by mutableStateOf(false)
         private set
     var showDenied by mutableStateOf(false)
@@ -290,6 +295,12 @@ class PermissionRequest(
 
     internal fun bind(launch: (String) -> Unit) {
         launcher = launch
+    }
+
+    /** Refreshes title/rationale so language changes apply live. */
+    internal fun updateLabels(title: String, rationale: String) {
+        this.title = title
+        this.rationale = rationale
     }
 
     fun isGranted(context: Context): Boolean =
@@ -334,6 +345,8 @@ fun rememberPermissionRequest(
     rationale: String
 ): PermissionRequest {
     val req = remember(permission) { PermissionRequest(permission, title, rationale) }
+    // Keep labels live: recomposition (driven by LangPrefs) refreshes them.
+    req.updateLabels(title, rationale)
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -356,7 +369,7 @@ fun rememberPermissionRequest(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "You can change this anytime in the system Settings.",
+                        W.t("perm_settings_note"),
                         color = StarlightWhite.copy(alpha = 0.55f),
                         fontSize = 12.sp
                     )
@@ -364,13 +377,13 @@ fun rememberPermissionRequest(
             },
             confirmButton = {
                 TextButton(onClick = { req.onRationaleAccepted() }) {
-                    Text("Allow", color = SacredGold, fontWeight = FontWeight.Bold)
+                    Text(W.t("perm_allow"), color = SacredGold, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { req.onRationaleDismissed() }) {
                     Text(
-                        "Not now",
+                        W.t("perm_not_now"),
                         color = StarlightWhite.copy(alpha = 0.7f)
                     )
                 }
@@ -387,15 +400,14 @@ fun rememberPermissionRequest(
             },
             text = {
                 Text(
-                    "Permission was denied, so this feature is unavailable. " +
-                        "Enable it in the system Settings to use it.",
+                    W.t("perm_denied_msg"),
                     color = StarlightWhite.copy(alpha = 0.85f),
                     fontSize = 13.sp
                 )
             },
             confirmButton = {
                 TextButton(onClick = { req.dismissDenied() }) {
-                    Text("OK", color = SacredGold, fontWeight = FontWeight.Bold)
+                    Text(W.t("perm_ok"), color = SacredGold, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = CosmicNavy

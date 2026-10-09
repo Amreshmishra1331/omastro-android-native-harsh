@@ -214,7 +214,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.Language,
                         title = "App Language",
-                        subtitle = "English · हिन्दी (partial)"
+                        subtitle = "English · हिन्दी"
                     )
                 }
             }

@@ -45,6 +45,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -79,7 +80,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.PendingPhotoContextHolder
 import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.model.VASTU_DIRECTIONS
-import com.omastro.app.data.model.VASTU_DIRECTION_NAMES
 import com.omastro.app.data.model.VASTU_ROOM_TYPES
 import com.omastro.app.data.model.VastuAnalysis
 import com.omastro.app.data.model.VastuAnalyzeRequest
@@ -90,6 +90,8 @@ import com.omastro.app.data.repository.VisionRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
 import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
 import com.omastro.app.ui.screens.aichat.saveBitmapToCache
+import com.omastro.app.data.local.LangPrefs
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicDeepBlue
 import com.omastro.app.ui.theme.CosmicNavy
@@ -114,13 +116,24 @@ data class VastuUiState(
     val isLoading: Boolean = false,
     val analysis: VastuAnalysis? = null,
     val error: String? = null,
-    val padaReference: List<VastuPadaInfo> = emptyList()
+    val padaReference: List<VastuPadaInfo> = emptyList(),
+    /** `photo_parse` from /vastu/analyze-photo (parsed house-map inputs). */
+    val photoParse: Map<String, Any?> = emptyMap()
 )
 
 class VastuViewModel : ViewModel() {
     private val repo = VisionRepository()
     private val _uiState = MutableStateFlow(VastuUiState())
     val uiState: StateFlow<VastuUiState> = _uiState
+
+    /** Last manual-form request — included in the AI context block. */
+    private var lastRequest: VastuAnalyzeRequest? = null
+
+    /** Notes sent with the last photo analysis — included in AI context. */
+    private var lastPhotoNotes: String? = null
+
+    fun lastAnalyzedRequest(): VastuAnalyzeRequest? = lastRequest
+    fun lastAnalyzedPhotoNotes(): String? = lastPhotoNotes
 
     fun loadReference() {
         viewModelScope.launch {
@@ -131,7 +144,11 @@ class VastuViewModel : ViewModel() {
     }
 
     fun analyze(request: VastuAnalyzeRequest) {
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        lastRequest = request
+        lastPhotoNotes = null
+        _uiState.value = _uiState.value.copy(
+            isLoading = true, error = null, analysis = null, photoParse = emptyMap()
+        )
         viewModelScope.launch {
             repo.analyzeVastu(request)
                 .onSuccess { analysis ->
@@ -142,32 +159,40 @@ class VastuViewModel : ViewModel() {
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = e.message ?: "Vastu analysis failed."
+                        error = e.message ?: W.t("vastu_err_failed")
                     )
                 }
         }
     }
 
     fun analyzePhoto(photo: File, notes: String?) {
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        lastRequest = null
+        lastPhotoNotes = notes?.takeIf { it.isNotBlank() }
+        _uiState.value = _uiState.value.copy(
+            isLoading = true, error = null, analysis = null, photoParse = emptyMap()
+        )
         viewModelScope.launch {
             repo.analyzeVastuPhoto(photo, notes)
-                .onSuccess { (_, analysis) ->
+                .onSuccess { (photoParse, analysis) ->
                     _uiState.value = _uiState.value.copy(
-                        isLoading = false, analysis = analysis
+                        isLoading = false, analysis = analysis, photoParse = photoParse
                     )
                 }
                 .onFailure { e ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        error = e.message ?: "Photo analysis failed."
+                        error = e.message ?: W.t("vastu_photo_err_failed")
                     )
                 }
         }
     }
 
     fun reset() {
-        _uiState.value = _uiState.value.copy(analysis = null, error = null)
+        lastRequest = null
+        lastPhotoNotes = null
+        _uiState.value = _uiState.value.copy(
+            analysis = null, error = null, photoParse = emptyMap()
+        )
     }
 }
 
@@ -184,6 +209,8 @@ fun VastuScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var tab by remember { mutableStateOf(0) } // 0 = Manual, 1 = Photo
+    // Collect global language so the whole screen auto-switches EN/हिन्दी.
+    val lang by LangPrefs.language.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadReference() }
 
@@ -193,13 +220,13 @@ fun VastuScreen(
                 title = {
                     Column {
                         Text(
-                            "Vastu Shastra",
+                            W.t("vastu_title"),
                             color = StarlightWhite,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
                         Text(
-                            "Classical home-energy analysis",
+                            W.t("vastu_sub"),
                             color = StarlightWhite.copy(alpha = 0.55f),
                             fontSize = 12.sp
                         )
@@ -209,7 +236,7 @@ fun VastuScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = W.t("back"),
                             tint = SacredGold
                         )
                     }
@@ -233,7 +260,7 @@ fun VastuScreen(
                     .background(CosmicNavy)
                     .padding(4.dp)
             ) {
-                listOf("Manual Entry", "House-Map Photo").forEachIndexed { i, label ->
+                listOf(W.t("vastu_tab_manual"), W.t("vastu_tab_photo")).forEachIndexed { i, label ->
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -278,7 +305,7 @@ fun VastuScreen(
                         CircularProgressIndicator(color = SacredGold)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Analyzing Vastu...",
+                            W.t("vastu_analyzing"),
                             color = StarlightWhite.copy(alpha = 0.7f),
                             fontSize = 13.sp
                         )
@@ -289,19 +316,22 @@ fun VastuScreen(
                 VastuResultView(
                     analysis = analysis,
                     onAskAi = {
-                        val block = buildString {
-                            append("=== VASTU ANALYSIS (score ${analysis.score}/100) ===\n")
-                            append("Grade: ${analysis.grade}\n")
-                            analysis.doshas.forEach { d ->
-                                append("- [${d.severity}] ${d.title}: ${d.detail}\n")
-                            }
-                        }
-                        PendingPhotoContextHolder.set(
-                            PhotoContextAttachment(
-                                label = "Vastu analysis (${analysis.score}/100)",
-                                contextBlock = block
-                            )
+                        // FULL analysis context → AI chat: score, inputs, every
+                        // verdict, every dosha + remedies. AI can explain
+                        // anything in the report.
+                        val block = analysis.toFullContextBlock(
+                            request = viewModel.lastAnalyzedRequest(),
+                            photoParse = uiState.photoParse,
+                            photoNotes = viewModel.lastAnalyzedPhotoNotes()
                         )
+                        if (block.isNotBlank()) {
+                            PendingPhotoContextHolder.set(
+                                PhotoContextAttachment(
+                                    label = "${W.t("vastu_ctx_label")} (${analysis.score}/100)",
+                                    contextBlock = block
+                                )
+                            )
+                        }
                         onOpenAiChat()
                     },
                     onNew = { viewModel.reset() }
@@ -353,9 +383,9 @@ private fun VastuManualForm(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        VastuCard(title = "Facing & Entrance") {
+        VastuCard(title = W.t("vastu_card_facing")) {
             DirectionPicker(
-                label = "Main facing direction",
+                label = W.t("vastu_facing_label"),
                 value = facing,
                 onChange = { facing = it }
             )
@@ -363,7 +393,7 @@ private fun VastuManualForm(
             OutlinedTextField(
                 value = padaText,
                 onValueChange = { padaText = it.filter { c -> c.isDigit() }.take(2) },
-                label = { Text("Entrance pada (1–32, optional)") },
+                label = { Text(W.t("vastu_pada_label")) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
@@ -386,18 +416,19 @@ private fun VastuManualForm(
             } else if (padaText.isNotBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "Enter 1–32. Each direction has 4 padas with different devatas.",
+                    W.t("vastu_pada_hint"),
                     color = StarlightWhite.copy(alpha = 0.55f),
                     fontSize = 12.sp
                 )
             }
         }
 
-        VastuCard(title = "Plot") {
+        VastuCard(title = W.t("vastu_card_plot")) {
             DirectionPicker(
-                label = "Plot shape",
+                label = W.t("vastu_plot_shape"),
                 value = plotShape,
                 options = listOf("square", "rectangle", "irregular", "L-shaped", "triangular"),
+                nameOf = { W.plotShapeName(it) },
                 onChange = { plotShape = it }
             )
             Spacer(modifier = Modifier.height(10.dp))
@@ -405,7 +436,7 @@ private fun VastuManualForm(
                 OutlinedTextField(
                     value = plotLength,
                     onValueChange = { plotLength = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Length (ft)") },
+                    label = { Text(W.t("vastu_length")) },
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
@@ -414,7 +445,7 @@ private fun VastuManualForm(
                 OutlinedTextField(
                     value = plotBreadth,
                     onValueChange = { plotBreadth = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Breadth (ft)") },
+                    label = { Text(W.t("vastu_breadth")) },
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
@@ -422,22 +453,22 @@ private fun VastuManualForm(
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
-            DirectionPicker(label = "Slope towards (optional)", value = slope, allowEmpty = true, onChange = { slope = it })
+            DirectionPicker(label = W.t("vastu_slope"), value = slope, allowEmpty = true, onChange = { slope = it })
             Spacer(modifier = Modifier.height(10.dp))
-            DirectionPicker(label = "Road direction (optional)", value = road, allowEmpty = true, onChange = { road = it })
+            DirectionPicker(label = W.t("vastu_road"), value = road, allowEmpty = true, onChange = { road = it })
         }
 
-        VastuCard(title = "Water & Infrastructure") {
-            DirectionPicker(label = "Water source / borewell", value = water, allowEmpty = true, onChange = { water = it })
+        VastuCard(title = W.t("vastu_card_water")) {
+            DirectionPicker(label = W.t("vastu_water"), value = water, allowEmpty = true, onChange = { water = it })
             Spacer(modifier = Modifier.height(10.dp))
-            DirectionPicker(label = "Overhead tank", value = tank, allowEmpty = true, onChange = { tank = it })
+            DirectionPicker(label = W.t("vastu_tank"), value = tank, allowEmpty = true, onChange = { tank = it })
             Spacer(modifier = Modifier.height(10.dp))
-            DirectionPicker(label = "Septic tank", value = septic, allowEmpty = true, onChange = { septic = it })
+            DirectionPicker(label = W.t("vastu_septic"), value = septic, allowEmpty = true, onChange = { septic = it })
             Spacer(modifier = Modifier.height(10.dp))
-            DirectionPicker(label = "Staircase", value = staircase, allowEmpty = true, onChange = { staircase = it })
+            DirectionPicker(label = W.t("vastu_staircase"), value = staircase, allowEmpty = true, onChange = { staircase = it })
         }
 
-        VastuCard(title = "Rooms") {
+        VastuCard(title = W.t("vastu_card_rooms")) {
             rooms.forEach { room ->
                 VastuRoomRow(
                     room = room,
@@ -463,7 +494,7 @@ private fun VastuManualForm(
             ) {
                 Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Add Room")
+                Text(W.t("vastu_add_room"))
             }
         }
 
@@ -493,7 +524,7 @@ private fun VastuManualForm(
                 contentColor = Color(0xFF1A1005)
             )
         ) {
-            Text("Analyze Vastu", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(W.t("vastu_analyze"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -515,7 +546,7 @@ private fun VastuCard(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun vastuFieldColors() = TextFieldDefaults.colors(
+private fun vastuFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = StarlightWhite,
     unfocusedTextColor = StarlightWhite,
     focusedLabelColor = SacredGold,
@@ -531,13 +562,13 @@ private fun DirectionPicker(
     value: String,
     onChange: (String) -> Unit,
     options: List<String> = VASTU_DIRECTIONS,
-    allowEmpty: Boolean = false
+    allowEmpty: Boolean = false,
+    nameOf: (String) -> String = { opt -> "${W.dirName(opt)} ($opt)" }
 ) {
     var expanded by remember { mutableStateOf(false) }
     val display = when {
-        value.isBlank() && allowEmpty -> "Not set"
-        VASTU_DIRECTION_NAMES.containsKey(value) -> "${VASTU_DIRECTION_NAMES[value]} ($value)"
-        else -> value.replaceFirstChar { it.uppercase() }
+        value.isBlank() && allowEmpty -> W.t("vastu_not_set")
+        else -> nameOf(value)
     }
     Column {
         Text(label, color = StarlightWhite.copy(alpha = 0.65f), fontSize = 12.5.sp)
@@ -567,15 +598,13 @@ private fun DirectionPicker(
             ) {
                 if (allowEmpty) {
                     DropdownMenuItem(
-                        text = { Text("Not set", color = StarlightWhite.copy(alpha = 0.6f)) },
+                        text = { Text(W.t("vastu_not_set"), color = StarlightWhite.copy(alpha = 0.6f)) },
                         onClick = { onChange(""); expanded = false }
                     )
                 }
                 options.forEach { opt ->
-                    val label2 = VASTU_DIRECTION_NAMES[opt]?.let { "$it ($opt)" }
-                        ?: opt.replaceFirstChar { it.uppercase() }
                     DropdownMenuItem(
-                        text = { Text(label2, color = StarlightWhite) },
+                        text = { Text(nameOf(opt), color = StarlightWhite) },
                         onClick = { onChange(opt); expanded = false }
                     )
                 }
@@ -599,7 +628,7 @@ private fun VastuRoomRow(
     ) {
         var typeExpanded by remember { mutableStateOf(false) }
         var dirExpanded by remember { mutableStateOf(false) }
-        val typeLabel = VASTU_ROOM_TYPES.find { it.first == room.type }?.second ?: room.type
+        val typeLabel = W.roomName(room.type)
 
         // Type picker
         Box(modifier = Modifier.weight(1.4f)) {
@@ -623,9 +652,9 @@ private fun VastuRoomRow(
                     .background(CosmicCharcoal)
                     .heightIn(max = 320.dp)
             ) {
-                VASTU_ROOM_TYPES.forEach { (value, label) ->
+                VASTU_ROOM_TYPES.forEach { (value, _) ->
                     DropdownMenuItem(
-                        text = { Text(label, color = StarlightWhite, fontSize = 13.sp) },
+                        text = { Text(W.roomName(value), color = StarlightWhite, fontSize = 13.sp) },
                         onClick = { onTypeChange(value); typeExpanded = false }
                     )
                 }
@@ -644,7 +673,7 @@ private fun VastuRoomRow(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    VASTU_DIRECTION_NAMES[room.direction]?.let { "$it (${room.direction})" } ?: room.direction,
+                    "${W.dirName(room.direction)} (${room.direction})",
                     color = StarlightWhite,
                     fontSize = 13.sp,
                     maxLines = 1
@@ -660,7 +689,7 @@ private fun VastuRoomRow(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                VASTU_DIRECTION_NAMES[d]?.let { "$it ($d)" } ?: d,
+                                "${W.dirName(d)} ($d)",
                                 color = StarlightWhite,
                                 fontSize = 13.sp
                             )
@@ -672,7 +701,7 @@ private fun VastuRoomRow(
         }
         if (canRemove) {
             IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Close, "Remove room", tint = Color(0xFFFF8A80))
+                Icon(Icons.Default.Close, W.t("vastu_remove_room_cd"), tint = Color(0xFFFF8A80))
             }
         }
     }
@@ -696,16 +725,16 @@ private fun VastuPhotoForm(
 
     val cameraPermission = rememberPermissionRequest(
         permission = Manifest.permission.CAMERA,
-        title = "Camera access",
-        rationale = "Photographing your house map needs camera access."
+        title = W.t("vastu_cam_title"),
+        rationale = W.t("vastu_cam_rationale")
     )
     val galleryPermission = rememberPermissionRequest(
         permission = if (Build.VERSION.SDK_INT >= 33)
             Manifest.permission.READ_MEDIA_IMAGES
         else
             Manifest.permission.READ_EXTERNAL_STORAGE,
-        title = "Photo access",
-        rationale = "Choosing a house-map photo needs photo-library access."
+        title = W.t("vastu_lib_title"),
+        rationale = W.t("vastu_lib_rationale")
     )
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview()
@@ -717,7 +746,7 @@ private fun VastuPhotoForm(
                     imageFile = f
                     previewBitmap = bitmap
                 } else {
-                    snackbarHostState.showSnackbar("Could not save the photo.")
+                    snackbarHostState.showSnackbar(W.t("vastu_photo_err_save"))
                 }
             }
         }
@@ -732,7 +761,7 @@ private fun VastuPhotoForm(
                     imageFile = f
                     previewBitmap = null
                 } else {
-                    snackbarHostState.showSnackbar("Could not read the selected photo.")
+                    snackbarHostState.showSnackbar(W.t("vastu_photo_err_read"))
                 }
             }
         }
@@ -754,14 +783,14 @@ private fun VastuPhotoForm(
                 .padding(18.dp)
         ) {
             Text(
-                "Upload your house map",
+                W.t("vastu_photo_title"),
                 color = StarlightWhite,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                "AI reads the floor plan — rooms, entrance, directions — then the classical Vastu engine scores it. Mark North on the plan if you can.",
+                W.t("vastu_photo_sub"),
                 color = StarlightWhite.copy(alpha = 0.65f),
                 fontSize = 13.sp
             )
@@ -770,7 +799,7 @@ private fun VastuPhotoForm(
             if (previewBitmap != null) {
                 Image(
                     bitmap = previewBitmap!!.asImageBitmap(),
-                    contentDescription = "House map preview",
+                    contentDescription = W.t("vastu_photo_map_cd"),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
@@ -787,7 +816,7 @@ private fun VastuPhotoForm(
                         .background(CosmicCharcoal),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("House map ready", color = SacredGold, fontSize = 13.sp)
+                    Text(W.t("vastu_photo_ready"), color = SacredGold, fontSize = 13.sp)
                 }
                 Spacer(modifier = Modifier.height(14.dp))
             }
@@ -810,7 +839,7 @@ private fun VastuPhotoForm(
                 ) {
                     Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Camera")
+                    Text(W.t("palm_camera"))
                 }
                 Button(
                     onClick = {
@@ -826,14 +855,14 @@ private fun VastuPhotoForm(
                 ) {
                     Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Gallery")
+                    Text(W.t("palm_gallery"))
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
-                label = { Text("Notes (optional) — e.g. entrance faces east") },
+                label = { Text(W.t("vastu_notes_label")) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2,
                 colors = vastuFieldColors()
@@ -851,7 +880,7 @@ private fun VastuPhotoForm(
                     contentColor = Color(0xFF1A1005)
                 )
             ) {
-                Text("Analyze House Map", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(W.t("vastu_analyze_map"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -895,25 +924,25 @@ private fun VastuResultView(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    DoshaCountChip("High", analysis.highCount, Color(0xFFFF5252))
-                    DoshaCountChip("Medium", analysis.mediumCount, Color(0xFFFFB74D))
-                    DoshaCountChip("Low", analysis.lowCount, SacredGold)
+                    DoshaCountChip(W.t("vastu_count_high"), analysis.highCount, Color(0xFFFF5252))
+                    DoshaCountChip(W.t("vastu_count_medium"), analysis.mediumCount, Color(0xFFFFB74D))
+                    DoshaCountChip(W.t("vastu_count_low"), analysis.lowCount, SacredGold)
                 }
             }
         }
 
         // Doshas by severity
         if (analysis.doshas.isNotEmpty()) {
-            VastuCard(title = "Doshas Found") {
+            VastuCard(title = W.t("vastu_doshas_found")) {
                 analysis.doshas.forEach { dosha ->
                     VastuDoshaCard(dosha = dosha)
                     Spacer(modifier = Modifier.height(10.dp))
                 }
             }
         } else {
-            VastuCard(title = "Doshas") {
+            VastuCard(title = W.t("vastu_doshas")) {
                 Text(
-                    "No doshas found. This layout follows classical Vastu principles well.",
+                    W.t("vastu_no_doshas"),
                     color = Color(0xFF81C784),
                     fontSize = 13.5.sp
                 )
@@ -922,7 +951,7 @@ private fun VastuResultView(
 
         // Direction / placement checks
         if (analysis.checks.isNotEmpty()) {
-            VastuCard(title = "Placement Verdicts") {
+            VastuCard(title = W.t("vastu_verdicts")) {
                 analysis.checks.forEach { check ->
                     VastuCheckRow(check = check)
                 }
@@ -950,7 +979,7 @@ private fun VastuResultView(
                     contentColor = StarlightWhite
                 )
             ) {
-                Text("New Analysis")
+                Text(W.t("vastu_new"))
             }
             Button(
                 onClick = onAskAi,
@@ -960,7 +989,7 @@ private fun VastuResultView(
                     contentColor = Color(0xFF1A1005)
                 )
             ) {
-                Text("Ask AI", fontWeight = FontWeight.Bold)
+                Text(W.t("vastu_ask_ai"), fontWeight = FontWeight.Bold)
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -968,10 +997,10 @@ private fun VastuResultView(
 }
 
 private fun gradeFor(score: Int): String = when {
-    score >= 85 -> "Excellent — strongly Vastu-aligned"
-    score >= 70 -> "Good — mostly aligned"
-    score >= 50 -> "Average — some corrections advised"
-    else -> "Needs correction"
+    score >= 85 -> W.t("vastu_grade_85")
+    score >= 70 -> W.t("vastu_grade_70")
+    score >= 50 -> W.t("vastu_grade_50")
+    else -> W.t("vastu_grade_low")
 }
 
 @Composable
@@ -1044,6 +1073,11 @@ private fun VastuDoshaCard(dosha: VastuDosha) {
         "medium" -> Color(0xFFFFB74D)
         else -> SacredGold
     }
+    val severityLabel = when (dosha.severity.lowercase()) {
+        "high" -> W.t("vastu_sev_high")
+        "medium" -> W.t("vastu_sev_medium")
+        else -> W.t("vastu_sev_low")
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1054,7 +1088,7 @@ private fun VastuDoshaCard(dosha: VastuDosha) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                dosha.title.ifBlank { "Dosha" },
+                dosha.title.ifBlank { W.t("vastu_dosha_fallback") },
                 color = StarlightWhite,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.5.sp,
@@ -1067,7 +1101,7 @@ private fun VastuDoshaCard(dosha: VastuDosha) {
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    dosha.severity.replaceFirstChar { it.uppercase() },
+                    severityLabel,
                     color = severityColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -1081,7 +1115,7 @@ private fun VastuDoshaCard(dosha: VastuDosha) {
         if (dosha.rule.isNotBlank()) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                "Rule: ${dosha.rule}",
+                "${W.t("vastu_rule")}: ${dosha.rule}",
                 color = SacredGold.copy(alpha = 0.8f),
                 fontSize = 12.sp
             )
@@ -1089,7 +1123,7 @@ private fun VastuDoshaCard(dosha: VastuDosha) {
         if (dosha.remedies.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Remedies (no demolition):",
+                W.t("vastu_remedies"),
                 color = StarlightWhite.copy(alpha = 0.6f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold

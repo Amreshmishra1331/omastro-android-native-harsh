@@ -9,9 +9,10 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * App UI language preference ("en" | "hi").
  *
- * HONEST SCOPE: Hindi currently covers navigation & drawer menus only
- * (see [stringsFor]). All other screens remain English until fully
- * translated. The language dialog labels this as partial.
+ * Hindi covers navigation & drawer menus ([stringsFor]) plus the world-class
+ * feature set (voice typing, voice mode, photo AI, Palmistry, Vastu) via
+ * [com.omastro.app.ui.i18n.W], which reads this same preference. All new
+ * screens auto-switch with the Settings language — no per-screen toggles.
  */
 object LangPrefs {
     private const val PREFS = "omastro_lang_prefs"
@@ -56,6 +57,8 @@ object LangPrefs {
         "Numerology" to "अंक ज्योतिष",
         "Gochar" to "गोचर",
         "Muhurat" to "मुहूर्त",
+        "Palmistry" to "हस्तरेखा",
+        "Vastu Shastra" to "वास्तु शास्त्र",
         // Drawer — Account
         "Add Money" to "पैसे जोड़ें",
         "Saved Kundalis" to "सहेजी कुंडलियां",

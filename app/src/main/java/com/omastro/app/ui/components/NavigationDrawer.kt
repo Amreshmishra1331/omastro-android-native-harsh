@@ -152,7 +152,7 @@ fun DrawerDialogHost(
                             Column {
                                 Text("हिन्दी", color = StarlightWhite, fontSize = 14.sp)
                                 Text(
-                                    "Menus & navigation only (partial)",
+                                    "Menus, voice, photo, Palmistry & Vastu",
                                     color = SacredGold.copy(alpha = 0.7f),
                                     fontSize = 11.sp
                                 )
@@ -470,7 +470,7 @@ private fun drawerMenuEntries(
         "Preferences" to listOf(
             DrawerEntry(
                 title = "Language",
-                subtitle = "English · हिन्दी (partial)",
+                subtitle = "English · हिन्दी",
                 icon = Icons.Default.Language,
                 onClick = { onShowDialog(DrawerDialog.Language) }
             )

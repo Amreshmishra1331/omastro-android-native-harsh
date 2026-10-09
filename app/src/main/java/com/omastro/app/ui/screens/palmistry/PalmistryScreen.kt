@@ -71,6 +71,8 @@ import com.omastro.app.data.repository.VisionRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
 import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
 import com.omastro.app.ui.screens.aichat.saveBitmapToCache
+import com.omastro.app.data.local.LangPrefs
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicDeepBlue
 import com.omastro.app.ui.theme.CosmicNavy
@@ -99,7 +101,7 @@ class PalmistryViewModel : ViewModel() {
                 }
                 .onFailure { e ->
                     _uiState.value = PalmistryUiState(
-                        error = e.message ?: "Palm analysis failed. Please try again."
+                        error = e.message ?: W.t("palm_err_failed")
                     )
                 }
         }
@@ -121,6 +123,8 @@ fun PalmistryScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    // Collect global language so the whole screen auto-switches EN/हिन्दी.
+    val lang by LangPrefs.language.collectAsState()
 
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var imageFile by remember { mutableStateOf<File?>(null) }
@@ -128,16 +132,16 @@ fun PalmistryScreen(
 
     val cameraPermission = rememberPermissionRequest(
         permission = Manifest.permission.CAMERA,
-        title = "Camera access",
-        rationale = "Taking a palm photo needs camera access."
+        title = W.t("palm_cam_title"),
+        rationale = W.t("palm_cam_rationale")
     )
     val galleryPermission = rememberPermissionRequest(
         permission = if (Build.VERSION.SDK_INT >= 33)
             Manifest.permission.READ_MEDIA_IMAGES
         else
             Manifest.permission.READ_EXTERNAL_STORAGE,
-        title = "Photo access",
-        rationale = "Choosing a palm photo from your gallery needs photo-library access."
+        title = W.t("palm_lib_title"),
+        rationale = W.t("palm_lib_rationale")
     )
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview()
@@ -150,7 +154,7 @@ fun PalmistryScreen(
                     previewBitmap = bitmap
                     viewModel.reset()
                 } else {
-                    snackbarHostState.showSnackbar("Could not save the photo.")
+                    snackbarHostState.showSnackbar(W.t("palm_err_save"))
                 }
             }
         }
@@ -166,7 +170,7 @@ fun PalmistryScreen(
                     previewBitmap = null
                     viewModel.reset()
                 } else {
-                    snackbarHostState.showSnackbar("Could not read the selected photo.")
+                    snackbarHostState.showSnackbar(W.t("palm_err_read"))
                 }
             }
         }
@@ -177,7 +181,7 @@ fun PalmistryScreen(
             TopAppBar(
                 title = {
                     Text(
-                        "Palmistry",
+                        W.t("palm_title"),
                         color = StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
@@ -185,7 +189,7 @@ fun PalmistryScreen(
                 },
                 subtitle = {
                     Text(
-                        "AI palm reading from your photo",
+                        W.t("palm_sub"),
                         color = StarlightWhite.copy(alpha = 0.55f),
                         fontSize = 12.sp
                     )
@@ -194,7 +198,7 @@ fun PalmistryScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = W.t("back"),
                             tint = SacredGold
                         )
                     }
@@ -221,11 +225,13 @@ fun PalmistryScreen(
                     PalmistryResultCard(
                         reading = uiState.reading!!,
                         onAskAi = {
+                            // FULL reading → AI chat context: hand summary, all
+                            // lines, mounts, observations, guidance, facts.
                             val block = uiState.reading!!.toContextBlock()
                             if (block.isNotBlank()) {
                                 PendingPhotoContextHolder.set(
                                     PhotoContextAttachment(
-                                        label = "Palmistry reading",
+                                        label = W.t("palm_title"),
                                         contextBlock = block
                                     )
                                 )
@@ -292,17 +298,17 @@ private fun PalmistryCaptureCard(
             .padding(18.dp)
     ) {
         Text(
-            "Photograph your palm",
+            W.t("palm_capture_title"),
             color = StarlightWhite,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp
         )
         Spacer(modifier = Modifier.height(8.dp))
         listOf(
-            "Hold your palm flat with fingers together",
-            "Use bright, even light — avoid shadows",
-            "Fill the frame with your palm",
-            "Keep the photo sharp, not blurry"
+            W.t("palm_tip_1"),
+            W.t("palm_tip_2"),
+            W.t("palm_tip_3"),
+            W.t("palm_tip_4")
         ).forEach { tip ->
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -321,10 +327,10 @@ private fun PalmistryCaptureCard(
         Spacer(modifier = Modifier.height(14.dp))
 
         // Hand selector
-        Text("Which hand?", color = StarlightWhite.copy(alpha = 0.7f), fontSize = 13.sp)
+        Text(W.t("palm_which_hand"), color = StarlightWhite.copy(alpha = 0.7f), fontSize = 13.sp)
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            listOf("right" to "Right Hand", "left" to "Left Hand").forEach { (value, label) ->
+            listOf("right" to W.t("palm_right"), "left" to W.t("palm_left")).forEach { (value, label) ->
                 val selected = selectedHand == value
                 Box(
                     modifier = Modifier
@@ -356,7 +362,7 @@ private fun PalmistryCaptureCard(
         if (previewBitmap != null) {
             Image(
                 bitmap = previewBitmap.asImageBitmap(),
-                contentDescription = "Palm preview",
+                contentDescription = W.t("palm_preview_cd"),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
@@ -374,7 +380,7 @@ private fun PalmistryCaptureCard(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "Photo ready for analysis",
+                    W.t("palm_ready"),
                     color = SacredGold,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
@@ -397,7 +403,7 @@ private fun PalmistryCaptureCard(
             ) {
                 Icon(Icons.Default.CameraAlt, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Camera")
+                Text(W.t("palm_camera"))
             }
             Button(
                 onClick = onGallery,
@@ -409,7 +415,7 @@ private fun PalmistryCaptureCard(
             ) {
                 Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Gallery")
+                Text(W.t("palm_gallery"))
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
@@ -423,7 +429,7 @@ private fun PalmistryCaptureCard(
                 disabledContainerColor = SacredGold.copy(alpha = 0.3f)
             )
         ) {
-            Text("Analyze My Palm", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(W.t("palm_analyze"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
     }
 }
@@ -441,12 +447,12 @@ private fun PalmistryLoadingCard() {
         CircularProgressIndicator(color = SacredGold)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "Reading your palm...",
+            W.t("palm_loading"),
             color = StarlightWhite.copy(alpha = 0.8f),
             fontSize = 14.sp
         )
         Text(
-            "The AI is studying every line and mount.",
+            W.t("palm_loading_sub"),
             color = StarlightWhite.copy(alpha = 0.5f),
             fontSize = 12.sp
         )
@@ -474,13 +480,18 @@ private fun PalmistryResultCard(
         ) {
             Column {
                 Text(
-                    "Your Palm",
+                    W.t("palm_your_palm"),
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 12.sp
                 )
                 if (reading.hand.isNotBlank()) {
+                    val handLabel = when (reading.hand.lowercase()) {
+                        "right" -> W.t("palm_hand_word_right")
+                        "left" -> W.t("palm_hand_word_left")
+                        else -> reading.hand.replaceFirstChar { it.uppercase() } + W.t("palm_hand_word")
+                    }
                     Text(
-                        reading.hand.replaceFirstChar { it.uppercase() } + " hand" +
+                        handLabel +
                             (if (reading.handType.isNotBlank()) " · ${reading.handType}" else ""),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
@@ -492,7 +503,7 @@ private fun PalmistryResultCard(
 
         // Full reading text
         if (reading.reading.isNotBlank()) {
-            ResultSectionCard(title = "Detailed Reading") {
+            ResultSectionCard(title = W.t("palm_detailed")) {
                 Text(
                     reading.reading,
                     color = StarlightWhite.copy(alpha = 0.9f),
@@ -504,7 +515,7 @@ private fun PalmistryResultCard(
 
         // Lines
         if (reading.lines.isNotEmpty()) {
-            ResultSectionCard(title = "Lines") {
+            ResultSectionCard(title = W.t("palm_lines")) {
                 reading.lines.forEach { line ->
                     PalmDetailRow(
                         name = line.name,
@@ -517,7 +528,7 @@ private fun PalmistryResultCard(
 
         // Mounts
         if (reading.mounts.isNotEmpty()) {
-            ResultSectionCard(title = "Mounts") {
+            ResultSectionCard(title = W.t("palm_mounts")) {
                 reading.mounts.forEach { mount ->
                     PalmDetailRow(
                         name = mount.name,
@@ -530,7 +541,7 @@ private fun PalmistryResultCard(
 
         // Key observations
         if (reading.keyObservations.isNotEmpty()) {
-            ResultSectionCard(title = "Key Observations") {
+            ResultSectionCard(title = W.t("palm_obs")) {
                 reading.keyObservations.forEach { obs ->
                     BulletText(obs)
                 }
@@ -539,7 +550,7 @@ private fun PalmistryResultCard(
 
         // Guidance
         if (reading.guidance.isNotEmpty()) {
-            ResultSectionCard(title = "Guidance") {
+            ResultSectionCard(title = W.t("palm_guidance")) {
                 reading.guidance.forEach { g ->
                     BulletText(g)
                 }
@@ -548,7 +559,7 @@ private fun PalmistryResultCard(
 
         // Uncertainties (honesty)
         if (reading.uncertainties.isNotEmpty()) {
-            ResultSectionCard(title = "Unclear in Photo") {
+            ResultSectionCard(title = W.t("palm_unclear")) {
                 reading.uncertainties.forEach { u ->
                     BulletText(u)
                 }
@@ -576,7 +587,7 @@ private fun PalmistryResultCard(
                     contentColor = StarlightWhite
                 )
             ) {
-                Text("New Photo")
+                Text(W.t("palm_new"))
             }
             Button(
                 onClick = onAskAi,
@@ -586,7 +597,7 @@ private fun PalmistryResultCard(
                     contentColor = Color(0xFF1A1005)
                 )
             ) {
-                Text("Ask AI About This", fontWeight = FontWeight.Bold)
+                Text(W.t("palm_ask"), fontWeight = FontWeight.Bold)
             }
         }
     }
