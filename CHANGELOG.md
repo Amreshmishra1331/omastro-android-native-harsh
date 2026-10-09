@@ -4,6 +4,44 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Vastu + Compass Depth Audit: 90° dial bug, stamp clipping, honest sensor states
+
+Audited the full Vastu flow end-to-end from repo code (production server down, no live probe): manual input → `POST /vastu/analyze` → result; photo/floor-plan → `POST /vastu/analyze-photo` → result; "Ask AI about this" wiring. Compass Mode (magnetometer + accelerometer tilt compensation, 4 styles, camera capture with direction stamp) audited line-by-line from code — never device-verified, so a device checklist is included below. Three real bugs found and fixed, two honest-state gaps closed, one bilingual gap closed. No emojis anywhere in the module (verified by scan). No fabricated data: the compass reads live sensors only; null-score "insufficient data" state holds.
+
+**Flow verdict**: manual form is deep (facing + 32-pada picker via `GET /vastu/reference` with graceful empty fallback, plot shape/dimensions, slope/road/water/tank/septic/staircase, unlimited room rows with 8 directions + center) → `VastuAnalyzeRequest` → `VisionRepository.analyzeVastu`. Photo tab: camera (`TakePicturePreview`) + gallery (`GetContent`), permissions via `rememberPermissionRequest` (CAMERA; READ_MEDIA_IMAGES on 33+, READ_EXTERNAL_STORAGE ≤32), all declared in `AndroidManifest.xml`; multipart `photo` + `notes` → `POST vastu/analyze-photo` → `photo_parse` + `vastu_analysis` parsed defensively. Null-score honesty verified: `VastuAnalysis.score` is `Int?` (JSON null → null, never 0), the dial shows a question-mark icon, the grade reads "Insufficient data — no score computed" (EN/हिन्दी), and the "Ask AI" label shows "—" instead of a fake score. "Ask AI about this" is wired end-to-end: `toFullContextBlock()` (score, dosha counts, all manual inputs or parsed photo inputs, every verdict, every dosha with severity/rule/detail/non-demolition remedies, disclaimer, strict no-invention instruction) → `PendingPhotoContextHolder` → AI Chat route → `AiChatViewModel` consumes on open and attaches it as context. Compass → form handoffs verified: "Use this direction" fills the facing picker with the live 8-sector code; "Use photo" hands the stamped file to the photo tab via `onCompassPhoto`.
+
+### Fixed (real bugs)
+1. **Classic + Minimal dial labels/ticks were 90° off the highlight wedge and the top marker** (`CompassModeScreen.kt :: CompassDialClassic` / `CompassDialMinimal`):
+   - **Before**: in y-down screen coordinates, dial angle *a* (clockwise from North) maps to screen angle *a − 90° + rotation*. The live-sector gold wedge and all of Mandala applied the `− 90f` offset; the Classic labels and tick marks (`i * 45f + rotation`, `(deg + rotation)`) and the Minimal ticks (`i * 45f + rotation`) did not — so when the phone faced North, the wedge highlighted the top sector while the "N" label and cardinal ticks sat at the 3-o'clock position. The dial's own elements disagreed by 90°.
+   - **After**: all Classic/Minimal label and tick angles now use the same `− 90f` screen mapping (`i * 45f + rotation - 90f`, `(deg + rotation - 90f)`); the facing direction label/tick sits at the fixed top gold marker and agrees with the wedge in every style.
+2. **Mandala deity-name overlay sat off its label circle** (`CompassModeScreen.kt :: MandalaDeityOverlay`):
+   - **Before**: overlay radius `270/2 × 0.62` vs the canvas code-label radius `(270/2 − 8) × 0.62` — deity names floated ~5dp outside their sector labels.
+   - **After**: overlay radius matches the canvas exactly (`(270f / 2f − 8f) × 0.62f`); names sit under their direction codes on the same circle.
+3. **Direction stamp on captured photos could clip at the photo edges** (`CompassModeScreen.kt :: stampCompassOverlay`):
+   - **Before**: stamp text drawn at fixed `bannerH × 0.30 / 0.19` sizes, centered — long direction names (e.g. Hindi "दक्षिण-पश्चिम") could overflow narrow photos.
+   - **After**: new `fitTextToWidth` shrinks each stamp line to fit 94% of the photo width (floor 40% of base size); banner, divider, timestamp and EXIF-upright decode unchanged.
+
+### Honesty
+- **Calibration nag only after a real reading** (`CompassSensor.kt` + `CompassModeScreen.kt`): new `hasReading` `StateFlow` set on the first tilt-compensated heading; the "move your phone in a figure-8" hint now shows only when a reading exists AND magnetometer accuracy is low/unreliable — it no longer nags on screen-open before any sensor data arrives.
+- **Magnetic-north disclosure** (new `vastu_compass_north_note` string, EN/हिन्दी): the compass reads magnetic north (no declination correction — see device checklist) and nearby metal/magnets degrade accuracy; shown as a small footnote under the heading hint so no one mistakes it for surveyed true north.
+- Honest states already in code and kept: no magnetometer/accelerometer → "Compass not available" screen (never a frozen dial); camera denied → compass still works over the dark background with a rationale CTA (shutter disabled); capture failure → red bilingual error text; sensors start/stop with the overlay lifecycle (`DisposableEffect` register/unregister, no leak); no sensor permissions needed (accelerometer/magnetometer require none — correctly absent from the manifest).
+
+### Bilingual
+- New key `vastu_compass_north_note` added to both EN and HI maps in `FeatureStrings.kt`; auto-switches with Settings language. All 19 `vastu_compass_*` keys verified present in both languages; emoji scan of all `vastu_*` keys: none found.
+
+### Device-verification checklist (needs a physical device; production server down)
+- `CompassSensor.kt:74` — `start()` registers accelerometer + magnetometer with `SENSOR_DELAY_UI`: confirm heading updates smoothly while rotating the phone, and `stop()` (line 84) unregisters on overlay close (check battery drain / no background updates).
+- `CompassSensor.kt:87-102` — tilt-compensated heading via `getRotationMatrix` + `getOrientation`: confirm the dial stays stable when the phone is tilted (not held flat); confirm 0° ≈ North against a known reference.
+- `CompassSensor.kt:96` — `getRotationMatrix` returns false near magnetic poles / strong interference: confirm the dial holds its last reading (no jump) — currently no explicit "signal lost" UI for this path.
+- `CompassModeScreen.kt:321-342` — `needsCalibration` (accuracy ≤ `SENSOR_STATUS_ACCURACY_LOW`): confirm the figure-8 hint appears near metal/magnets and clears after calibration; confirm it does NOT appear on first open.
+- True-north vs magnetic-north: no `GeomagneticField` declination correction is applied (needs location). In India the offset is small, but at a sector boundary (±22.5° edges) it can flip the 8-sector code. If true-north accuracy matters, add optional `ACCESS_COARSE_LOCATION` + `GeomagneticField` correction — not implemented in this pass.
+- `CompassModeScreen.kt` CameraX preview + `takePhoto` (~lines 560-660): confirm live preview fills the screen, shutter captures, EXIF rotation is upright on the test device, the stamped banner (direction name + code + degrees + timestamp) is legible and fully inside the photo, and the file saves to Pictures/OmAstro on Android 10+ and pre-10 (WRITE_EXTERNAL_STORAGE path).
+- All 4 styles (`CompassDialClassic/Minimal/Mandala/Digital`, ~lines 840-1210): confirm the facing-direction label/tick sits at the top gold marker while rotating through all 8 sectors, the mandala deity names track their sectors, and the digital arrow points at the heading.
+- `VastuScreen.kt` end-to-end with the server back up: manual → `/vastu/analyze` (null-score path), photo → `/vastu/analyze-photo`, "Ask AI about this" attaches the full context block in AI Chat.
+- `CompassModeScreen.kt :: onUseDirection` → facing picker, and `onUsePhoto` → photo tab prefill: confirm both handoffs on device.
+
+---
+
 ## [2026-10-10] — Palmistry Depth Audit: honest refusal path, deeper result, bilingual errors
 
 Audited the full Palmistry flow end-to-end from repo code (server down, no live probe): photo capture → upload → result → "Ask AI". The flow is real and deep; one honesty gap found and fixed (the server's verified refusal shape had no dedicated render path), one depth gap closed (extra parsed facts were context-block-only), and shared vision error strings made bilingual. No emojis anywhere in the module (verified by scan). Nothing fabricated: every new UI state renders server-returned content only.

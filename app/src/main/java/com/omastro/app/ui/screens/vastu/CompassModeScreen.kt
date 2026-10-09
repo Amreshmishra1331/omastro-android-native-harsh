@@ -149,9 +149,14 @@ fun CompassModeScreen(
 
     val heading by compass.heading.collectAsState()
     val accuracy by compass.accuracy.collectAsState()
+    // Only nag about calibration after the sensor has actually delivered a
+    // reading — the initial UNRELIABLE state before first delivery is not
+    // a real interference signal.
+    val hasReading by compass.hasReading.collectAsState()
     val directionCode = CompassSensorManager.directionCode(heading)
     val degrees = CompassSensorManager.roundedDegrees(heading)
-    val needsCalibration = accuracy <= SensorManager.SENSOR_STATUS_ACCURACY_LOW
+    val needsCalibration =
+        hasReading && accuracy <= SensorManager.SENSOR_STATUS_ACCURACY_LOW
 
     fun capturePhoto() {
         if (capturing) return
@@ -318,6 +323,16 @@ fun CompassModeScreen(
                     fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(horizontal = 32.dp)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                // Honest sensor note: the dial reads magnetic north (no
+                // declination correction) and metal nearby degrades accuracy.
+                Text(
+                    W.t("vastu_compass_north_note"),
+                    color = StarlightWhite.copy(alpha = 0.45f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 40.dp)
                 )
                 if (needsCalibration) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -679,15 +694,36 @@ private fun stampCompassOverlay(
         textAlign = android.graphics.Paint.Align.CENTER
         isAntiAlias = true
     }
+    // Long direction names (e.g. Hindi "दक्षिण-पश्चिम") must never clip at
+    // the photo edges: shrink the text to fit 94% of the photo width.
+    val maxTextW = w * 0.94f
+    val mainText = "$directionName ($code)  •  $degrees°"
+    val subText = "OmAstro Vastu Compass  •  $dateStr"
+    fitTextToWidth(main, mainText, maxTextW)
+    fitTextToWidth(sub, subText, maxTextW)
     canvas.drawText(
-        "$directionName ($code)  •  $degrees°",
+        mainText,
         w / 2f, h - bannerH * 0.52f, main
     )
     canvas.drawText(
-        "OmAstro Vastu Compass  •  $dateStr",
+        subText,
         w / 2f, h - bannerH * 0.18f, sub
     )
     return out
+}
+
+/** Shrinks [paint].textSize until [text] fits within [maxWidth] (min 40%). */
+private fun fitTextToWidth(
+    paint: android.graphics.Paint,
+    text: String,
+    maxWidth: Float
+) {
+    val start = paint.textSize
+    var size = start
+    while (size > start * 0.4f && paint.measureText(text) > maxWidth) {
+        size *= 0.92f
+        paint.textSize = size
+    }
 }
 
 /** Saves the bitmap to the device gallery (Pictures/OmAstro). Returns its Uri. */
@@ -874,9 +910,10 @@ private fun CompassDialClassic(
             center = center
         )
 
-        // Tick marks
+        // Tick marks (dial angle a, clockwise from North, maps to screen
+        // angle a - 90 + rotation, matching the wedge above).
         for (deg in 0 until 360 step 15) {
-            val rad = Math.toRadians((deg + rotation).toDouble())
+            val rad = Math.toRadians((deg + rotation - 90f).toDouble())
             val isCardinal = deg % 90 == 0
             val tickLen = if (isCardinal) 22f else 12f
             drawLine(
@@ -894,8 +931,10 @@ private fun CompassDialClassic(
         }
 
         // All 8 direction labels; live one highlighted.
+        // (Same -90f screen mapping as the wedge/ticks: North at top when
+        // heading = 0.)
         DIAL_CODES.forEachIndexed { i, code ->
-            val deg = i * 45f + rotation
+            val deg = i * 45f + rotation - 90f
             val rad = Math.toRadians(deg.toDouble())
             val labelR = radius - 44f
             val pos = Offset(
@@ -962,9 +1001,9 @@ private fun CompassDialMinimal(
             size = androidx.compose.ui.geometry.Size(radius * 2f, radius * 2f),
             style = Stroke(width = 7f)
         )
-        // 8 minimal ticks
+        // 8 minimal ticks (same -90f screen mapping as the other dials).
         for (i in 0 until 8) {
-            val rad = Math.toRadians((i * 45f + rotation).toDouble())
+            val rad = Math.toRadians((i * 45f + rotation - 90f).toDouble())
             val isLive = DIAL_CODES[i] == currentCode
             drawLine(
                 color = if (isLive) SacredGold else Color.White.copy(alpha = 0.45f),
@@ -1107,8 +1146,10 @@ private fun MandalaDeityOverlay(heading: Float, currentCode: String) {
         modifier = Modifier.size(270.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Names are placed by angle using offset math in dp.
-        val radiusDp = 270f / 2f * 0.62f
+        // Names are placed by angle using offset math in dp. The radius must
+        // match the canvas label circle: (270/2 - 8) * 0.62, where the -8f is
+        // the same inset CompassDialMandala applies to its ring.
+        val radiusDp = (270f / 2f - 8f) * 0.62f
         DIAL_CODES.forEachIndexed { i, code ->
             val a = Math.toRadians((i * 45f - heading - 90f).toDouble())
             val dx = (cos(a) * radiusDp).dp

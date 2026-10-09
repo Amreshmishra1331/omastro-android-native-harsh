@@ -35,6 +35,10 @@ class CompassSensorManager(context: Context) : SensorEventListener {
     private val _accuracy = MutableStateFlow(SensorManager.SENSOR_STATUS_UNRELIABLE)
     val accuracy: StateFlow<Int> = _accuracy
 
+    /** True once a tilt-compensated heading has been computed at least once. */
+    private val _hasReading = MutableStateFlow(false)
+    val hasReading: StateFlow<Boolean> = _hasReading
+
     private val gravity = FloatArray(3)
     private val geomagnetic = FloatArray(3)
     private var hasGravity = false
@@ -76,6 +80,7 @@ class CompassSensorManager(context: Context) : SensorEventListener {
         var azimuthDeg = Math.toDegrees(orientation[0].toDouble()).toFloat()
         azimuthDeg = (azimuthDeg + 360f) % 360f
         _heading.value = azimuthDeg
+        _hasReading.value = true
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
