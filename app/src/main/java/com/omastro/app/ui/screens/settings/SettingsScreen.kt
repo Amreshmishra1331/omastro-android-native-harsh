@@ -1,7 +1,6 @@
 package com.omastro.app.ui.screens.settings
 
 import android.app.Activity
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,11 +32,7 @@ fun SettingsScreen(
     val authRepo = AppContainer.authRepository
     val user by authRepo.currentUser.collectAsState()
 
-    var dailyHoroscopeNotif by remember { mutableStateOf(true) }
-    var panchangNotif by remember { mutableStateOf(true) }
-    var whatsappUpdates by remember { mutableStateOf(true) }
-    var isDarkMode by remember { mutableStateOf(true) }
-    var selectedLanguage by remember { mutableStateOf("English (en)") }
+    var showDisclaimerDialog by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -103,7 +97,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Wallet Shortcut
+            // Wallet Shortcut (INR terminology to match website)
             item {
                 CosmicCard(
                     modifier = Modifier
@@ -116,93 +110,11 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Coins", fontSize = 14.sp)
+                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = SacredGold)
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text("Recharge & Coin Balance", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                            Text("Wallet Balance & Add Money", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                         }
                         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SacredGold)
-                    }
-                }
-            }
-
-            // Appearance & Theme Mode
-            item {
-                Text("Appearance & Display", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-
-            item {
-                CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = if (isDarkMode) Icons.Default.DarkMode else Icons.Default.LightMode,
-                                    contentDescription = "Theme",
-                                    tint = SacredGold
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text("Theme Mode", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    Text(if (isDarkMode) "Cosmic Deep Space (Dark)" else "Sacred Temple Gold (Light)", color = MysticPurple, fontSize = 12.sp)
-                                }
-                            }
-                            Switch(
-                                checked = isDarkMode,
-                                onCheckedChange = { isDarkMode = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = CosmicDeepBlue,
-                                    checkedTrackColor = SacredGold,
-                                    uncheckedThumbColor = SacredGold,
-                                    uncheckedTrackColor = CosmicNavy
-                                )
-                            )
-                        }
-
-                        Divider(color = CosmicNavy)
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Language, contentDescription = "Language", tint = SacredGold)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text("Jyotish Language", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    Text(selectedLanguage, color = MysticPurple, fontSize = 12.sp)
-                                }
-                            }
-                            Button(
-                                onClick = {
-                                    selectedLanguage = if (selectedLanguage.startsWith("English")) "हिन्दी (Hindi)" else "English (en)"
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = CosmicNavy),
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text("Switch", color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Notification Preferences
-            item {
-                Text("Notifications & Alerts", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
-
-            item {
-                CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ToggleRow("Daily Rashifal Alert (07:00 AM)", dailyHoroscopeNotif) { dailyHoroscopeNotif = it }
-                        ToggleRow("Shubh Muhurat & Panchang", panchangNotif) { panchangNotif = it }
-                        ToggleRow("WhatsApp Kundali & Consultation Alerts", whatsappUpdates) { whatsappUpdates = it }
                     }
                 }
             }
@@ -245,8 +157,13 @@ fun SettingsScreen(
                 }
             }
 
+            // Privacy & Astrological Disclaimers (now opens a real dialog)
             item {
-                CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDisclaimerDialog = true }
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -276,25 +193,35 @@ fun SettingsScreen(
             item { Spacer(modifier = Modifier.height(24.dp)) }
         }
     }
-}
 
-@Composable
-private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = label, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = CosmicDeepBlue,
-                checkedTrackColor = SacredGold,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = CosmicCharcoal
-            )
+    // Disclaimer Dialog
+    if (showDisclaimerDialog) {
+        AlertDialog(
+            onDismissRequest = { showDisclaimerDialog = false },
+            title = {
+                Text(
+                    "Privacy & Disclaimers",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Astrological Disclaimer:\n\n" +
+                    "The astrological readings, predictions, and guidance provided by OmAstro AI are based on traditional Vedic astrology principles and are intended for informational and entertainment purposes only. They should not be considered as professional advice for legal, medical, financial, or personal decisions.\n\n" +
+                    "Privacy:\n\n" +
+                    "Your birth details and personal information are used solely to generate astrological calculations. We do not share your personal data with third parties without your consent. Your authentication tokens are stored securely using encrypted storage on your device.",
+                    color = StarlightWhite.copy(alpha = 0.8f),
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showDisclaimerDialog = false }) {
+                    Text("Close", color = SacredGold, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = CosmicNavy,
+            titleContentColor = Color.White
         )
     }
 }

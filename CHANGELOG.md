@@ -140,3 +140,33 @@ All notable changes to the native Android app. Each entry lists what was broken 
 - `KundaliViewModel`: tracks `lastRequest` (birth details of displayed chart), new `loadSavedChart()` method
 - Navigation: `Screen.SavedCharts` route; accessible from Kundali top bar and Dashboard quick actions
 - `DashboardScreen`: new "Saved Charts" quick action tile
+
+---
+
+## [2026-10-09] — Settings Screen Fixes + Terminology (v2.0.2-settings)
+
+### Fake notification toggles — removed
+**What was broken:** Settings had Daily Rashifal Alert, Shubh Muhurat & Panchang, and WhatsApp notification toggles using local `remember` state only. They saved nothing to the server and scheduled nothing — purely decorative switches.
+**Checked:** No `/me/preferences` or notification-preference endpoint exists in `OmAstroApiService.kt`.
+**Removed:** All three fake toggles and the "Notifications & Alerts" section. (FCM push registration via `/auth/fcm-token` remains intact.)
+
+### Fake theme toggle — removed
+**What was broken:** Theme Mode switch toggled a boolean but the app is dark-only by design — switching did nothing visually.
+**Removed:** The entire "Appearance & Display" theme row.
+
+### Fake language switch — removed
+**What was broken:** "Switch" button only toggled a label string between "English (en)" and "हिन्दी (Hindi)" — it never changed the app locale.
+**Removed:** The language switcher row. (Full i18n is a separate feature; a fake toggle is worse than none.)
+
+### Dead Privacy & Disclaimers card — made functional
+**What was broken:** The card had no `onClick` — tapping it did nothing.
+**Added:** Tapping now opens an `AlertDialog` with a real astrological disclaimer and privacy notice.
+
+### Terminology — Coins to INR wallet
+**What was broken:** Dashboard badge showed `"$coins Coins"` and Settings showed "Recharge & Coin Balance", while the website uses INR wallet (₹) terminology.
+**Changed:**
+- Dashboard badge: `"$coins Coins"` → `"₹$walletBalance"` (variable renamed `coins` → `walletBalance` for clarity)
+- Settings wallet row: "Recharge & Coin Balance" → "Wallet Balance & Add Money" with a wallet icon
+
+### Dead code — deleted
+**Removed:** `app/src/main/java/com/omastro/app/ui/screens/home/HomeScreen.kt` (321 lines, never routed to — `MainActivity` uses `DashboardScreen`). `HomeViewModel.kt` is kept (still used by `DashboardScreen`).

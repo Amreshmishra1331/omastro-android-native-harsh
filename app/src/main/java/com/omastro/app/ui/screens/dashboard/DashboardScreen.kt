@@ -36,7 +36,7 @@ fun DashboardScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val user by viewModel.currentUser.collectAsState()
-    val coins by viewModel.coinBalance.collectAsState()
+    val walletBalance by viewModel.coinBalance.collectAsState()
     val panchang by viewModel.panchang.collectAsState()
     val astrologers by viewModel.astrologers.collectAsState()
     val mantra by viewModel.dailyMantra.collectAsState()
@@ -81,7 +81,7 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "$coins Coins",
+                            text = "₹$walletBalance",
                             color = SacredGold,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
