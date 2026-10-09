@@ -30,7 +30,7 @@ interface OmAstroApiService {
 
     @POST("auth/resend-otp")
     suspend fun resendOtp(
-        @Body request: Map<String, String>
+        @Body request: ResendOtpRequest
     ): Response<Map<String, Any>>
 
     // Kundali (envelope: {"success": true, "data": {...}})

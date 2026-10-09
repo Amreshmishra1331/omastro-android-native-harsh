@@ -34,10 +34,11 @@ class AuthRepository(
         name: String,
         email: String,
         password: String,
-        mobile: String? = null
+        mobile: String? = null,
+        otpChannel: String = OtpChannels.DEFAULT
     ): Result<RegisterResponse> {
         return try {
-            val response = api.register(RegisterRequest(name, email, password, mobile))
+            val response = api.register(RegisterRequest(name, email, password, mobile, otpChannel))
             val body = response.body()
             if (response.isSuccessful && body != null) {
                 Result.success(body)
@@ -49,9 +50,13 @@ class AuthRepository(
         }
     }
 
-    suspend fun verifySignupOtp(email: String, otp: String): Result<VerifySignupOtpResponse> {
+    suspend fun verifySignupOtp(
+        email: String,
+        otp: String,
+        otpChannel: String = OtpChannels.DEFAULT
+    ): Result<VerifySignupOtpResponse> {
         return try {
-            val response = api.verifySignupOtp(VerifySignupOtpRequest(email, otp))
+            val response = api.verifySignupOtp(VerifySignupOtpRequest(email, otp, otpChannel))
             val body = response.body()
             if (response.isSuccessful && body != null && body.token != null) {
                 ApiClient.setAuthToken(body.token)
@@ -78,9 +83,12 @@ class AuthRepository(
         }
     }
 
-    suspend fun resendSignupOtp(email: String): Result<Unit> {
+    suspend fun resendSignupOtp(
+        email: String,
+        otpChannel: String = OtpChannels.DEFAULT
+    ): Result<Unit> {
         return try {
-            val response = api.resendOtp(mapOf("email" to email))
+            val response = api.resendOtp(ResendOtpRequest(email, otpChannel))
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {

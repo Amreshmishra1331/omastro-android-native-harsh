@@ -3,6 +3,7 @@ package com.omastro.app.ui.screens.auth
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.omastro.app.data.model.OtpChannels
 import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.di.AppContainer
 import kotlinx.coroutines.Job
@@ -17,16 +18,14 @@ import kotlinx.coroutines.launch
  *
  * Backend contract (https://www.omastroai.com/wp-json/omastro/v1):
  *  - POST /auth/login {email, password} -> {token}
- *  - POST /auth/register {name, email, password, mobile?} -> signup email OTP sent
- *  - POST /auth/verify-signup-otp {email, otp} -> {token}
+ *  - POST /auth/register {name, email, password, mobile?, otp_channel} -> signup OTP sent
+ *  - POST /auth/verify-signup-otp {email, otp, otp_channel} -> {token}
+ *  - POST /auth/resend-otp {email, otp_channel} -> OTP re-sent
  *  - POST /auth/forgot-password {email} -> reset instructions sent
  *
- * Repository signatures consumed here (implemented on the data branch):
- *  - AuthRepository.login(email, password): Result<LoginResponse> / Result<VerifySignupOtpResponse>
- *  - AuthRepository.register(name, email, password, mobile: String?): Result<Unit>
- *  - AuthRepository.verifySignupOtp(email, otp): Result<LoginResponse> / Result<VerifySignupOtpResponse>
- *  - AuthRepository.forgotPassword(email): Result<Unit>
- * where AuthToken exposes the bearer token string via `token`.
+ * OTP CHANNEL: [otpChannel] defaults to [OtpChannels.EMAIL]. To switch the app to
+ * mobile/WhatsApp OTP later, change [OtpChannels.DEFAULT] (or bind a selector UI to
+ * [setOtpChannel]) once the server accepts the `otp_channel` field — see [OtpChannels].
  */
 enum class AuthMode {
     LOGIN,
@@ -68,6 +67,14 @@ class AuthViewModel : ViewModel() {
     private val _forgotEmail = MutableStateFlow("")
     val forgotEmail: StateFlow<String> = _forgotEmail.asStateFlow()
 
+    /**
+     * OTP delivery channel ("email" | "mobile" | "whatsapp").
+     * Defaults to [OtpChannels.DEFAULT] (email). Kept as state so a future
+     * channel selector UI can bind to [setOtpChannel] without other changes.
+     */
+    private val _otpChannel = MutableStateFlow(OtpChannels.DEFAULT)
+    val otpChannel: StateFlow<String> = _otpChannel.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -98,6 +105,12 @@ class AuthViewModel : ViewModel() {
     fun setSignupConfirmPassword(v: String) { _signupConfirmPassword.value = v; clearMessages() }
     fun setOtpCode(v: String) { _otpCode.value = v.filter { it.isDigit() }.take(6); clearMessages() }
     fun setForgotEmail(v: String) { _forgotEmail.value = v; clearMessages() }
+
+    /** Switch the OTP delivery channel (email/mobile/whatsapp). Currently email-only. */
+    fun setOtpChannel(channel: String) {
+        _otpChannel.value = channel
+        clearMessages()
+    }
 
     fun switchMode(mode: AuthMode) {
         _mode.value = mode
@@ -184,7 +197,8 @@ class AuthViewModel : ViewModel() {
                 name = name,
                 email = email,
                 password = password,
-                mobile = mobile.ifBlank { null }
+                mobile = mobile.ifBlank { null },
+                otpChannel = _otpChannel.value
             ).onSuccess {
                 _otpEmail.value = email
                 _otpCode.value = ""
@@ -208,7 +222,7 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-            authRepository.verifySignupOtp(email, code)
+            authRepository.verifySignupOtp(email, code, _otpChannel.value)
                 .onSuccess { response: com.omastro.app.data.model.VerifySignupOtpResponse ->
                     val token = response.token
                     if (!token.isNullOrBlank()) {
@@ -231,7 +245,7 @@ class AuthViewModel : ViewModel() {
         if (email.isBlank()) return
         viewModelScope.launch {
             _isLoading.value = true
-            authRepository.resendSignupOtp(email).onSuccess {
+            authRepository.resendSignupOtp(email, _otpChannel.value).onSuccess {
                 _infoMessage.value = "A new verification code was sent to $email."
                 startResendCooldown()
             }.onFailure { err ->

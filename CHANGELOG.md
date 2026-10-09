@@ -4,6 +4,37 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Auth Redesign: Rich Login/Signup UI + `otp_channel` API Support
+
+### What was basic
+The auth screens were functional but plain: flat background, single shared card, one plain 6-digit text field for OTP, no password guidance, no mode tabs, basic error text. The signup already collected a mobile number (optional), but the API had no way to ever switch OTP delivery from email to mobile/WhatsApp.
+
+### Removed
+- Old flat `AuthScreen.kt` layout (plain column, basic `AuthTextField`/`AuthPrimaryButton` without icons, single OTP `OutlinedTextField`, text-only "Show/Hide" password toggle).
+
+### Added
+- **Rich auth UI** (`ui/screens/auth/AuthScreen.kt`, rewritten):
+  - Cosmic gradient background with soft gold radial glow behind the brand header
+  - Brand header: gold-ringed "ॐ" emblem, "OmAstro AI" title, "Vedic Astrology Guidance" subtitle
+  - Segmented "Sign In / Sign Up" tab control with gold gradient active pill
+  - `AnimatedContent` mode transitions (fade + directional slide based on mode order)
+  - Text fields with leading icons (person/email/phone/lock), "+91" prefix on the mobile field, gold focus ring, visibility eye-icon password toggle
+  - Password strength meter on signup (4-segment bar: Weak/Fair/Good/Strong with color coding)
+  - Six individual OTP digit boxes with auto-advance on entry, focus-back on clear, gold highlight on filled boxes, auto-focus on first box
+  - Gradient gold primary buttons with loading spinner state
+  - Error/success message banners (tinted cards with colored borders instead of plain text)
+  - Terms-of-use note on signup; footer navigation links per mode
+  - No emojis anywhere; no fabricated data — all messages come from the ViewModel/server
+- **`otp_channel` API support** (email default; mobile/WhatsApp enablement ready):
+  - `data/model/AuthModels.kt`: new `OtpChannels` object (`EMAIL`/`MOBILE`/`WHATSAPP` + `DEFAULT = EMAIL`) with KDoc documenting the exact server + app steps to enable mobile/WhatsApp OTP later; `otp_channel` field added to `RegisterRequest`, `VerifySignupOtpRequest`, and new `ResendOtpRequest`
+  - `OmAstroApiService.resendOtp` now takes `ResendOtpRequest` (was an untyped `Map<String, String>`)
+  - `AuthRepository.register/verifySignupOtp/resendSignupOtp` accept `otpChannel` (default email) and forward it
+  - `AuthUseCases` (`Register`/`VerifySignupOtp`/`ResendSignupOtp`) accept and forward `otpChannel`
+  - `AuthViewModel`: new `otpChannel` StateFlow (default email) + `setOtpChannel()` for a future channel selector UI; channel label shown dynamically in signup/OTP subtitles ("sent to your email" today, "mobile number via SMS"/"WhatsApp" when enabled)
+- Existing auth flow unchanged (email+password login → name/email/mobile/password signup → email OTP verify → forgot password), matching the Flutter app's flow the user approved.
+
+---
+
 ## [2026-10-09] — NEW: Kundali "Analysis" Tab (website-rich analysis)
 
 ### Missing — rich kundali analysis like omastroai.com/kundali/
