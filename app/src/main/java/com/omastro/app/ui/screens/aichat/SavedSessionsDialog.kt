@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omastro.app.data.model.SavedChatSession
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicNavy
 import com.omastro.app.ui.theme.SacredGold
@@ -66,7 +67,7 @@ fun SavedSessionsDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Saved Chats",
+                    W.t("chat_saved_title"),
                     color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -74,7 +75,7 @@ fun SavedSessionsDialog(
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = W.t("chat_close"),
                         tint = StarlightWhite.copy(alpha = 0.6f)
                     )
                 }
@@ -100,7 +101,7 @@ fun SavedSessionsDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "No saved chats yet.\nYour saved conversations will appear here.",
+                            W.t("chat_saved_empty"),
                             color = StarlightWhite.copy(alpha = 0.5f),
                             fontSize = 13.5.sp,
                             lineHeight = 20.sp,
@@ -132,13 +133,13 @@ fun SavedSessionsDialog(
             ) {
                 if (sessions.isNotEmpty()) {
                     TextButton(onClick = onClearAll) {
-                        Text("Clear All", color = Color(0xFFFF8A80), fontWeight = FontWeight.SemiBold)
+                        Text(W.t("chat_clear_all"), color = Color(0xFFFF8A80), fontWeight = FontWeight.SemiBold)
                     }
                 } else {
                     Spacer(modifier = Modifier.width(1.dp))
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Close", color = SacredGold, fontWeight = FontWeight.SemiBold)
+                    Text(W.t("chat_close"), color = SacredGold, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -178,7 +179,7 @@ private fun SavedSessionRow(
             val meta = buildList {
                 session.mode?.takeIf { it.isNotBlank() }?.let { add(it.replaceFirstChar { c -> c.uppercase() }) }
                 session.updatedAt?.takeIf { it.isNotBlank() }?.let { add(it.take(10)) }
-                if (session.storedContext != null) add("Has birth data")
+                if (session.storedContext != null) add(W.t("chat_has_context"))
             }.joinToString(" · ")
             if (meta.isNotBlank()) {
                 Text(
@@ -194,7 +195,7 @@ private fun SavedSessionRow(
         IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = "Delete chat",
+                contentDescription = W.t("chat_delete_cd"),
                 tint = Color(0xFFFF8A80).copy(alpha = 0.8f),
                 modifier = Modifier.size(18.dp)
             )

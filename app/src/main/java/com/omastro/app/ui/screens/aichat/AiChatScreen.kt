@@ -26,7 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -64,6 +64,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -71,6 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -79,6 +81,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.ComponentActivity
+import kotlinx.coroutines.delay
 import com.omastro.app.data.model.AiModel
 import com.omastro.app.data.model.ChatMessage
 import com.omastro.app.data.model.PhotoContextAttachment
@@ -97,33 +101,52 @@ import kotlinx.coroutines.launch
 
 private val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
 
-private val modeSuggestions: Map<AiChatMode, List<String>> = mapOf(
-    AiChatMode.GENERAL to listOf(
-        "What does my horoscope say today?",
-        "Tell me about my career prospects",
-        "When is a good time to start something new?",
-        "What are my lucky numbers and colors?"
+/** Bilingual mode titles/subtitles (auto-follow the Settings language). */
+private fun modeTitle(mode: AiChatMode): String = when (mode) {
+    AiChatMode.GENERAL -> W.t("chat_mode_general")
+    AiChatMode.DIVINE -> W.t("chat_mode_divine")
+    AiChatMode.MUNDANE -> W.t("chat_mode_mundane")
+}
+
+private fun modeSubtitle(mode: AiChatMode): String = when (mode) {
+    AiChatMode.GENERAL -> W.t("chat_mode_general_sub")
+    AiChatMode.DIVINE -> W.t("chat_mode_divine_sub")
+    AiChatMode.MUNDANE -> W.t("chat_mode_mundane_sub")
+}
+
+/** Bilingual per-mode suggestion prompts (used as input text, never as AI output). */
+private fun suggestionsFor(mode: AiChatMode): List<String> = when (mode) {
+    AiChatMode.GENERAL -> listOf(
+        W.t("chat_sug_general_1"),
+        W.t("chat_sug_general_2"),
+        W.t("chat_sug_general_3"),
+        W.t("chat_sug_general_4")
     ),
-    AiChatMode.DIVINE to listOf(
-        "Give me today's spiritual guidance",
-        "What message does the universe have for me?",
-        "How can I find inner peace right now?",
-        "Share a divine blessing for my family"
+    AiChatMode.DIVINE -> listOf(
+        W.t("chat_sug_divine_1"),
+        W.t("chat_sug_divine_2"),
+        W.t("chat_sug_divine_3"),
+        W.t("chat_sug_divine_4")
     ),
-    AiChatMode.MUNDANE to listOf(
-        "What major world events are unfolding this month?",
-        "How will current planetary transits affect the world?",
-        "What global trends should I watch?",
-        "What does mundane astrology say about the economy?"
+    AiChatMode.MUNDANE -> listOf(
+        W.t("chat_sug_mundane_1"),
+        W.t("chat_sug_mundane_2"),
+        W.t("chat_sug_mundane_3"),
+        W.t("chat_sug_mundane_4")
     )
-)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiChatScreen(
     onBack: () -> Unit,
     onMenuClick: (() -> Unit)? = null,
-    viewModel: AiChatViewModel = viewModel(),
+    // Activity-scoped: the conversation (per mode) survives navigation —
+    // leaving for Kundali/Palmistry and coming back no longer silently
+    // discards the chat. Every entry point opens the SAME conversation.
+    viewModel: AiChatViewModel = viewModel(
+        viewModelStoreOwner = LocalContext.current as ComponentActivity
+    ),
     lockedMode: AiChatMode? = null,
     openHistoryOnStart: Boolean = false
 ) {
@@ -146,10 +169,14 @@ fun AiChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     // Global UI language: voice/photo UI auto-switches EN/हिन्दी with Settings.
     val lang by LangPrefs.language.collectAsState()
+
+    // Honest quota state: the server is the source of truth. When it reports
+    // zero questions left, say so plainly instead of failing silently on send.
+    val quotaExhausted = uiState.quota.limit > 0 && uiState.quota.left <= 0
 
     // ---- Voice typing + photo attach + voice mode (world-class additions) ----
     val voiceInput = rememberVoiceInputManager()
@@ -197,12 +224,28 @@ fun AiChatScreen(
     }
 
     fun sendCurrent() {
-        if (inputText.isNotBlank() && !uiState.isTyping) {
-            viewModel.sendMessage(inputText)
-            inputText = ""
-            focusManager.clearFocus()
+        if (inputText.isBlank() || uiState.isTyping) return
+        if (quotaExhausted) {
+            // Honest refusal: the server already said zero questions are
+            // left — don't burn a request just to show its error again.
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    W.tf("chat_quota_exhausted", uiState.quota.used, uiState.quota.limit)
+                )
+            }
+            return
         }
+        viewModel.sendMessage(inputText)
+        inputText = ""
+        focusManager.clearFocus()
     }
+
+    // Multi-bubble reveal bookkeeping: messages already on screen when the
+    // chat opens (fresh history, a restored saved session, or simply coming
+    // back to the chat) render all their bubbles at once; only genuinely NEW
+    // AI replies animate in bubble-by-bubble.
+    val initialMessageIds = remember { uiState.messages.map { it.id }.toSet() }
+    val revealedMessageIds = remember { mutableSetOf<String>() }
 
     LaunchedEffect(uiState.messages.size, uiState.isTyping, selectedMode) {
         if (uiState.messages.isNotEmpty() || uiState.isTyping) {
@@ -224,13 +267,13 @@ fun AiChatScreen(
                 title = {
                     Column {
                         Text(
-                            "AI Jyotishi",
+                            W.t("chat_ai_name"),
                             color = StarlightWhite,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
                         Text(
-                            selectedMode.subtitle,
+                            modeSubtitle(selectedMode),
                             color = StarlightWhite.copy(alpha = 0.55f),
                             fontSize = 12.sp
                         )
@@ -241,7 +284,7 @@ fun AiChatScreen(
                         IconButton(onClick = onMenuClick) {
                             Icon(
                                 Icons.Default.Menu,
-                                contentDescription = "Menu",
+                                contentDescription = W.t("chat_menu_cd"),
                                 tint = SacredGold
                             )
                         }
@@ -249,7 +292,7 @@ fun AiChatScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = W.t("chat_back_cd"),
                                 tint = SacredGold
                             )
                         }
@@ -289,7 +332,7 @@ fun AiChatScreen(
                     }) {
                         Icon(
                             Icons.Default.History,
-                            contentDescription = "Saved chats",
+                            contentDescription = W.t("chat_saved_cd"),
                             tint = SacredGold
                         )
                     }
@@ -301,7 +344,7 @@ fun AiChatScreen(
                     }) {
                         Icon(
                             Icons.Default.Save,
-                            contentDescription = "Save chat",
+                            contentDescription = W.t("chat_save_cd"),
                             tint = SacredGold
                         )
                     }
@@ -312,7 +355,7 @@ fun AiChatScreen(
                     }) {
                         Icon(
                             Icons.Default.Add,
-                            contentDescription = "New chat",
+                            contentDescription = W.t("chat_new_cd"),
                             tint = SacredGold
                         )
                     }
@@ -334,9 +377,15 @@ fun AiChatScreen(
                     attachments = uiState.photoAttachments,
                     onRemove = { viewModel.removePhotoAttachment(it) }
                 )
+                // Restored session context: the stored kundali_ctx IS active
+                // and will be sent, but no chips can be rebuilt from it —
+                // say so instead of implying "no context attached".
+                if (uiState.hasRestoredContext) {
+                    RestoredContextChip()
+                }
                 if (uiState.messages.isNotEmpty() && !uiState.isTyping) {
                     InlineSuggestionStrip(
-                        suggestions = modeSuggestions.getValue(selectedMode).take(3),
+                        suggestions = suggestionsFor(selectedMode).take(3),
                         onTap = { inputText = it }
                     )
                 }
@@ -380,7 +429,7 @@ fun AiChatScreen(
                 selected = uiState.aiModel,
                 onSelect = { viewModel.setAiModel(it) },
                 quotaText = if (uiState.quota.limit > 0) {
-                    "${uiState.quota.left}/${uiState.quota.limit} questions left"
+                    W.tf("chat_quota_left", uiState.quota.left, uiState.quota.limit)
                 } else null
             )
 
@@ -389,6 +438,15 @@ fun AiChatScreen(
                 selected = uiState.language,
                 onSelect = { viewModel.setLanguage(it) }
             )
+
+            // Quota exhausted: plain-language banner. The top-bar pill already
+            // turns red at <= 1; this says what it means and what to do.
+            if (quotaExhausted) {
+                QuotaExhaustedBanner(
+                    used = uiState.quota.used,
+                    limit = uiState.quota.limit
+                )
+            }
 
             if (uiState.messages.isEmpty() && !uiState.isTyping) {
                 ChatEmptyState(
@@ -405,11 +463,28 @@ fun AiChatScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
                 ) {
-                    items(
+                    itemsIndexed(
                         items = uiState.messages,
-                        key = { it.id }
-                    ) { msg ->
-                        ChatBubble(message = msg)
+                        key = { _, msg -> msg.id }
+                    ) { index, msg ->
+                        if (msg.isUser) {
+                            ChatBubble(message = msg)
+                        } else {
+                            // Only replies that arrived after this screen
+                            // opened animate in bubble-by-bubble.
+                            val firstSeen = remember(msg.id) {
+                                revealedMessageIds.add(msg.id)
+                            }
+                            AiMessageBubbles(
+                                message = msg,
+                                animate = msg.id !in initialMessageIds && firstSeen,
+                                onChunkRevealed = {
+                                    scope.launch {
+                                        listState.animateScrollToItem(index)
+                                    }
+                                }
+                            )
+                        }
                     }
                     if (uiState.isTyping) {
                         item(key = "typing") {
@@ -429,7 +504,7 @@ fun AiChatScreen(
                 viewModel.attachBirthData(it)
                 showAttachDialog = false
                 scope.launch {
-                    snackbarHostState.showSnackbar("Birth data attached. It will be sent with your next message.")
+                    snackbarHostState.showSnackbar(W.t("chat_birth_attached"))
                 }
             }
         )
@@ -467,7 +542,7 @@ fun AiChatScreen(
                         )
                     )
                     scope.launch {
-                        snackbarHostState.showSnackbar("Photo analysis attached. Ask anything about it.")
+                        snackbarHostState.showSnackbar(W.t("chat_photo_attached"))
                     }
                 }
                 photoResult = null
@@ -484,7 +559,7 @@ fun AiChatScreen(
                     )
                 }
                 photoResult = null
-                inputText = "Tell me more about this photo analysis."
+                inputText = W.t("chat_photo_ask_hint")
             }
         )
     }
@@ -507,7 +582,7 @@ fun AiChatScreen(
     // Save confirmation feedback
     LaunchedEffect(showSaveConfirm) {
         if (showSaveConfirm) {
-            snackbarHostState.showSnackbar("Chat saved.")
+            snackbarHostState.showSnackbar(W.t("chat_saved"))
             showSaveConfirm = false
         }
     }
@@ -546,7 +621,7 @@ private fun ModeSegmentedControl(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = mode.title,
+                        text = modeTitle(mode),
                         color = if (isSelected) CosmicDeepBlue else StarlightWhite.copy(alpha = 0.65f),
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 14.sp
@@ -594,9 +669,9 @@ private fun ChatEmptyState(
         Spacer(modifier = Modifier.height(20.dp))
         Text(
             text = when (mode) {
-                AiChatMode.GENERAL -> "Welcome to AI Jyotishi"
-                AiChatMode.DIVINE -> "Welcome to Divine Guidance"
-                AiChatMode.MUNDANE -> "Welcome to Mundane Astrology"
+                AiChatMode.GENERAL -> W.t("chat_welcome_general")
+                AiChatMode.DIVINE -> W.t("chat_welcome_divine")
+                AiChatMode.MUNDANE -> W.t("chat_welcome_mundane")
             },
             color = StarlightWhite,
             fontSize = 20.sp,
@@ -606,15 +681,9 @@ private fun ChatEmptyState(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = when (mode) {
-                AiChatMode.GENERAL ->
-                    "Ask anything about your life, career, relationships or health. " +
-                        "Answers are drawn from Vedic astrology."
-                AiChatMode.DIVINE ->
-                    "Receive spiritual wisdom and divine messages for your journey. " +
-                        "Ask with an open heart."
-                AiChatMode.MUNDANE ->
-                    "Explore world events, collective trends and global cycles " +
-                        "through the lens of mundane astrology."
+                AiChatMode.GENERAL -> W.t("chat_welcome_general_desc")
+                AiChatMode.DIVINE -> W.t("chat_welcome_divine_desc")
+                AiChatMode.MUNDANE -> W.t("chat_welcome_mundane_desc")
             },
             color = StarlightWhite.copy(alpha = 0.55f),
             fontSize = 14.sp,
@@ -623,7 +692,7 @@ private fun ChatEmptyState(
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Try asking:",
+            text = W.t("chat_try_asking"),
             color = SacredGold,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
@@ -631,7 +700,7 @@ private fun ChatEmptyState(
         )
         Spacer(modifier = Modifier.height(10.dp))
         SuggestionChips(
-            suggestions = modeSuggestions.getValue(mode),
+            suggestions = suggestionsFor(mode),
             onTap = onSuggestionTap
         )
     }
@@ -670,16 +739,83 @@ private fun SuggestionChips(
     }
 }
 
+/**
+ * Splits an AI reply into sentence-sized bubbles (website parity: 1 sentence
+ * = 1 bubble, Hindi danda । included). Paragraph breaks are hard boundaries.
+ * Decimals (3.5), common abbreviations (Mr., Dr., e.g.) and URLs are
+ * protected from splitting.
+ */
+private fun splitAiReplyIntoBubbles(text: String): List<String> {
+    if (text.isBlank()) return emptyList()
+    val out = mutableListOf<String>()
+    text.split(Regex("\n[ \t]*\n")).forEach { paragraph ->
+        splitSentences(paragraph).forEach { sentence ->
+            val trimmed = sentence.trim()
+            if (trimmed.isEmpty()) return@forEach
+            // Merge stray fragments (a lone danda, bullet marker) into the
+            // previous bubble instead of showing a near-empty bubble.
+            if (out.isNotEmpty() && trimmed.length <= 2) {
+                out[out.lastIndex] = out.last() + " " + trimmed
+            } else {
+                out.add(trimmed)
+            }
+        }
+    }
+    return out
+}
+
+private fun splitSentences(text: String): List<String> {
+    val abbreviations = setOf(
+        "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st",
+        "vs", "etc", "eg", "ie", "no"
+    )
+    val chunks = mutableListOf<String>()
+    val current = StringBuilder()
+    var i = 0
+    while (i < text.length) {
+        val c = text[i]
+        current.append(c)
+        if (c == '.' || c == '!' || c == '?' || c == '।') {
+            val prev = if (i > 0) text[i - 1] else ' '
+            val next = if (i + 1 < text.length) text[i + 1] else ' '
+            val atBoundary = next.isWhitespace() || i + 1 >= text.length
+            // 3.5 — digit on both sides of the dot.
+            val isDecimal = c == '.' && prev.isDigit() && next.isDigit()
+            // Mr. / Dr. / e.g. — word before the dot, dots stripped.
+            val lastWord = current.dropLast(1).toString()
+                .substringAfterLast(' ')
+                .substringAfterLast('\n')
+                .replace(".", "")
+                .lowercase()
+            val isAbbreviation = c == '.' && lastWord in abbreviations
+            if (atBoundary && !isDecimal && !isAbbreviation) {
+                val chunk = current.toString().trim()
+                if (chunk.isNotEmpty()) chunks.add(chunk)
+                current.clear()
+            }
+        }
+        i++
+    }
+    val tail = current.toString().trim()
+    if (tail.isNotEmpty()) chunks.add(tail)
+    return chunks
+}
+
 @Composable
-private fun ChatBubble(message: ChatMessage) {
+private fun ChatBubble(
+    message: ChatMessage,
+    text: String = message.message,
+    showNameLabel: Boolean = true,
+    showTimestamp: Boolean = true
+) {
     val isUser = message.isUser
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
-        if (!isUser) {
+        if (!isUser && showNameLabel) {
             Text(
-                text = "AI Jyotishi",
+                text = W.t("chat_ai_name"),
                 color = SacredGold,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -698,25 +834,85 @@ private fun ChatBubble(message: ChatMessage) {
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
             Text(
-                text = message.message,
+                text = text,
                 color = if (isUser) CosmicDeepBlue else StarlightWhite,
                 fontSize = 14.5.sp,
                 lineHeight = 21.sp,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp)
             )
         }
-        Text(
-            text = timeFormat.format(Date(message.timestamp)),
-            color = StarlightWhite.copy(alpha = 0.35f),
-            fontSize = 10.5.sp,
-            modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
-        )
+        if (showTimestamp) {
+            Text(
+                text = timeFormat.format(Date(message.timestamp)),
+                color = StarlightWhite.copy(alpha = 0.35f),
+                fontSize = 10.5.sp,
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
+            )
+        }
     }
 }
 
+/**
+ * Renders one AI reply as multiple sentence-bubbles. A newly arrived reply
+ * reveals its bubbles one at a time with a short pause (the typing
+ * simulation); stored/history replies render all bubbles immediately.
+ * The timestamp appears once, under the final bubble.
+ */
 @Composable
-private fun AnimatedTypingIndicator() {
-    val infiniteTransition = rememberInfiniteTransition(label = "typing")
+private fun AiMessageBubbles(
+    message: ChatMessage,
+    animate: Boolean,
+    onChunkRevealed: () -> Unit
+) {
+    val chunks = remember(message.id, message.message) {
+        splitAiReplyIntoBubbles(message.message)
+    }
+    val total = chunks.size.coerceAtLeast(1)
+    var visible by remember(message.id) {
+        mutableIntStateOf(if (animate && total > 1) 1 else total)
+    }
+    LaunchedEffect(message.id) {
+        if (animate) {
+            while (visible < total) {
+                delay(900)
+                visible++
+                onChunkRevealed()
+            }
+        }
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = W.t("chat_ai_name"),
+            color = SacredGold,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        chunks.take(visible).forEachIndexed { index, chunk ->
+            ChatBubble(
+                message = message,
+                text = chunk,
+                showNameLabel = false,
+                // Timestamp only under the final bubble, once fully revealed.
+                showTimestamp = index == total - 1 && visible == total
+            )
+        }
+        if (visible < total) {
+            Box(modifier = Modifier.padding(start = 14.dp, top = 2.dp, bottom = 2.dp)) {
+                TypingDotsRow()
+            }
+        }
+    }
+}
+
+/** The three animated dots, reused by the typing indicator and bubble reveal. */
+@Composable
+private fun TypingDotsRow() {
+    val infiniteTransition = rememberInfiniteTransition(label = "typing-dots")
     val dots = (0..2).map { index ->
         infiniteTransition.animateFloat(
             initialValue = 0.25f,
@@ -732,10 +928,28 @@ private fun AnimatedTypingIndicator() {
             label = "dot$index"
         )
     }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        dots.forEach { alpha ->
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(
+                        SacredGold.copy(alpha = alpha.value),
+                        CircleShape
+                    )
+            )
+        }
+    }
+}
 
+@Composable
+private fun AnimatedTypingIndicator() {
     Column(horizontalAlignment = Alignment.Start) {
         Text(
-            text = "AI Jyotishi",
+            text = W.t("chat_ai_name"),
             color = SacredGold,
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
@@ -751,29 +965,77 @@ private fun AnimatedTypingIndicator() {
             color = CosmicCharcoal,
             shadowElevation = 2.dp
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                dots.forEach { alpha ->
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(
-                                SacredGold.copy(alpha = alpha.value),
-                                CircleShape
-                            )
-                    )
-                }
+            Box(modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+                TypingDotsRow()
             }
         }
         Text(
-            text = "typing...",
+            text = W.t("chat_typing"),
             color = StarlightWhite.copy(alpha = 0.35f),
             fontSize = 10.5.sp,
             modifier = Modifier.padding(top = 4.dp, start = 4.dp)
         )
+    }
+}
+
+/**
+ * Quota exhausted: plain-language banner. Shown only when the server reports
+ * a real limit with zero questions left — never from a default 0/0 quota.
+ */
+@Composable
+private fun QuotaExhaustedBanner(used: Int, limit: Int) {
+    Surface(
+        color = Color(0xFFFF8A80).copy(alpha = 0.10f),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .border(
+                1.dp,
+                Color(0xFFFF8A80).copy(alpha = 0.45f),
+                RoundedCornerShape(12.dp)
+            )
+    ) {
+        Text(
+            text = W.tf("chat_quota_exhausted", used, limit),
+            color = Color(0xFFFF8A80),
+            fontSize = 12.5.sp,
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+        )
+    }
+}
+
+/**
+ * Shown after a saved session is reopened: its stored context IS active and
+ * will be sent with the next message, but no attachment chips can be rebuilt
+ * from it — this chip says so honestly.
+ */
+@Composable
+private fun RestoredContextChip() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = SacredGold.copy(alpha = 0.12f),
+            modifier = Modifier.border(
+                1.dp,
+                SacredGold.copy(alpha = 0.4f),
+                RoundedCornerShape(16.dp)
+            )
+        ) {
+            Text(
+                text = W.t("chat_restored_ctx"),
+                color = SacredGold,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+            )
+        }
     }
 }
 
@@ -816,7 +1078,7 @@ private fun ChatInputBar(
             ) {
                 Icon(
                     imageVector = Icons.Default.AttachFile,
-                    contentDescription = "Attach Birth Data",
+                    contentDescription = W.t("chat_attach_cd"),
                     tint = SacredGold,
                     modifier = Modifier.size(22.dp)
                 )
@@ -922,7 +1184,7 @@ private fun ChatInputBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Send",
+                    contentDescription = W.t("chat_send_cd"),
                     tint = if (canSend) CosmicDeepBlue else StarlightWhite.copy(alpha = 0.4f),
                     modifier = Modifier.size(22.dp)
                 )
@@ -1022,7 +1284,7 @@ private fun LanguageSelectorRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
-            text = "Reply in:",
+            text = W.t("chat_reply_in"),
             color = StarlightWhite.copy(alpha = 0.55f),
             fontSize = 12.sp
         )

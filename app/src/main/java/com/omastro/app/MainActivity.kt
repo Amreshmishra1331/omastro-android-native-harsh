@@ -221,7 +221,7 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.Numerology.route)
                                 },
                                 onNavigateToAiChat = {
-                                    navController.navigate(Screen.AiChat.route)
+                                    navController.navigate(Screen.AiChat.route) { launchSingleTop = true }
                                 },
                                 onMenuClick = openDrawer
                             )
@@ -335,7 +335,7 @@ class MainActivity : ComponentActivity() {
                             com.omastro.app.ui.screens.palmistry.PalmistryScreen(
                                 onBack = { navController.popBackStack() },
                                 onOpenAiChat = {
-                                    navController.navigate(Screen.AiChat.route)
+                                    navController.navigate(Screen.AiChat.route) { launchSingleTop = true }
                                 },
                                 onOpenHistory = {
                                     navController.navigate(Screen.ReadingHistory.route)
@@ -346,7 +346,7 @@ class MainActivity : ComponentActivity() {
                             com.omastro.app.ui.screens.facereading.FaceReadingScreen(
                                 onBack = { navController.popBackStack() },
                                 onOpenAiChat = {
-                                    navController.navigate(Screen.AiChat.route)
+                                    navController.navigate(Screen.AiChat.route) { launchSingleTop = true }
                                 },
                                 onOpenHistory = {
                                     navController.navigate(Screen.ReadingHistory.route)
@@ -357,7 +357,7 @@ class MainActivity : ComponentActivity() {
                             com.omastro.app.ui.screens.vastu.VastuScreen(
                                 onBack = { navController.popBackStack() },
                                 onOpenAiChat = {
-                                    navController.navigate(Screen.AiChat.route)
+                                    navController.navigate(Screen.AiChat.route) { launchSingleTop = true }
                                 },
                                 onOpenHistory = {
                                     navController.navigate(Screen.ReadingHistory.route)
@@ -383,7 +383,7 @@ class MainActivity : ComponentActivity() {
                                 readingId = readingId,
                                 onBack = { navController.popBackStack() },
                                 onOpenAiChat = {
-                                    navController.navigate(Screen.AiChat.route)
+                                    navController.navigate(Screen.AiChat.route) { launchSingleTop = true }
                                 },
                                 onNewAnalysis = { featureType ->
                                     val route = when (featureType) {

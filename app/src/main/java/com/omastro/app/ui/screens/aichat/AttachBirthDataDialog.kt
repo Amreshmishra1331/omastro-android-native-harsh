@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.omastro.app.data.model.BirthDataAttachment
 import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.remote.GeocodePlace
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.components.DatePickerField
 import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.components.TimePickerField
@@ -86,7 +87,7 @@ fun AttachBirthDataDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Attach Birth Data",
+                    W.t("chat_attach_title"),
                     color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -94,7 +95,7 @@ fun AttachBirthDataDialog(
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = W.t("chat_close"),
                         tint = StarlightWhite.copy(alpha = 0.6f)
                     )
                 }
@@ -108,7 +109,7 @@ fun AttachBirthDataDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    "The AI will use this birth chart as context for its answers.",
+                    W.t("chat_attach_sub"),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 13.sp
                 )
@@ -116,19 +117,19 @@ fun AttachBirthDataDialog(
                 AttachTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = "Full Name"
+                    label = W.t("chat_attach_name")
                 )
 
                 // Gender toggle
                 Column {
                     Text(
-                        "Gender",
+                        W.t("chat_attach_gender"),
                         color = StarlightWhite.copy(alpha = 0.6f),
                         fontSize = 12.sp,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("M" to "Male", "F" to "Female").forEach { (value, label) ->
+                        listOf("M" to W.t("chat_attach_male"), "F" to W.t("chat_attach_female")).forEach { (value, label) ->
                             val selected = gender == value
                             Box(
                                 modifier = Modifier
@@ -160,13 +161,13 @@ fun AttachBirthDataDialog(
                 DatePickerField(
                     apiDate = dobApi,
                     onDateChange = { dobApi = it },
-                    label = "Date of Birth"
+                    label = W.t("chat_attach_dob")
                 )
 
                 TimePickerField(
                     displayTime = tob,
                     onTimeChange = { tob = it },
-                    label = "Time of Birth"
+                    label = W.t("chat_attach_tob")
                 )
 
                 PlaceSearchField(
@@ -182,7 +183,7 @@ fun AttachBirthDataDialog(
                         selectedPlace = it
                         place = it.displayName
                     },
-                    label = "Place of Birth"
+                    label = W.t("chat_attach_place")
                 )
 
                 validationError?.let {
@@ -198,9 +199,9 @@ fun AttachBirthDataDialog(
             Button(
                 onClick = {
                     when {
-                        name.isBlank() -> validationError = "Please enter a name."
-                        dobApi.isBlank() -> validationError = "Please pick a date of birth."
-                        place.isBlank() -> validationError = "Please enter a place of birth."
+                        name.isBlank() -> validationError = W.t("chat_attach_err_name")
+                        dobApi.isBlank() -> validationError = W.t("chat_attach_err_dob")
+                        place.isBlank() -> validationError = W.t("chat_attach_err_place")
                         else -> {
                             onAttach(
                                 BirthDataAttachment(
@@ -226,12 +227,12 @@ fun AttachBirthDataDialog(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Attach", fontWeight = FontWeight.Bold)
+                Text(W.t("chat_attach_btn"), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = StarlightWhite.copy(alpha = 0.7f))
+                Text(W.t("chat_cancel"), color = StarlightWhite.copy(alpha = 0.7f))
             }
         }
     )
@@ -310,7 +311,7 @@ fun AttachmentChips(
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Remove",
+                        contentDescription = W.t("chat_remove_cd"),
                         tint = StarlightWhite.copy(alpha = 0.6f),
                         modifier = Modifier.size(16.dp)
                     )
@@ -362,7 +363,7 @@ fun PhotoAttachmentChips(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            "Photo analysis",
+                            W.t("chat_photo_analysis"),
                             color = Color(0xFF7FB5E8),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -382,7 +383,7 @@ fun PhotoAttachmentChips(
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Remove",
+                        contentDescription = W.t("chat_remove_cd"),
                         tint = StarlightWhite.copy(alpha = 0.6f),
                         modifier = Modifier.size(16.dp)
                     )

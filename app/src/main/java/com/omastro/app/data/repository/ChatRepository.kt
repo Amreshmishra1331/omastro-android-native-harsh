@@ -99,13 +99,36 @@ class ChatRepository(
             val res = api.aiChat(payload)
             val body = res.body()
             if (!res.isSuccessful || body == null) {
+                // Honest failure: prefer the server's own message (e.g. quota
+                // exhausted) over a bare "HTTP 429" string.
                 return Result.failure(
-                    IOException("AI chat request failed: HTTP ${res.code()}")
+                    IOException(serverErrorMessage(res) ?: "AI chat request failed: HTTP ${res.code()}")
                 )
             }
             parseAiChatResponse(body, sessionId)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Extracts a human-readable message from an unsuccessful response's
+     * error body (WordPress REST shape: {message} or {data: {message}}).
+     * Returns null when there is nothing usable — the caller falls back to
+     * a generic, bilingual message.
+     */
+    private fun serverErrorMessage(res: retrofit2.Response<*>): String? {
+        return try {
+            val raw = res.errorBody()?.string()
+            if (raw.isNullOrBlank()) return null
+            @Suppress("UNCHECKED_CAST")
+            val map = gson.fromJson(raw, Map::class.java) as? Map<String, Any>
+            val direct = map?.get("message") as? String
+            if (!direct.isNullOrBlank()) return direct
+            val nested = (map?.get("data") as? Map<String, Any>)?.get("message") as? String
+            nested?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
         }
     }
 

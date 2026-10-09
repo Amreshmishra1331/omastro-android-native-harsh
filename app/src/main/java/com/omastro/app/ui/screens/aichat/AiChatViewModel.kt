@@ -13,6 +13,7 @@ import com.omastro.app.data.model.SaveChatRequest
 import com.omastro.app.data.model.SavedChatSession
 import com.omastro.app.data.model.buildBirthDataContext
 import com.omastro.app.di.AppContainer
+import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +49,8 @@ data class AiChatUiState(
     /** "en" | "hi" — sent as `language` with every message (website parity). */
     val language: String = "en",
     val savedSessionId: String? = null,
+    /** True when a saved session's stored context was restored (chips can't show it). */
+    val hasRestoredContext: Boolean = false,
     val isLoadingSessions: Boolean = false,
     val savedSessions: List<SavedChatSession> = emptyList()
 )
@@ -107,9 +110,14 @@ class AiChatViewModel : ViewModel() {
     /**
      * Builds the history payload: last 12 turns as {role, text}.
      * Website parity: roles are "user" / "model".
+     *
+     * Takes the message list explicitly so the caller can build history from
+     * the PRE-send list — the message being sent must NOT appear in history
+     * (it is already sent as `message`; duplicating it wastes tokens and
+     * confuses the model).
      */
-    private fun buildHistory(mode: AiChatMode): List<ChatHistoryTurn> {
-        return states.getValue(mode).value.messages
+    private fun buildHistory(messages: List<ChatMessage>): List<ChatHistoryTurn> {
+        return messages
             .takeLast(12)
             .map {
                 ChatHistoryTurn(
@@ -127,6 +135,10 @@ class AiChatViewModel : ViewModel() {
         val current = stateFlow.value
         if (current.isTyping) return
 
+        // History is built BEFORE the new user message is appended, so the
+        // outgoing message is never duplicated inside the history payload.
+        val history = buildHistory(current.messages)
+
         val userMessage = ChatMessage(
             id = UUID.randomUUID().toString(),
             senderId = "me",
@@ -136,11 +148,13 @@ class AiChatViewModel : ViewModel() {
         stateFlow.value = current.copy(
             messages = current.messages + userMessage,
             isTyping = true,
-            error = null
+            error = null,
+            // The restored-context notice has served its purpose once the
+            // user starts a fresh exchange.
+            hasRestoredContext = false
         )
 
         val context = buildContext(mode)
-        val history = buildHistory(mode)
         val aiModel = current.aiModel
 
         viewModelScope.launch {
@@ -194,9 +208,18 @@ class AiChatViewModel : ViewModel() {
                 )
             }.onFailure { err ->
                 val latest = states.getValue(mode).value
+                // Server-provided messages pass through verbatim; transport or
+                // HTTP-only failures get the bilingual fallback (never a raw
+                // "HTTP 500" string shown to the user).
+                val serverMsg = err.message
+                val friendly = if (serverMsg.isNullOrBlank() || serverMsg.startsWith("AI chat request failed:")) {
+                    W.t("chat_reply_failed")
+                } else {
+                    serverMsg
+                }
                 states.getValue(mode).value = latest.copy(
                     isTyping = false,
-                    error = err.message ?: "Could not get a reply. Please try again."
+                    error = friendly
                 )
             }
         }
@@ -310,7 +333,7 @@ class AiChatViewModel : ViewModel() {
                     states.getValue(mode).value =
                         states.getValue(mode).value.copy(
                             isLoadingSessions = false,
-                            error = err.message ?: "Could not load saved chats."
+                            error = err.message ?: W.t("chat_load_failed")
                         )
                 }
         }
@@ -354,7 +377,7 @@ class AiChatViewModel : ViewModel() {
                 .onFailure { err ->
                     val flow = states.getValue(mode)
                     flow.value = flow.value.copy(
-                        error = err.message ?: "Could not save chat."
+                        error = err.message ?: W.t("chat_save_failed")
                     )
                     onSaved(null)
                 }
@@ -380,7 +403,14 @@ class AiChatViewModel : ViewModel() {
                     flow.value = AiChatUiState(
                         messages = messages,
                         aiModel = flow.value.aiModel,
-                        savedSessionId = detail.id
+                        // Keep the session's own reply language (was: reset to "en").
+                        language = detail.language?.takeIf { it == "hi" } ?: "en",
+                        savedSessionId = detail.id,
+                        // The stored context IS restored and sent, but the
+                        // attachment chips can't be rebuilt from it — flag it
+                        // so the UI can say so honestly instead of implying
+                        // "no context attached".
+                        hasRestoredContext = !detail.storedContext.isNullOrBlank()
                     )
                     sessionIds[mode] = detail.sessionId
                     detail.storedContext?.let { chatContexts[mode] = it }
@@ -388,7 +418,7 @@ class AiChatViewModel : ViewModel() {
                 .onFailure { err ->
                     val flow = states.getValue(mode)
                     flow.value = flow.value.copy(
-                        error = err.message ?: "Could not open chat."
+                        error = err.message ?: W.t("chat_open_failed")
                     )
                 }
         }
@@ -408,7 +438,7 @@ class AiChatViewModel : ViewModel() {
                 .onFailure { err ->
                     val flow = states.getValue(mode)
                     flow.value = flow.value.copy(
-                        error = err.message ?: "Could not delete chat."
+                        error = err.message ?: W.t("chat_delete_failed")
                     )
                 }
         }
@@ -426,7 +456,7 @@ class AiChatViewModel : ViewModel() {
                 .onFailure { err ->
                     val flow = states.getValue(mode)
                     flow.value = flow.value.copy(
-                        error = err.message ?: "Could not clear chats."
+                        error = err.message ?: W.t("chat_clear_failed")
                     )
                 }
         }

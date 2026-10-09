@@ -288,7 +288,7 @@ fun DashboardScreen(
                             }
                             navController.navigate(Screen.Kundali.route)
                         },
-                        onChatClick = { navController.navigate(Screen.AiChat.route) },
+                        onChatClick = { navController.navigate(Screen.AiChat.route) { launchSingleTop = true } },
                         onAddMoney = { navController.navigate(Screen.Wallet.route) }
                     )
                 }
