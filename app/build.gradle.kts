@@ -111,6 +111,11 @@ dependencies {
     // Firebase Cloud Messaging
     implementation("com.google.firebase:firebase-messaging-ktx:23.4.1")
 
+    // Google Sign-In via Credential Manager (Sign in with Google button)
+    implementation("androidx.credentials:credentials:1.3.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
     // Razorpay Standard SDK
     implementation("com.razorpay:checkout:1.6.33")
 

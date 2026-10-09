@@ -122,6 +122,12 @@ class AuthViewModel : ViewModel() {
         _infoMessage.value = null
     }
 
+    /** Surface a Google Sign-In failure inline under the form. */
+    fun setGoogleError(message: String) {
+        _errorMessage.value = message
+        _infoMessage.value = null
+    }
+
     // ---------- validation ----------
 
     private fun isValidEmail(email: String): Boolean =
@@ -270,6 +276,33 @@ class AuthViewModel : ViewModel() {
                 }
                 .onFailure { err ->
                     _errorMessage.value = err.message ?: "Could not send reset instructions. Please try again."
+                }
+            _isLoading.value = false
+        }
+    }
+
+    /**
+     * Google Sign-In: called with the Google ID token obtained via Credential
+     * Manager. Posts it to POST /auth/firebase and completes login on success.
+     */
+    fun signInWithGoogle(idToken: String) {
+        if (idToken.isBlank()) {
+            _errorMessage.value = "Google sign-in failed: no credential received."
+            return
+        }
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            authRepository.signInWithGoogle(idToken)
+                .onSuccess { data ->
+                    val name = data.displayName?.takeIf { it.isNotBlank() } ?: "there"
+                    _infoMessage.value =
+                        if (data.isNewUser) "Welcome, $name! Your account was created."
+                        else "Welcome back, $name!"
+                    _loginSuccess.value = true
+                }
+                .onFailure { err ->
+                    _errorMessage.value = err.message ?: "Google sign-in failed. Please try again."
                 }
             _isLoading.value = false
         }

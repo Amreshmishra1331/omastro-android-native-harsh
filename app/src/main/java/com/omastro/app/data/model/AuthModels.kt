@@ -93,3 +93,32 @@ data class UserProfile(
 data class UpdateFcmTokenRequest(
     @SerializedName("fcm_token") val fcmToken: String
 )
+
+// ─── Google Sign-In (POST /auth/firebase) ────────────────────────────────
+// The app obtains a Google ID token via Credential Manager and posts it as
+// `firebase_id_token`. The server verifies the token (Google OAuth path) and
+// returns the OmAstro session token. Response envelope:
+// {"success": true, "data": {"token": ..., "user_id": ..., ...}, "meta": {...}}
+
+data class FirebaseAuthRequest(
+    @SerializedName("firebase_id_token") val firebaseIdToken: String,
+    @SerializedName("fcm_token") val fcmToken: String? = null
+)
+
+data class FirebaseAuthData(
+    @SerializedName("token") val token: String? = null,
+    @SerializedName("expires") val expires: Long? = null,
+    @SerializedName("user_id") val userId: Long = 0,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("display_name") val displayName: String? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("is_new_user") val isNewUser: Boolean = false
+)
+
+data class FirebaseAuthEnvelope(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: FirebaseAuthData? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("code") val code: String? = null
+)

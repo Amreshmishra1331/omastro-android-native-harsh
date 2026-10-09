@@ -33,6 +33,17 @@ interface OmAstroApiService {
         @Body request: ResendOtpRequest
     ): Response<Map<String, Any>>
 
+    /**
+     * Google Sign-In → WordPress login/register.
+     * Posts the Google ID token as `firebase_id_token`; the server verifies it
+     * (Google OAuth path) and returns the OmAstro session token.
+     * Envelope: {"success": true, "data": {"token": ..., "user_id": ..., ...}}
+     */
+    @POST("auth/firebase")
+    suspend fun firebaseAuth(
+        @Body request: FirebaseAuthRequest
+    ): Response<FirebaseAuthEnvelope>
+
     // Kundali (envelope: {"success": true, "data": {...}})
     @POST("kundali")
     suspend fun calculateKundali(

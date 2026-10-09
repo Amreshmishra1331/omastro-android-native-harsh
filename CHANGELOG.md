@@ -4,6 +4,34 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — NEW: Sign in with Google + Flutter-style Light Auth Theme
+
+### Missing
+The auth screen had no "Sign in with Google" button even though the backend supports it (POST /auth/firebase accepts Google ID tokens and the web login uses Google). The auth UI was dark cosmic-gold while the user asked for the Flutter app's light theme with the logo icon on top.
+
+### Removed
+- Dark cosmic-gold auth styling (gradient background, dark cards, gold-on-dark text) — replaced by the light theme below. The rest of the app stays dark; only auth screens changed.
+
+### Added
+- **Sign in with Google** (end to end):
+  - `POST /auth/firebase` endpoint in `OmAstroApiService` (posts `firebase_id_token`; envelope `{"success":true,"data":{"token":...}}`)
+  - `FirebaseAuthRequest` / `FirebaseAuthData` / `FirebaseAuthEnvelope` models in `AuthModels.kt`
+  - `AuthRepository.signInWithGoogle(idToken)`: posts the token, persists the OmAstro session token, updates the user profile
+  - `AuthViewModel.signInWithGoogle(idToken)` + `setGoogleError(message)` for inline failures
+  - `GoogleSignInHelper` (new): Credential Manager + `GetGoogleIdOption` account picker; `GoogleAuthConfig.GOOGLE_SERVER_CLIENT_ID` documents the server client ID and how to swap it if the backend ever reports "Wrong audience"
+  - White "Sign in with Google" button on the login form with a Canvas-drawn Google "G" mark (brand icon, not an emoji); "or continue with email" divider below it; silent on user-cancel, inline error otherwise
+  - New Gradle dependencies: `androidx.credentials:credentials`, `credentials-play-services-auth`, `googleid`
+- **Flutter-style light theme** (`AuthScreen.kt` rewritten):
+  - Cream page background (#FAF6EC, website day mode), white cards with warm borders
+  - Brand header: gold ॐ in a maroon rounded square (like the website header) + "OmAstro AI" title
+  - White input fields with gold focus rings, orange (#E8590C) primary buttons
+  - All four modes kept: email/password login, signup (name/email/mobile/+91/password + strength meter), 6-box OTP verify, forgot password; `otp_channel` backend option untouched
+
+### Verification note
+Brace/paren balance checked on all touched files. Full compile verification via CI build on push.
+
+---
+
 ## [2026-10-09] — NEW: Rich Left Navigation Drawer + Settings Overhaul (omastroai.com parity)
 
 ### Missing

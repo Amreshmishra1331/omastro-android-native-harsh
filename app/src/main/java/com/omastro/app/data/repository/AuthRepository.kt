@@ -103,6 +103,33 @@ class AuthRepository(
         _currentUser.value = _currentUser.value?.copy(coinBalance = newBalance)
     }
 
+    /**
+     * Google Sign-In: posts the Google ID token to POST /auth/firebase.
+     * The server verifies the token and returns the OmAstro session token.
+     * On success the token is persisted and the user profile is updated.
+     */
+    suspend fun signInWithGoogle(idToken: String): Result<FirebaseAuthData> {
+        return try {
+            val response = api.firebaseAuth(FirebaseAuthRequest(firebaseIdToken = idToken))
+            val body = response.body()
+            val data = body?.data
+            if (response.isSuccessful && body?.success == true && data?.token != null) {
+                ApiClient.setAuthToken(data.token)
+                _currentUser.value = UserProfile(
+                    id = data.userId,
+                    name = data.displayName ?: "",
+                    email = data.email
+                )
+                Result.success(data)
+            } else {
+                val msg = body?.message ?: "Google sign-in failed: HTTP ${response.code()}"
+                Result.failure(IOException(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateFcmToken(token: String): Result<Boolean> {
         return try {
             val response = api.updateFcmToken(UpdateFcmTokenRequest(token))
