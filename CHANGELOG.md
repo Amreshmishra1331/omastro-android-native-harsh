@@ -4,6 +4,25 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — AI Chat Screen Redesign to Match Website
+
+### AI Chat redesigned to match omastroai.com/ai-chat/
+**What was missing:** Basic chat UI — plain TabRow mode switch, static typing dots, no suggestion chips, no timestamps, bare empty state ("Ask your first question"), square-ish input bar.
+**Removed:** Old TabRow-based mode tabs, static (non-animated) typing indicator, old empty-state layout.
+**Added:**
+- Custom segmented mode control (General / Divine / Mundane) — rounded container, gold pill for active mode, per-mode subtitles retained in top bar
+- Chat bubbles: user right-aligned with SacredGold accent + dark text; AI left-aligned with CosmicCharcoal card bg + white text; "AI Jyotishi" sender label on AI messages; chat-tail corner styling
+- Animated typing indicator — 3 gold dots with staggered alpha bounce (infinite transition), "AI Jyotishi" label + "typing..." caption
+- "Try asking:" suggestion chips — 4 per mode (General/Divine/Mundane specific); tap fills the input field; vertical card list in empty state; horizontal scrollable gold-outline strip above input during conversation
+- Empty state: emblem circle with Jyotish glyph per mode (Jupiter/Om/Earth), welcome headline, mode description, suggestion list
+- Input bar: rounded 26dp field, multi-line (max 5), sentence capitalization, IME Send action, circular gold send button (disabled state dimmed), proper imePadding + navigationBarsPadding keyboard handling, clears focus on send
+- Message timestamps (hh:mm a, subtle) under each bubble
+- Auto-scroll to latest message / typing indicator via animateScrollToItem
+- New-chat action uses Add icon; refresh icon removed
+- NO pictographic emojis; professional Jyotish glyphs only
+
+---
+
 ## [2026-10-09] — Dashboard UI Overhaul to Match Website
 
 ### Dashboard redesigned to match omastroai.com homepage
