@@ -308,12 +308,13 @@ private fun ChatEmptyState(
                 .border(1.dp, SacredGold.copy(alpha = 0.4f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
+            val modeGlyph = when (mode) {
+                AiChatMode.GENERAL -> "G"
+                AiChatMode.DIVINE -> "Om"
+                AiChatMode.MUNDANE -> "M"
+            }
             Text(
-                text = when (mode) {
-                    AiChatMode.GENERAL -> "G",
-                    AiChatMode.DIVINE -> "Om",
-                    AiChatMode.MUNDANE -> "M"
-                },
+                text = modeGlyph,
                 color = SacredGold,
                 fontSize = 32.sp,
                 textAlign = TextAlign.Center
