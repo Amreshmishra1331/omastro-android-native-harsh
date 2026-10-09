@@ -4,15 +4,14 @@ import android.Manifest
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.hardware.SensorManager
 import android.os.Build
 import android.provider.MediaStore
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
-import androidx.camera.core.toBitmap
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -559,25 +558,61 @@ class CompassCamera(private val context: Context) {
             onResult(null)
             return
         }
-        capture.takePicture(
-            ContextCompat.getMainExecutor(context),
-            object : ImageCapture.OnImageCapturedCallback() {
-                override fun onCaptureSuccess(image: ImageProxy) {
-                    val bitmap = try {
-                        image.toBitmap()
-                    } catch (_: Exception) {
-                        null
-                    } finally {
-                        image.close()
+        try {
+            val tmpFile = File.createTempFile("compass_cap_", ".jpg", context.cacheDir)
+            val outputOptions = ImageCapture.OutputFileOptions.Builder(tmpFile).build()
+            capture.takePicture(
+                outputOptions,
+                ContextCompat.getMainExecutor(context),
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                        val bitmap = try {
+                            decodeWithExifRotation(tmpFile)
+                        } catch (_: Exception) {
+                            null
+                        } finally {
+                            tmpFile.delete()
+                        }
+                        onResult(bitmap)
                     }
-                    onResult(bitmap)
-                }
 
-                override fun onError(exception: ImageCaptureException) {
-                    onResult(null)
+                    override fun onError(exception: ImageCaptureException) {
+                        onResult(null)
+                    }
                 }
+            )
+        } catch (_: Exception) {
+            onResult(null)
+        }
+    }
+
+    /** Decodes the capture and applies its EXIF rotation so the bitmap is upright. */
+    private fun decodeWithExifRotation(file: File): Bitmap? {
+        var bitmap = BitmapFactory.decodeFile(file.absolutePath) ?: return null
+        try {
+            val exif = androidx.exifinterface.media.ExifInterface(file.absolutePath)
+            val orientation = exif.getAttributeInt(
+                androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION,
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_NORMAL
+            )
+            val degrees = when (orientation) {
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
             }
-        )
+            if (degrees != 0f) {
+                val matrix = android.graphics.Matrix().apply { postRotate(degrees) }
+                val rotated = Bitmap.createBitmap(
+                    bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+                )
+                if (rotated !== bitmap) bitmap.recycle()
+                bitmap = rotated
+            }
+        } catch (_: Exception) {
+            // EXIF unreadable — use the bitmap as-is.
+        }
+        return bitmap
     }
 }
 

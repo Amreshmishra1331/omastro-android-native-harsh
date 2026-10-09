@@ -171,6 +171,8 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
+    // EXIF rotation for compass direction photo captures
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
