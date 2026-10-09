@@ -429,22 +429,9 @@ data class ShadbalaData(
 )
 
 // ---------------------------------------------------------------------------
-// Saturn transit (Sade Sati / Dhaiya) + current gochar (verified live).
-// currentTransits is a MAP keyed by planet name, not a list.
+// Current gochar (verified live): currentTransits is a MAP keyed by planet
+// name, not a list.
 // ---------------------------------------------------------------------------
-
-data class SaturnTransit(
-    @SerializedName("active") val active: Boolean = false,
-    @SerializedName("type") val type: String = "",
-    @SerializedName("phase") val phase: String = "",
-    @SerializedName("house_from_moon") val houseFromMoon: Int = 0,
-    @SerializedName("saturn_rashi") val saturnRashi: Int = 0,
-    @SerializedName("moon_rashi") val moonRashi: Int = 0,
-    @SerializedName("name_en") val nameEn: String = "",
-    @SerializedName("name_hi") val nameHi: String = "",
-    @SerializedName("description_en") val descriptionEn: String = "",
-    @SerializedName("description_hi") val descriptionHi: String = ""
-)
 
 data class TransitInfo(
     @SerializedName("rashi") val rashi: String = "",

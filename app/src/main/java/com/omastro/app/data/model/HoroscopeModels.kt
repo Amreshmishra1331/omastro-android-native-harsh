@@ -70,5 +70,12 @@ data class SaturnTransit(
     @SerializedName("phase") val phase: String = "",
     @SerializedName("name_en") val nameEn: String = "",
     @SerializedName("name_hi") val nameHi: String = "",
-    @SerializedName("description_en") val descriptionEn: String = ""
+    @SerializedName("description_en") val descriptionEn: String = "",
+    // Extra keys from POST /kundali's saturnTransit (verified live 2026-10-09).
+    // Absent in the rashifal payload — Gson ignores missing keys, so this one
+    // class serves both endpoints.
+    @SerializedName("house_from_moon") val houseFromMoon: Int = 0,
+    @SerializedName("saturn_rashi") val saturnRashi: Int = 0,
+    @SerializedName("moon_rashi") val moonRashi: Int = 0,
+    @SerializedName("description_hi") val descriptionHi: String = ""
 )
