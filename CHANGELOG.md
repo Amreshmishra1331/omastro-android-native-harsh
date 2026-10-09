@@ -84,3 +84,27 @@ All notable changes to the native Android app. Each entry lists what was broken 
 **What was broken:** After the first fix batch, build #8 still failed: `LazyColumnScope` import unresolved in `KundaliScreen.kt` (the type was not resolving from the Compose BOM); build #9 failed on `WalletScreen.kt:75` — `po.order.keyId` (field is `rzpKeyId` in `TopupOrderResponse`).
 **Fixed:** Replaced `LazyColumnScope` with `LazyListScope` (stable parent interface); corrected `keyId` to `rzpKeyId`.
 **Result:** Build #10 — SUCCESS. APK artifact produced (19.4 MB).
+
+---
+
+## [2026-10-09] — P0 Fabricated Data Removal: Matchmaking, Rashifal, Panchang, Dashboard
+
+### Matchmaking (Kundali Milan) — fake preload removed, birth-input form added
+**What was broken:** `MatchmakingViewModel.init{}` hardcoded a complete fake compatibility report: totalScore=34.0/36, percentage=94, verdict="Excellent Match (Uttam Vivah)", manglikBoy/Girl="Non-Manglik", and 8 hardcoded `GunaDetail` rows. The screen displayed this fabricated report on launch with no user input, and the UI had no birth-details form.
+**Removed:** All hardcoded fake data from `init{}` (fake scores, verdict, manglik status, 8 fake guna rows, fake conclusion). Removed all `?:` fallback defaults in `MatchmakingScreen` (e.g., `?: 34.0`, `?: "Uttam Vivah"`, `?: 94`, `?: "Non-Manglik"`).
+**Added:** Two-person birth details input form (name, date of birth, time of birth, place of birth for both groom and bride) with validation. Real `POST /matching` API is called only on form submit. Honest empty state ("Enter birth details to check compatibility") when no result. Honest error state with "Try Again" button on API failure. "Check Another Pair" button to reset. `errorMessage` StateFlow added to ViewModel for failure propagation.
+
+### Rashifal (Horoscope) — fabricated fallbacks removed
+**What was broken:** `HoroscopeScreen` displayed hardcoded fake data when the API returned null: prediction "Planetary alignments favor bold initiatives today...", loveScore=85, careerScore=78, healthScore=92, luckyNumber=7, luckyColor="Saffron", remedy "Chant Gayatri Mantra 11 times...".
+**Removed:** All 7 hardcoded fallback values.
+**Added:** `errorMessage` StateFlow to `HoroscopeViewModel` with `retry()` function. Honest "Horoscope Unavailable" error state with Retry button when API fails or returns null. Real API data displayed only on success.
+
+### Panchang — fabricated fallbacks removed
+**What was broken:** `PanchangScreen` displayed hardcoded fake values when API returned null: sunrise "06:18 AM", sunset "06:22 PM", moonrise "08:45 PM", tithi "Shukla Paksha Ekadashi", nakshatra "Rohini", yoga "Siddhi", karana "Bava", day "Brihaspativar (Thursday)", Abhijit "11:51 AM - 12:38 PM", Amrit Kaal "02:15 PM - 03:45 PM", Rahu Kaal "01:30 PM - 03:00 PM", Yamaganda "06:00 AM - 07:30 AM", Gulika Kaal "09:00 AM - 10:30 AM".
+**Removed:** All 13 hardcoded fallback values.
+**Added:** `errorMessage` StateFlow to `PanchangViewModel`. Honest "Panchang Unavailable" error state with Retry button. Real API data displayed only on success.
+
+### Dashboard — fabricated Panchang fallbacks removed
+**What was broken:** `DashboardScreen` quick Panchang card showed fake values: tithi ?: "Shukla Paksha Dashami", nakshatra ?: "Rohini", yoga ?: "Siddhi".
+**Removed:** All 3 hardcoded fallback strings.
+**Added:** Neutral "—" placeholder shown when Panchang data is null (loading or failed), instead of fabricated values.
