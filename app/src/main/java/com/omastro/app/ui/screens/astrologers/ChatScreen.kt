@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +45,8 @@ fun ChatScreen(
 
     val sessionDuration by viewModel.sessionDurationSeconds.collectAsState()
     val sessionError by viewModel.sessionError.collectAsState()
+    val isSending by viewModel.isSending.collectAsState()
+    var inputText by remember { mutableStateOf("") }
 
     val formattedTimer = remember(sessionDuration) {
         val minutes = sessionDuration / 60
@@ -108,23 +111,65 @@ fun ChatScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = "Live messaging with astrologers is available on omastroai.com. Your consultation session and per-minute billing are active here.",
-                        color = StarlightWhite.copy(alpha = 0.7f),
-                        fontSize = 12.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text("Ask your astrological query...", color = StarlightWhite.copy(alpha = 0.5f)) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = CosmicNavy,
+                                unfocusedContainerColor = CosmicNavy,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                cursorColor = SacredGold,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(24.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .imePadding(),
+                            enabled = !isSending
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (inputText.isNotBlank()) {
+                                    viewModel.sendMessage(astrologerId, inputText)
+                                    inputText = ""
+                                }
+                            },
+                            enabled = !isSending && inputText.isNotBlank(),
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(
+                                    if (!isSending && inputText.isNotBlank()) SacredGold
+                                    else StarlightWhite.copy(alpha = 0.15f)
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Send",
+                                tint = CosmicDeepBlue
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Button(
+                    OutlinedButton(
                         onClick = {
                             viewModel.endConsultation()
                             onBack()
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SacredGold),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, SacredGold.copy(alpha = 0.5f))
                     ) {
-                        Text("End Consultation", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                        Text("End Consultation", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -161,10 +206,16 @@ fun ChatScreen(
                 ChatBubble(msg)
             }
 
-            if (messages.isEmpty()) {
+            if (isSending) {
+                item {
+                    TypingBubble()
+                }
+            }
+
+            if (messages.isEmpty() && !isSending) {
                 item {
                     Text(
-                        text = "No messages in this session yet.",
+                        text = "No messages in this session yet. Ask your first question below.",
                         color = StarlightWhite.copy(alpha = 0.5f),
                         fontSize = 13.sp,
                         modifier = Modifier.padding(vertical = 24.dp)
@@ -173,6 +224,34 @@ fun ChatScreen(
             }
 
             item { Spacer(modifier = Modifier.height(10.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun TypingBubble() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = CosmicCharcoal,
+            modifier = Modifier.widthIn(max = 120.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(3) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(SacredGold.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                    )
+                }
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.data.remote.OmAstroApiService
 import com.omastro.app.data.repository.AstroRepository
 import com.omastro.app.data.repository.AuthRepository
+import com.omastro.app.data.repository.ChatRepository
 import com.omastro.app.data.repository.ConsultationRepository
 import com.omastro.app.data.repository.WalletRepository
 import com.omastro.app.domain.usecase.*
@@ -15,6 +16,7 @@ object AppContainer {
     val astroRepository: AstroRepository by lazy { AstroRepository(apiService) }
     val consultationRepository: ConsultationRepository by lazy { ConsultationRepository(apiService) }
     val walletRepository: WalletRepository by lazy { WalletRepository(apiService) }
+    val chatRepository: ChatRepository by lazy { ChatRepository(apiService) }
 
     // UseCases
     val loginUseCase by lazy { LoginUseCase(authRepository) }

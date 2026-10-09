@@ -111,6 +111,12 @@ interface OmAstroApiService {
         @Body request: TopupVerifyRequest
     ): Response<TopupVerifyResponse>
 
+    // AI Chat (personas: general, divine, mundane, ...)
+    @POST("ai/chat")
+    suspend fun aiChat(
+        @Body request: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<Map<String, Any>>
+
     // FCM Device Token Registration
     @POST("auth/fcm-token")
     suspend fun updateFcmToken(

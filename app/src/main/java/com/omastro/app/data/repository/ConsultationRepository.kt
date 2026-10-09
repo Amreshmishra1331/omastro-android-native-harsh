@@ -37,15 +37,21 @@ class ConsultationRepository(
             val res = api.getChatHistory(astrologerId)
             val body = res.body()
             if (res.isSuccessful && body != null) {
-                _messages.value = _messages.value.toMutableMap().apply {
-                    put(astrologerId, body)
-                }
+                appendMessages(astrologerId, body)
                 Result.success(body)
             } else {
                 Result.failure(IOException("Failed to load chat history: HTTP ${res.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    fun appendMessages(astrologerId: String, newMessages: List<ChatMessage>) {
+        _messages.value = _messages.value.toMutableMap().apply {
+            val existing = get(astrologerId) ?: emptyList()
+            val existingIds = existing.map { it.id }.toSet()
+            put(astrologerId, existing + newMessages.filter { it.id !in existingIds })
         }
     }
 
