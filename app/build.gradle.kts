@@ -28,6 +28,29 @@ android {
         }
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("keystores/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+        // Release signing: the SAME keystore the Flutter app was built with
+        // (server: /var/www/omastroai keystores, copied to app/keystores/).
+        // This keeps the app identity stable for Play Store updates and for
+        // Google Sign-In SHA-1 registration. SHA-1:
+        //   9F:39:0C:5B:B2:3D:B8:8A:3C:7E:74:BA:67:6F:B7:53:47:81:36:E9
+        // Package "com.omastroai.app" must be registered as an Android OAuth
+        // client with this SHA-1 in the same Google Cloud project as the web
+        // client ID used in GoogleSignInHelper.
+        create("release") {
+            storeFile = file("keystores/omastro-release.keystore")
+            storePassword = "android"
+            keyAlias = "omastro"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -54,29 +77,6 @@ android {
             // OAuth client in the same Google Cloud project as the web client ID
             // used in GoogleSignInHelper (see its KDoc for exact steps).
             signingConfig = signingConfigs.getByName("debug")
-        }
-    }
-
-    signingConfigs {
-        getByName("debug") {
-            storeFile = file("keystores/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
-        // Release signing: the SAME keystore the Flutter app was built with
-        // (server: /var/www/omastroai keystores, copied to app/keystores/).
-        // This keeps the app identity stable for Play Store updates and for
-        // Google Sign-In SHA-1 registration. SHA-1:
-        //   9F:39:0C:5B:B2:3D:B8:8A:3C:7E:74:BA:67:6F:B7:53:47:81:36:E9
-        // Package "com.omastroai.app" must be registered as an Android OAuth
-        // client with this SHA-1 in the same Google Cloud project as the web
-        // client ID used in GoogleSignInHelper.
-        create("release") {
-            storeFile = file("keystores/omastro-release.keystore")
-            storePassword = "android"
-            keyAlias = "omastro"
-            keyPassword = "android"
         }
     }
 
