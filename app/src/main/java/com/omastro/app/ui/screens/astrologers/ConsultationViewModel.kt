@@ -18,6 +18,7 @@ class ConsultationViewModel : ViewModel() {
     private val tickBillingSessionUseCase = AppContainer.tickBillingSessionUseCase
     private val endBillingSessionUseCase = AppContainer.endBillingSessionUseCase
     private val consultationRepo = AppContainer.consultationRepository
+    private val chatRepository = AppContainer.chatRepository
 
     private val _astrologers = MutableStateFlow<List<Astrologer>>(emptyList())
     val astrologers: StateFlow<List<Astrologer>> = _astrologers.asStateFlow()
@@ -35,6 +36,11 @@ class ConsultationViewModel : ViewModel() {
 
     private val _sessionError = MutableStateFlow<String?>(null)
     val sessionError: StateFlow<String?> = _sessionError.asStateFlow()
+
+    private val _isSending = MutableStateFlow(false)
+    val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
+
+    private val aiSessionIds = mutableMapOf<String, String?>()
 
     private var timerJob: kotlinx.coroutines.Job? = null
     private var billingSessionUuid: String? = null
@@ -134,6 +140,46 @@ class ConsultationViewModel : ViewModel() {
 
     fun clearSessionError() {
         _sessionError.value = null
+    }
+
+    /**
+     * Sends a message in the astrologer consultation via POST /ai/chat
+     * (persona "general"), matching the website's chat mechanism. The user
+     * message and the AI reply are appended to the visible thread; the
+     * server history is refreshed afterwards. Never fabricates replies.
+     */
+    fun sendMessage(astrologerId: String, text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || _isSending.value) return
+        _isSending.value = true
+        _sessionError.value = null
+
+        val userMessage = ChatMessage(
+            id = "local-${System.currentTimeMillis()}-u",
+            senderId = "me",
+            isUser = true,
+            message = trimmed
+        )
+        consultationRepo.appendMessages(astrologerId, listOf(userMessage))
+
+        viewModelScope.launch {
+            chatRepository.sendAiMessage(trimmed, aiSessionIds[astrologerId], "general")
+                .onSuccess { (reply, newSessionId) ->
+                    aiSessionIds[astrologerId] = newSessionId
+                    val aiMessage = ChatMessage(
+                        id = "local-${System.currentTimeMillis()}-a",
+                        senderId = "ai",
+                        isUser = false,
+                        message = reply
+                    )
+                    consultationRepo.appendMessages(astrologerId, listOf(aiMessage))
+                    consultationRepo.loadChatHistory(astrologerId)
+                }
+                .onFailure { err ->
+                    _sessionError.value = err.message ?: "Message could not be sent. Please try again."
+                }
+            _isSending.value = false
+        }
     }
 
     override fun onCleared() {

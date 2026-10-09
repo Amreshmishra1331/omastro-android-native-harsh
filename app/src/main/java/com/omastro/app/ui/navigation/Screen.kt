@@ -11,6 +11,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Panchang : Screen("panchang", "Panchang", Icons.Default.CalendarToday)
     object Matchmaking : Screen("matchmaking", "Milan", Icons.Default.Favorite)
     object Astrologers : Screen("astrologers", "Astrologers", Icons.Default.SupportAgent)
+    object AiChat : Screen("ai_chat", "AI Chat", Icons.Default.Chat)
     object Chat : Screen("chat/{astrologerId}", "Consultation") {
         fun createRoute(astrologerId: String) = "chat/$astrologerId"
     }
@@ -24,6 +25,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
 val BottomNavItems = listOf(
     Screen.Home,
     Screen.Kundali,
+    Screen.AiChat,
     Screen.Horoscope,
     Screen.Astrologers,
     Screen.Settings

@@ -1,7 +1,14 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services")
+}
+
+// google-services.json is gitignored (contains Firebase API keys).
+// Apply the plugin only when the file exists: local dev machines and CI
+// (which injects it as a secret) get full Firebase; other builds compile
+// and run with FCM gracefully disabled at runtime.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 android {

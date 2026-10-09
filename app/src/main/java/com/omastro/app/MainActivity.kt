@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
                 val showBottomBar = currentRoute in listOf(
                     Screen.Home.route,
                     Screen.Kundali.route,
+                    Screen.AiChat.route,
                     Screen.Horoscope.route,
                     Screen.Astrologers.route,
                     Screen.Settings.route
@@ -63,6 +64,11 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.Horoscope.route) {
                             HoroscopeScreen(onBack = { navController.popBackStack() })
+                        }
+                        composable(Screen.AiChat.route) {
+                            com.omastro.app.ui.screens.aichat.AiChatScreen(
+                                onBack = { navController.popBackStack() }
+                            )
                         }
                         composable(Screen.Panchang.route) {
                             PanchangScreen(onBack = { navController.popBackStack() })
