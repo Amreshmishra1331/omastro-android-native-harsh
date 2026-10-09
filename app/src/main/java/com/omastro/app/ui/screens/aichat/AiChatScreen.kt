@@ -121,13 +121,13 @@ private fun suggestionsFor(mode: AiChatMode): List<String> = when (mode) {
         W.t("chat_sug_general_2"),
         W.t("chat_sug_general_3"),
         W.t("chat_sug_general_4")
-    ),
+    )
     AiChatMode.DIVINE -> listOf(
         W.t("chat_sug_divine_1"),
         W.t("chat_sug_divine_2"),
         W.t("chat_sug_divine_3"),
         W.t("chat_sug_divine_4")
-    ),
+    )
     AiChatMode.MUNDANE -> listOf(
         W.t("chat_sug_mundane_1"),
         W.t("chat_sug_mundane_2"),
