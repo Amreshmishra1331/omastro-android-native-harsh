@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.theme.*
 
 /**
@@ -141,7 +142,16 @@ private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
                 HealthField(name, viewModel::setName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
                 HealthField(dob, viewModel::setDob, "Date of Birth", "YYYY-MM-DD", KeyboardType.Number)
                 HealthField(tob, viewModel::setTob, "Time of Birth", "HH:MM 24-hour", KeyboardType.Number)
-                HealthField(place, viewModel::setPlace, "Place of Birth", "e.g. Jaipur, Rajasthan", KeyboardType.Text)
+                PlaceSearchField(
+                    value = place,
+                    onValueChange = viewModel::setPlace,
+                    onPlaceSelected = { selected ->
+                        viewModel.setLat(selected.lat.toString())
+                        viewModel.setLon(selected.lon.toString())
+                    },
+                    label = "Place of Birth",
+                    placeholder = "Type city name, e.g. Jaipur"
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(modifier = Modifier.weight(1f)) {
                         HealthField(lat, viewModel::setLat, "Latitude", "e.g. 26.9124", KeyboardType.Number)
@@ -150,6 +160,11 @@ private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
                         HealthField(lon, viewModel::setLon, "Longitude", "e.g. 75.7873", KeyboardType.Number)
                     }
                 }
+                Text(
+                    text = "Select your birth city above to auto-fill coordinates, or enter them manually.",
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
             }
         }
 

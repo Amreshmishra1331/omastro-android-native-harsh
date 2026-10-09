@@ -108,3 +108,18 @@ All notable changes to the native Android app. Each entry lists what was broken 
 **What was broken:** `DashboardScreen` quick Panchang card showed fake values: tithi ?: "Shukla Paksha Dashami", nakshatra ?: "Rohini", yoga ?: "Siddhi".
 **Removed:** All 3 hardcoded fallback strings.
 **Added:** Neutral "—" placeholder shown when Panchang data is null (loading or failed), instead of fabricated values.
+
+---
+
+## [2026-10-09] — Geocode Place Search (v2.1.0-geocode)
+
+### Place search — added (blocks real usage previously)
+**What was broken:** All birth forms required users to manually type latitude/longitude (with a tip saying "find coordinates in a maps app"). Unusable for most users.
+**Added:**
+- `POST /geocode/search` endpoint in `OmAstroApiService` (`GeocodeSearchRequest{query}`, `GeocodeSearchResponse` accepting both `places` and `results` envelope keys, `GeocodePlace{name,lat,lon,country,state}` with `displayName`).
+- New reusable `PlaceSearchField` composable (`ui/components/PlaceSearchField.kt`): debounced (~400ms) autocomplete dropdown, "Searching..." indicator, "No places found" empty state, graceful error handling, tap-to-select with coordinates shown per row.
+**Integrated into:**
+- Kundali birth form: selecting a place auto-fills latitude/longitude (manual entry still available as fallback).
+- Matchmaking (groom + bride): place autocomplete for accurate place names (server geocodes the name).
+- AstroHealth birth form: selecting a place auto-fills latitude/longitude (manual entry still available).
+**Removed:** The "find coordinates in a maps app" tip text in Kundali/AstroHealth forms (replaced with auto-fill guidance).

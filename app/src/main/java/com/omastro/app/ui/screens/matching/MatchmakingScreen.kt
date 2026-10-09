@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.GunaDetail
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -151,7 +152,15 @@ fun MatchmakingScreen(
                             BirthInputField("Time (HH:MM)", boyTob, { boyTob = it }, Modifier.weight(1f))
                         }
                     }
-                    item { BirthInputField("Place of Birth", boyPob, { boyPob = it }) }
+                    item {
+                        PlaceSearchField(
+                            value = boyPob,
+                            onValueChange = { boyPob = it },
+                            onPlaceSelected = { /* server geocodes the place name */ },
+                            label = "Place of Birth",
+                            placeholder = "Type city name, e.g. Jaipur"
+                        )
+                    }
 
                     // Bride details
                     item {
@@ -165,7 +174,15 @@ fun MatchmakingScreen(
                             BirthInputField("Time (HH:MM)", girlTob, { girlTob = it }, Modifier.weight(1f))
                         }
                     }
-                    item { BirthInputField("Place of Birth", girlPob, { girlPob = it }) }
+                    item {
+                        PlaceSearchField(
+                            value = girlPob,
+                            onValueChange = { girlPob = it },
+                            onPlaceSelected = { /* server geocodes the place name */ },
+                            label = "Place of Birth",
+                            placeholder = "Type city name, e.g. Jaipur"
+                        )
+                    }
 
                     item {
                         Spacer(modifier = Modifier.height(8.dp))

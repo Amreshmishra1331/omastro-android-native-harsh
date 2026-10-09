@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.*
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.components.VedicDiamondChart
 import com.omastro.app.ui.theme.*
 
@@ -156,7 +157,16 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
                 BirthField(name, viewModel::setBirthName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
                 BirthField(dob, viewModel::setBirthDob, "Date of Birth", "YYYY-MM-DD  e.g. 1995-08-15", KeyboardType.Number)
                 BirthField(tob, viewModel::setBirthTob, "Time of Birth", "HH:MM 24-hour  e.g. 08:30", KeyboardType.Number)
-                BirthField(place, viewModel::setBirthPlace, "Place of Birth", "e.g. Jaipur, Rajasthan", KeyboardType.Text)
+                PlaceSearchField(
+                    value = place,
+                    onValueChange = viewModel::setBirthPlace,
+                    onPlaceSelected = { selected ->
+                        viewModel.setBirthLat(selected.lat.toString())
+                        viewModel.setBirthLon(selected.lon.toString())
+                    },
+                    label = "Place of Birth",
+                    placeholder = "Type city name, e.g. Jaipur"
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(modifier = Modifier.weight(1f)) {
                         BirthField(lat, viewModel::setBirthLat, "Latitude", "e.g. 26.9124", KeyboardType.Number)
@@ -166,7 +176,7 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
                     }
                 }
                 Text(
-                    text = "Tip: find coordinates for any city in a maps app and enter them here.",
+                    text = "Select your birth city above to auto-fill coordinates, or enter them manually.",
                     color = TextSecondary,
                     fontSize = 11.sp
                 )

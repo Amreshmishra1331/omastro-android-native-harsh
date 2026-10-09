@@ -140,6 +140,12 @@ interface OmAstroApiService {
     suspend fun getNumerology(
         @Body request: Map<String, String>
     ): Response<Map<String, Any>>
+
+    // Geocode place search (city autocomplete for birth places)
+    @POST("geocode/search")
+    suspend fun searchPlaces(
+        @Body request: GeocodeSearchRequest
+    ): Response<GeocodeSearchResponse>
 }
 
 // Astrologer chat session models (real backend contract)
@@ -157,3 +163,34 @@ data class CloseChatRequest(
     @SerializedName("astrologer_id") val astrologerId: String,
     @SerializedName("session_id") val sessionId: String? = null
 )
+
+// Geocode place search models (POST /geocode/search)
+data class GeocodeSearchRequest(
+    @SerializedName("query") val query: String
+)
+
+data class GeocodePlace(
+    @SerializedName("name") val name: String,
+    @SerializedName("lat") val lat: Double,
+    @SerializedName("lon") val lon: Double,
+    @SerializedName("country") val country: String? = null,
+    @SerializedName("state") val state: String? = null
+) {
+    /** Human-readable display name: "City, State, Country" (parts that exist). */
+    val displayName: String
+        get() = listOfNotNull(name, state, country)
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString(", ")
+}
+
+data class GeocodeSearchResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("places") val places: List<GeocodePlace> = emptyList(),
+    @SerializedName("results") val results: List<GeocodePlace>? = null,
+    @SerializedName("message") val message: String? = null
+) {
+    /** Accepts either "places" or "results" envelope keys. */
+    val allPlaces: List<GeocodePlace>
+        get() = if (places.isNotEmpty()) places else (results ?: emptyList())
+}
