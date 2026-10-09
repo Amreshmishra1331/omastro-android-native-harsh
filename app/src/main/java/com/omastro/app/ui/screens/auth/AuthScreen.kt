@@ -372,7 +372,7 @@ private fun AuthPrimaryButton(
             .height(52.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(
-                if (isLoading) CosmicBorder
+                brush = if (isLoading) Brush.linearGradient(listOf(CosmicBorder, CosmicBorder))
                 else Brush.horizontalGradient(
                     listOf(Color(0xFFFFC94D), SacredGold, SacredGoldDark)
                 )
