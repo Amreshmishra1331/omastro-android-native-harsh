@@ -336,6 +336,9 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 onOpenAiChat = {
                                     navController.navigate(Screen.AiChat.route)
+                                },
+                                onOpenHistory = {
+                                    navController.navigate(Screen.ReadingHistory.route)
                                 }
                             )
                         }
@@ -344,6 +347,9 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 onOpenAiChat = {
                                     navController.navigate(Screen.AiChat.route)
+                                },
+                                onOpenHistory = {
+                                    navController.navigate(Screen.ReadingHistory.route)
                                 }
                             )
                         }
@@ -352,6 +358,44 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 onOpenAiChat = {
                                     navController.navigate(Screen.AiChat.route)
+                                },
+                                onOpenHistory = {
+                                    navController.navigate(Screen.ReadingHistory.route)
+                                }
+                            )
+                        }
+                        composable(Screen.ReadingHistory.route) {
+                            com.omastro.app.ui.screens.history.ReadingHistoryScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenDetail = { id ->
+                                    navController.navigate(
+                                        Screen.ReadingHistoryDetail.createRoute(id)
+                                    )
+                                }
+                            )
+                        }
+                        composable(
+                            route = Screen.ReadingHistoryDetail.route,
+                            arguments = listOf(navArgument("readingId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val readingId = backStackEntry.arguments?.getString("readingId") ?: ""
+                            com.omastro.app.ui.screens.history.ReadingHistoryDetailScreen(
+                                readingId = readingId,
+                                onBack = { navController.popBackStack() },
+                                onOpenAiChat = {
+                                    navController.navigate(Screen.AiChat.route)
+                                },
+                                onNewAnalysis = { featureType ->
+                                    val route = when (featureType) {
+                                        com.omastro.app.data.local.ReadingFeatureType.VASTU -> Screen.Vastu.route
+                                        com.omastro.app.data.local.ReadingFeatureType.FACE -> Screen.FaceReading.route
+                                        else -> Screen.Palmistry.route
+                                    }
+                                    navController.navigate(route) {
+                                        popUpTo(Screen.ReadingHistory.route) {
+                                            inclusive = false
+                                        }
+                                    }
                                 }
                             )
                         }

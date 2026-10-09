@@ -1,6 +1,7 @@
 package com.omastro.app.ui.screens.facereading
 
 import android.Manifest
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
@@ -66,6 +68,8 @@ import com.omastro.app.data.model.FaceReading
 import com.omastro.app.data.model.PendingPhotoContextHolder
 import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.repository.VisionRepository
+import com.omastro.app.data.local.ReadingFeatureType
+import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.screens.aichat.copyUriToCache
 import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
@@ -89,11 +93,12 @@ class FaceReadingViewModel : ViewModel() {
     private val _uiState = kotlinx.coroutines.flow.MutableStateFlow(FaceReadingUiState())
     val uiState: kotlinx.coroutines.flow.StateFlow<FaceReadingUiState> = _uiState
 
-    fun analyze(image: File) {
+    fun analyze(image: File, appContext: Context) {
         _uiState.value = FaceReadingUiState(isLoading = true)
         viewModelScope.launch {
-            repo.analyzeFaceReading(image)
-                .onSuccess { reading ->
+            val result = repo.analyzeFaceReading(image)
+            result
+                .onSuccess { (reading, _) ->
                     _uiState.value = FaceReadingUiState(reading = reading)
                 }
                 .onFailure { e ->
@@ -101,6 +106,18 @@ class FaceReadingViewModel : ViewModel() {
                         error = e.message ?: W.t("face_err_failed")
                     )
                 }
+            // Auto-save completed readings to local history.
+            // No-face refusals are NEVER saved — only real readings.
+            val (reading, rawJson) = result.getOrNull() ?: return@launch
+            if (reading.isFace) {
+                runCatching {
+                    ReadingHistoryRepository(appContext).save(
+                        featureType = ReadingFeatureType.FACE,
+                        resultJson = rawJson,
+                        photo = image
+                    )
+                }
+            }
         }
     }
 
@@ -114,6 +131,7 @@ class FaceReadingViewModel : ViewModel() {
 fun FaceReadingScreen(
     onBack: () -> Unit,
     onOpenAiChat: () -> Unit,
+    onOpenHistory: () -> Unit,
     viewModel: FaceReadingViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -199,6 +217,15 @@ fun FaceReadingScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = W.t("history_open_cd"),
+                            tint = SacredGold
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
             )
         },
@@ -258,7 +285,7 @@ fun FaceReadingScreen(
                         },
                         onAnalyze = {
                             val f = imageFile
-                            if (f != null) viewModel.analyze(f)
+                            if (f != null) viewModel.analyze(f, context.applicationContext)
                         }
                     )
                 }
@@ -421,7 +448,7 @@ private fun FaceReadingLoadingCard() {
 }
 
 @Composable
-private fun FaceReadingResultCard(
+internal fun FaceReadingResultCard(
     reading: FaceReading,
     onAskAi: () -> Unit,
     onRetake: () -> Unit

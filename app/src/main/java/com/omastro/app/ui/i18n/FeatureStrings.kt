@@ -593,7 +593,28 @@ object W {
         "num_zero_note" to "पड़ोसी अंकों को बढ़ाता है",
         "num_vs" to "बनाम",
         "num_sec_grid_server" to "वैदिक जादुई वर्ग (सर्वर)",
-        "num_sec_grid_local" to "वैदिक जादुई वर्ग (डिवाइस)"
+        "num_sec_grid_local" to "वैदिक जादुई वर्ग (डिवाइस)",
+
+        // ---- Reading history (Vastu / Palmistry / Face Reading) ----
+        "history_title" to "पठन इतिहास",
+        "history_sub" to "आपकी सहेजी गई वास्तु, हस्तरेखा और चेहरा रीडिंग",
+        "history_open_cd" to "पठन इतिहास खोलें",
+        "history_empty" to "अभी कोई सहेजी गई रीडिंग नहीं है। आपकी पूर्ण वास्तु, हस्तरेखा और चेहरा रीडिंग यहां दिखाई देंगी।",
+        "history_saved_on" to "सहेजा गया",
+        "history_all" to "सभी",
+        "history_delete" to "हटाएं",
+        "history_delete_title" to "रीडिंग हटाएं?",
+        "history_delete_msg" to "यह सहेजी गई रीडिंग स्थायी रूप से हटा दी जाएगी।",
+        "history_cancel" to "रद्द करें",
+        "history_rename" to "नाम बदलें",
+        "history_label_hint" to "लेबल",
+        "history_save" to "सहेजें",
+        "history_deleted" to "रीडिंग हटा दी गई।",
+        "history_renamed" to "लेबल अपडेट हो गया।",
+        "history_delete_cd" to "रीडिंग हटाएं",
+        "history_rename_cd" to "लेबल बदलें",
+        "history_no_thumb_cd" to "फोटो उपलब्ध नहीं",
+        "history_load_failed" to "सहेजी गई रीडिंग लोड नहीं हो सकी।"
     )
 
     private val EN = mapOf(
@@ -1157,7 +1178,28 @@ object W {
         "num_zero_note" to "amplifies neighboring digits",
         "num_vs" to "vs",
         "num_sec_grid_server" to "Vedic Magic Square (server)",
-        "num_sec_grid_local" to "Vedic Magic Square (on-device)"
+        "num_sec_grid_local" to "Vedic Magic Square (on-device)",
+
+        // ---- Reading history (Vastu / Palmistry / Face Reading) ----
+        "history_title" to "Reading History",
+        "history_sub" to "Your saved Vastu, Palmistry and Face readings",
+        "history_open_cd" to "Open reading history",
+        "history_empty" to "No saved readings yet. Your completed Vastu, Palmistry and Face readings will appear here.",
+        "history_saved_on" to "Saved on",
+        "history_all" to "All",
+        "history_delete" to "Delete",
+        "history_delete_title" to "Delete reading?",
+        "history_delete_msg" to "This saved reading will be permanently deleted.",
+        "history_cancel" to "Cancel",
+        "history_rename" to "Rename",
+        "history_label_hint" to "Label",
+        "history_save" to "Save",
+        "history_deleted" to "Reading deleted.",
+        "history_renamed" to "Label updated.",
+        "history_delete_cd" to "Delete reading",
+        "history_rename_cd" to "Rename label",
+        "history_no_thumb_cd" to "No photo available",
+        "history_load_failed" to "Could not load the saved reading."
     )
 
     /** Active-language string for [key]. Falls back to English. */

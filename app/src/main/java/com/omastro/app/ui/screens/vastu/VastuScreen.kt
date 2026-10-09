@@ -1,6 +1,7 @@
 package com.omastro.app.ui.screens.vastu
 
 import android.Manifest
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.Button
@@ -92,6 +94,8 @@ import com.omastro.app.data.model.VastuDosha
 import com.omastro.app.data.model.VastuPadaInfo
 import com.omastro.app.data.model.VastuRoomInput
 import com.omastro.app.data.repository.VisionRepository
+import com.omastro.app.data.local.ReadingFeatureType
+import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
 import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
 import com.omastro.app.ui.screens.aichat.saveBitmapToCache
@@ -150,15 +154,16 @@ class VastuViewModel : ViewModel() {
         }
     }
 
-    fun analyze(request: VastuAnalyzeRequest) {
+    fun analyze(request: VastuAnalyzeRequest, appContext: Context) {
         lastRequest = request
         lastPhotoNotes = null
         _uiState.value = _uiState.value.copy(
             isLoading = true, error = null, analysis = null, photoParse = emptyMap()
         )
         viewModelScope.launch {
-            repo.analyzeVastu(request)
-                .onSuccess { analysis ->
+            val result = repo.analyzeVastu(request)
+            result
+                .onSuccess { (analysis, _) ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false, analysis = analysis
                     )
@@ -169,18 +174,30 @@ class VastuViewModel : ViewModel() {
                         error = e.message ?: W.t("vastu_err_failed")
                     )
                 }
+            // Auto-save completed analyses to local history, verbatim —
+            // including null-score "insufficient data" states. Manual
+            // form has no photo, so no thumbnail is stored.
+            val (_, rawJson) = result.getOrNull() ?: return@launch
+            runCatching {
+                ReadingHistoryRepository(appContext).save(
+                    featureType = ReadingFeatureType.VASTU,
+                    resultJson = rawJson,
+                    photo = null
+                )
+            }
         }
     }
 
-    fun analyzePhoto(photo: File, notes: String?) {
+    fun analyzePhoto(photo: File, notes: String?, appContext: Context) {
         lastRequest = null
         lastPhotoNotes = notes?.takeIf { it.isNotBlank() }
         _uiState.value = _uiState.value.copy(
             isLoading = true, error = null, analysis = null, photoParse = emptyMap()
         )
         viewModelScope.launch {
-            repo.analyzeVastuPhoto(photo, notes)
-                .onSuccess { (photoParse, analysis) ->
+            val result = repo.analyzeVastuPhoto(photo, notes)
+            result
+                .onSuccess { (photoParse, analysis, _) ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false, analysis = analysis, photoParse = photoParse
                     )
@@ -191,6 +208,16 @@ class VastuViewModel : ViewModel() {
                         error = e.message ?: W.t("vastu_photo_err_failed")
                     )
                 }
+            // Auto-save completed photo analyses to local history,
+            // with a downscaled thumbnail of the house-map photo.
+            val (_, _, rawJson) = result.getOrNull() ?: return@launch
+            runCatching {
+                ReadingHistoryRepository(appContext).save(
+                    featureType = ReadingFeatureType.VASTU,
+                    resultJson = rawJson,
+                    photo = photo
+                )
+            }
         }
     }
 
@@ -212,12 +239,14 @@ class VastuViewModel : ViewModel() {
 fun VastuScreen(
     onBack: () -> Unit,
     onOpenAiChat: () -> Unit,
+    onOpenHistory: () -> Unit,
     viewModel: VastuViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var tab by remember { mutableStateOf(0) } // 0 = Manual, 1 = Photo
     // Photo captured in Compass Mode, handed to the house-map photo tab.
     var compassPhotoFile by remember { mutableStateOf<File?>(null) }
+    val context = LocalContext.current
     // Collect global language so the whole screen auto-switches EN/हिन्दी.
     val lang by LangPrefs.language.collectAsState()
 
@@ -246,6 +275,15 @@ fun VastuScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = W.t("back"),
+                            tint = SacredGold
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = W.t("history_open_cd"),
                             tint = SacredGold
                         )
                     }
@@ -293,7 +331,7 @@ fun VastuScreen(
                 VastuManualForm(
                     padaReference = uiState.padaReference,
                     isLoading = uiState.isLoading,
-                    onAnalyze = { viewModel.analyze(it) },
+                    onAnalyze = { viewModel.analyze(it, context.applicationContext) },
                     onCompassPhoto = { file ->
                         compassPhotoFile = file
                         tab = 1
@@ -304,7 +342,9 @@ fun VastuScreen(
                     isLoading = uiState.isLoading,
                     prefillPhoto = compassPhotoFile,
                     onPhotoConsumed = { compassPhotoFile = null },
-                    onAnalyze = { file, notes -> viewModel.analyzePhoto(file, notes) }
+                    onAnalyze = { file, notes ->
+                        viewModel.analyzePhoto(file, notes, context.applicationContext)
+                    }
                 )
             }
 
@@ -963,7 +1003,7 @@ private fun VastuPhotoForm(
 // ------------------------------------------------------------------
 
 @Composable
-private fun VastuResultView(
+internal fun VastuResultView(
     analysis: VastuAnalysis,
     onAskAi: () -> Unit,
     onNew: () -> Unit

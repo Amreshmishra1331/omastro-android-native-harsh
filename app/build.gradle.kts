@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.kapt")
 }
 
 // google-services.json is gitignored (contains Firebase API keys).
@@ -145,6 +146,11 @@ dependencies {
 
     // Image Loading - Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Local reading history - Room (structured records) + thumbnails as files
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
 
     // Google Play In-App Review
     implementation("com.google.android.play:review-ktx:2.0.1")

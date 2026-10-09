@@ -1,6 +1,7 @@
 package com.omastro.app.ui.screens.palmistry
 
 import android.Manifest
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
@@ -70,6 +72,8 @@ import com.omastro.app.data.model.PendingPhotoContextHolder
 import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.model.renderFactLines
 import com.omastro.app.data.repository.VisionRepository
+import com.omastro.app.data.local.ReadingFeatureType
+import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
 import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
 import com.omastro.app.ui.screens.aichat.saveBitmapToCache
@@ -94,11 +98,12 @@ class PalmistryViewModel : ViewModel() {
     private val _uiState = kotlinx.coroutines.flow.MutableStateFlow(PalmistryUiState())
     val uiState: kotlinx.coroutines.flow.StateFlow<PalmistryUiState> = _uiState
 
-    fun analyze(image: File, hand: String) {
+    fun analyze(image: File, hand: String, appContext: Context) {
         _uiState.value = PalmistryUiState(isLoading = true)
         viewModelScope.launch {
-            repo.analyzePalmistry(image, hand = hand)
-                .onSuccess { reading ->
+            val result = repo.analyzePalmistry(image, hand = hand)
+            result
+                .onSuccess { (reading, _) ->
                     _uiState.value = PalmistryUiState(reading = reading)
                 }
                 .onFailure { e ->
@@ -106,6 +111,18 @@ class PalmistryViewModel : ViewModel() {
                         error = e.message ?: W.t("palm_err_failed")
                     )
                 }
+            // Auto-save completed readings to local history.
+            // Refusals are NEVER saved — only real readings.
+            val (reading, rawJson) = result.getOrNull() ?: return@launch
+            if (!reading.isRefusal) {
+                runCatching {
+                    ReadingHistoryRepository(appContext).save(
+                        featureType = ReadingFeatureType.PALMISTRY,
+                        resultJson = rawJson,
+                        photo = image
+                    )
+                }
+            }
         }
     }
 
@@ -119,6 +136,7 @@ class PalmistryViewModel : ViewModel() {
 fun PalmistryScreen(
     onBack: () -> Unit,
     onOpenAiChat: () -> Unit,
+    onOpenHistory: () -> Unit,
     viewModel: PalmistryViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -205,6 +223,15 @@ fun PalmistryScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = onOpenHistory) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = W.t("history_open_cd"),
+                            tint = SacredGold
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
             )
         },
@@ -265,7 +292,7 @@ fun PalmistryScreen(
                         },
                         onAnalyze = {
                             val f = imageFile
-                            if (f != null) viewModel.analyze(f, selectedHand)
+                            if (f != null) viewModel.analyze(f, selectedHand, context.applicationContext)
                         }
                     )
                 }
@@ -462,7 +489,7 @@ private fun PalmistryLoadingCard() {
 }
 
 @Composable
-private fun PalmistryResultCard(
+internal fun PalmistryResultCard(
     reading: PalmistryReading,
     onAskAi: () -> Unit,
     onRetake: () -> Unit

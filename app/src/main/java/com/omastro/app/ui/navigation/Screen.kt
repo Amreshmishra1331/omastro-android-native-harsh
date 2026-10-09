@@ -32,6 +32,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Palmistry : Screen("palmistry", "Palmistry", Icons.Default.PanTool)
     object FaceReading : Screen("face_reading", "Face Reading", Icons.Default.Face)
     object Vastu : Screen("vastu", "Vastu Shastra", Icons.Default.HomeWork)
+    object ReadingHistory : Screen("reading_history", "Reading History", Icons.Default.History)
+    object ReadingHistoryDetail : Screen("reading_history_detail/{readingId}", "Reading") {
+        fun createRoute(readingId: String) = "reading_history_detail/$readingId"
+    }
     object Auth : Screen("auth", "Sign In") {
         /** Opens the auth screen directly in forgot-password mode. */
         const val FORGOT_ROUTE = "auth/forgot"

@@ -33,8 +33,12 @@ class VisionRepository(
     // Vastu
     // ------------------------------------------------------------------
 
-    /** POST /vastu/analyze — classical engine from manual inputs. */
-    suspend fun analyzeVastu(request: VastuAnalyzeRequest): Result<VastuAnalysis> {
+    /** POST /vastu/analyze — classical engine from manual inputs.
+     *
+     * Returns the parsed analysis plus the full server `data` JSON
+     * (verbatim) so completed analyses can be saved to reading history and
+     * re-rendered exactly as the server returned them. */
+    suspend fun analyzeVastu(request: VastuAnalyzeRequest): Result<Pair<VastuAnalysis, String>> {
         return try {
             val res = api.analyzeVastu(request)
             val body = res.body()
@@ -44,7 +48,7 @@ class VisionRepository(
             @Suppress("UNCHECKED_CAST")
             val data = body["data"] as? Map<String, Any?>
                 ?: return Result.failure(IOException("Empty Vastu response."))
-            Result.success(VastuAnalysis.fromMap(data))
+            Result.success(VastuAnalysis.fromMap(data) to gson.toJson(data))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -89,12 +93,13 @@ class VisionRepository(
 
     /**
      * POST /vastu/analyze-photo — house-map photo → vision parse → engine.
-     * Returns the parsed inputs (for editable review) plus the analysis.
+     * Returns the parsed inputs (for editable review) plus the analysis plus
+     * the full server `data` JSON (verbatim) for reading-history storage.
      */
     suspend fun analyzeVastuPhoto(
         photo: File,
         notes: String? = null
-    ): Result<Pair<Map<String, Any?>, VastuAnalysis>> {
+    ): Result<Triple<Map<String, Any?>, VastuAnalysis, String>> {
         return try {
             val part = filePart("photo", photo)
             val notesBody = notes?.takeIf { it.isNotBlank() }
@@ -111,7 +116,7 @@ class VisionRepository(
             val photoParse = data["photo_parse"] as? Map<String, Any?> ?: emptyMap()
             @Suppress("UNCHECKED_CAST")
             val analysisMap = data["vastu_analysis"] as? Map<String, Any?>
-            Result.success(photoParse to VastuAnalysis.fromMap(analysisMap))
+            Result.success(Triple(photoParse, VastuAnalysis.fromMap(analysisMap), gson.toJson(data)))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -146,12 +151,16 @@ class VisionRepository(
         }
     }
 
-    /** POST /palmistry/analyze — palm photo → structured reading. */
+    /** POST /palmistry/analyze — palm photo → structured reading.
+     *
+     * Returns the parsed reading plus the full server `data` JSON
+     * (verbatim) so completed readings can be saved to reading history and
+     * re-rendered exactly as the server returned them. */
     suspend fun analyzePalmistry(
         image: File,
         hand: String? = null,
         notes: String? = null
-    ): Result<PalmistryReading> {
+    ): Result<Pair<PalmistryReading, String>> {
         return try {
             val part = filePart("image", image)
             val handBody = hand?.takeIf { it.isNotBlank() }
@@ -166,17 +175,21 @@ class VisionRepository(
             @Suppress("UNCHECKED_CAST")
             val data = body["data"] as? Map<String, Any?>
                 ?: return Result.failure(IOException("Empty palmistry response."))
-            Result.success(PalmistryReading.fromMap(data))
+            Result.success(PalmistryReading.fromMap(data) to gson.toJson(data))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /** POST /face-reading/analyze — face photo → Samudrika Shastra reading. */
+    /** POST /face-reading/analyze — face photo → Samudrika Shastra reading.
+     *
+     * Returns the parsed reading plus the full server `data` JSON
+     * (verbatim) so completed readings can be saved to reading history and
+     * re-rendered exactly as the server returned them. */
     suspend fun analyzeFaceReading(
         image: File,
         notes: String? = null
-    ): Result<FaceReading> {
+    ): Result<Pair<FaceReading, String>> {
         return try {
             val part = filePart("image", image)
             val notesBody = notes?.takeIf { it.isNotBlank() }
@@ -196,7 +209,7 @@ class VisionRepository(
             @Suppress("UNCHECKED_CAST")
             val data = body["data"] as? Map<String, Any?>
                 ?: return Result.failure(IOException("Empty face-reading response."))
-            Result.success(FaceReading.fromMap(data))
+            Result.success(FaceReading.fromMap(data) to gson.toJson(data))
         } catch (e: Exception) {
             Result.failure(e)
         }
