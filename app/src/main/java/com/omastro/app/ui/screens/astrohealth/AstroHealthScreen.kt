@@ -1,13 +1,13 @@
 package com.omastro.app.ui.screens.astrohealth
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,48 +15,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.theme.*
 
-data class HealthOrganAffliction(
-    val organ: String,
-    val house: String,
-    val rulingPlanet: String,
-    val riskLevel: String, // Low, Moderate, High
-    val ayurvedicDosha: String, // Vata, Pitta, Kapha
-    val lifestyleAdvice: String
-)
-
+/**
+ * Astro-health analysis.
+ *
+ * The user enters birth details; POST /astro-health is called and the
+ * backend's own response is rendered. No organ lists, percentages or dosha
+ * values are invented client-side.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AstroHealthScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: AstroHealthViewModel = viewModel()
 ) {
-    val afflictions = remember {
-        listOf(
-            HealthOrganAffliction("Head & Nervous System", "1st House (Lagna)", "Mars / Sun", "Low", "Pitta", "Practice daily pranayama and avoid sleep deprivation."),
-            HealthOrganAffliction("Throat & Vocal Cords", "2nd House", "Venus", "Moderate", "Kapha", "Consume warm herbal water with turmeric and honey."),
-            HealthOrganAffliction("Chest & Lungs", "4th House", "Moon", "Low", "Kapha", "Deep breathing exercises; avoid cold exposure during night."),
-            HealthOrganAffliction("Digestive Vitality", "6th House (Roga Bhava)", "Mercury / Sun", "Moderate", "Pitta", "Eat satvik light meals; regular fasting on Ekadashi recommended."),
-            HealthOrganAffliction("Lower Spine & Kidneys", "7th House", "Venus", "Low", "Vata", "Maintain optimal hydration; daily yoga stretches for lower back."),
-            HealthOrganAffliction("Circulation & Longevity", "8th House (Ayur Bhava)", "Saturn", "Low", "Vata", "Chant Maha Mrityunjaya mantra; keep physical active discipline.")
-        )
-    }
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Astro Health & Medical Jyotish", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text("D6 Shashtamsha & Organ Vulnerability", color = MysticPurple, fontSize = 11.sp)
-                    }
+                    Text("Astro Health Analysis", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                    }
+                },
+                actions = {
+                    if (uiState is AstroHealthUiState.Success || uiState is AstroHealthUiState.Error) {
+                        IconButton(onClick = { viewModel.reset() }) {
+                            Icon(Icons.Default.Refresh, contentDescription = "New analysis", tint = SacredGold)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
@@ -64,76 +61,233 @@ fun AstroHealthScreen(
         },
         containerColor = CosmicDeepBlue
     ) { padding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(6.dp)) }
-
-            // Hero Vitality Card
-            item {
-                CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+            when (val state = uiState) {
+                is AstroHealthUiState.Idle -> AstroHealthForm(viewModel)
+                is AstroHealthUiState.Loading -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(CosmicNavy, shape = RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
+                        CircularProgressIndicator(color = SacredGold)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Analyzing planetary health indicators…", color = TextSecondary, fontSize = 14.sp)
+                    }
+                }
+                is AstroHealthUiState.Success -> AstroHealthResult(state.data)
+                is AstroHealthUiState.Error -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null, tint = InauspiciousRed, modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(state.message, color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.reset() },
+                            colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Default.HealthAndSafety, contentDescription = null, tint = SacredGold, modifier = Modifier.size(32.dp))
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column {
-                            Text("Overall Vitality Score: 84%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("Dominant Constitution: Pitta-Vata Balance", color = Color(0xFF4CAF50), fontSize = 12.sp)
-                            Text("D6 Engine: No severe 6th/8th house mutual affliction.", color = StarlightWhite.copy(alpha = 0.6f), fontSize = 11.sp)
+                            Text("Try Again", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
-
-            item {
-                Text("Anatomical Organ Forecast", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            }
-
-            items(afflictions) { item ->
-                CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(item.organ, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (item.riskLevel == "Moderate") Color(0xFFFFA000).copy(alpha = 0.2f) else Color(0xFF4CAF50).copy(alpha = 0.2f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (item.riskLevel == "Moderate") Color(0xFFFFA000) else Color(0xFF4CAF50))
-                            ) {
-                                Text(
-                                    text = "${item.riskLevel} Risk",
-                                    color = if (item.riskLevel == "Moderate") Color(0xFFFFA000) else Color(0xFF4CAF50),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-
-                        Text("Governed by: ${item.house} (${item.rulingPlanet}) • Dosha: ${item.ayurvedicDosha}", color = MysticPurple, fontSize = 12.sp)
-                        Divider(color = CosmicNavy)
-                        Text("Vedic Recommendation: ${item.lifestyleAdvice}", color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp)
-                    }
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(20.dp)) }
         }
     }
 }
+
+@Composable
+private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
+    val name by viewModel.name.collectAsState()
+    val dob by viewModel.dob.collectAsState()
+    val tob by viewModel.tob.collectAsState()
+    val place by viewModel.place.collectAsState()
+    val lat by viewModel.lat.collectAsState()
+    val lon by viewModel.lon.collectAsState()
+    val formError by viewModel.formError.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (lat.isBlank()) viewModel.setLat("28.6139")
+        if (lon.isBlank()) viewModel.setLon("77.2090")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Vedic Health Analysis", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Planetary influences on health, computed from your birth chart.",
+            color = TextSecondary, fontSize = 13.sp
+        )
+
+        CosmicCard(borderGold = true, modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HealthField(name, viewModel::setName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
+                HealthField(dob, viewModel::setDob, "Date of Birth", "YYYY-MM-DD", KeyboardType.Number)
+                HealthField(tob, viewModel::setTob, "Time of Birth", "HH:MM 24-hour", KeyboardType.Number)
+                HealthField(place, viewModel::setPlace, "Place of Birth", "e.g. Jaipur, Rajasthan", KeyboardType.Text)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        HealthField(lat, viewModel::setLat, "Latitude", "e.g. 26.9124", KeyboardType.Number)
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        HealthField(lon, viewModel::setLon, "Longitude", "e.g. 75.7873", KeyboardType.Number)
+                    }
+                }
+            }
+        }
+
+        formError?.let {
+            Text(text = it, color = InauspiciousRed, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        }
+
+        Button(
+            onClick = { viewModel.analyze() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Analyze Health Indicators", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
+
+        Text(
+            text = "For guidance only — not a medical diagnosis. Consult a qualified doctor for health concerns.",
+            color = TextSecondary,
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun HealthField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    keyboardType: KeyboardType
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = SacredGold,
+            unfocusedBorderColor = CosmicBorder,
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary,
+            focusedLabelColor = SacredGoldLight,
+            unfocusedLabelColor = TextSecondary
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+/**
+ * Renders the backend's astro-health response generically: scalar fields as
+ * key/value rows, string lists as bullet points, nested objects as sub-cards.
+ * Unknown shapes degrade gracefully instead of crashing or inventing data.
+ */
+@Composable
+private fun AstroHealthResult(data: Map<String, Any?>) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        data.forEach { (key, value) ->
+            AnalysisNode(key = readableKey(key), value = value)
+        }
+        Text(
+            text = "For guidance only — not a medical diagnosis. Consult a qualified doctor for health concerns.",
+            color = TextSecondary,
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun AnalysisNode(key: String, value: Any?, depth: Int = 0) {
+    when (value) {
+        null -> Unit
+        is String, is Number, is Boolean -> {
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Text(key, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(value.toString(), color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                }
+            }
+        }
+        is List<*> -> {
+            if (value.isEmpty()) return
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(key, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    value.forEach { item ->
+                        when (item) {
+                            is Map<*, *> -> {
+                                @Suppress("UNCHECKED_CAST")
+                                AnalysisNode(key = "", value = item as Map<String, Any?>, depth = depth + 1)
+                            }
+                            else -> Text(
+                                "• ${item.toString()}",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        is Map<*, *> -> {
+            @Suppress("UNCHECKED_CAST")
+            val map = value as Map<String, Any?>
+            if (map.isEmpty()) return
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (key.isNotBlank()) {
+                        Text(key, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    map.forEach { (k, v) -> AnalysisNode(key = readableKey(k), value = v, depth = depth + 1) }
+                }
+            }
+        }
+        else -> {
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Text("$key: ${value.toString()}", color = Color.White, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+private fun readableKey(key: String): String =
+    key.replace('_', ' ').replaceFirstChar { it.uppercase() }

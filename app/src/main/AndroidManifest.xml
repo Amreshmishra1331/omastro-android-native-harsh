@@ -18,7 +18,6 @@
         android:roundIcon="@drawable/ic_om"
         android:supportsRtl="true"
         android:theme="@style/Theme.OmAstro"
-        android:usesCleartextTraffic="true"
         tools:targetApi="34">
 
         <activity
@@ -32,6 +31,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Encrypted token store auto-initialisation (runs before Application.onCreate) -->
+        <provider
+            android:name=".data.remote.SecureStoreInitProvider"
+            android:authorities="${applicationId}.securestoreinit"
+            android:exported="false"
+            android:initOrder="100" />
+
+        <!-- Razorpay checkout host: launches the real Razorpay payment sheet and
+             returns the payment result to the wallet flow -->
+        <activity
+            android:name=".ui.screens.wallet.RazorpayPaymentActivity"
+            android:exported="false"
+            android:theme="@style/Theme.OmAstro" />
 
         <!-- Firebase Cloud Messaging Receiver Service -->
         <service
