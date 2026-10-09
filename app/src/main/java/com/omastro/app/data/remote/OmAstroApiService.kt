@@ -186,6 +186,11 @@ interface OmAstroApiService {
     @DELETE("ai/chats")
     suspend fun clearAiChats(): Response<Map<String, Any>>
 
+    // User profile (website dashboard parity)
+    // GET /me -> user info with plan and chat quota
+    @GET("me")
+    suspend fun getMyProfile(): Response<MeResponse>
+
     // FCM Device Token Registration
     @POST("auth/fcm-token")
     suspend fun updateFcmToken(

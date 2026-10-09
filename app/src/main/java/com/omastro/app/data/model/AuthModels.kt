@@ -115,6 +115,36 @@ data class UserProfile(
     @SerializedName("coin_balance") val coinBalance: Int = 0
 )
 
+// ─── GET /me (website dashboard parity) ──────────────────────────────────
+// Response: {"success": true, "data": {"user_id","email","name","display_name",
+// "username","is_admin","avatar","plan":{...},"chat_quota":{...}}}
+data class MeResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: MeData? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+data class MeData(
+    @SerializedName("user_id") val userId: Long = 0,
+    @SerializedName("id") val id: Long = 0,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("name") val name: String = "",
+    @SerializedName("display_name") val displayName: String? = null,
+    @SerializedName("username") val username: String? = null,
+    @SerializedName("is_admin") val isAdmin: Boolean = false,
+    @SerializedName("avatar") val avatar: String? = null,
+    @SerializedName("plan") val plan: MePlan? = null
+)
+
+data class MePlan(
+    @SerializedName("plan") val plan: String = "free",
+    @SerializedName("name") val name: String = "Free",
+    @SerializedName("is_pro") val isPro: Boolean = false,
+    @SerializedName("is_max") val isMax: Boolean = false,
+    @SerializedName("days_left") val daysLeft: Int = 0,
+    @SerializedName("expires_at") val expiresAt: String? = null
+)
+
 data class UpdateFcmTokenRequest(
     @SerializedName("fcm_token") val fcmToken: String
 )

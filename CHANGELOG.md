@@ -4,6 +4,39 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Dashboard website parity rebuild (/dashboard/)
+
+### Broken / missing
+- **Dashboard was a services home screen, not the website's user dashboard**: The old `DashboardScreen` showed "Today's Oracle", AI search bar, service grid, astrologer carousel, divine connection, numerology, panchang — a marketing-style home page. The website's `/dashboard/` is a user account dashboard with header (avatar/name/email/wallet), tab navigation, and account management.
+- **No user profile data**: App never called `GET /me` (user info with plan, avatar). No endpoint existed in `OmAstroApiService`.
+- **No tab structure**: Website has 7 tabs (Home, Activity, Profile, Password, Plan, Billing, Account). App had none.
+- **No Activity section**: Website's Activity tab has sub-tabs for Kundali (saved charts), Chats (AI sessions with delete/clear-all), Wallet (balance + transactions), Stats. App had no equivalent.
+- **No Profile/Password/Plan/Billing/Account tabs**: All missing.
+
+### Added
+- `GET /me` endpoint in `OmAstroApiService` + `MeResponse`/`MeData`/`MePlan` models in `AuthModels.kt` (matches server's `kg_rest_me` response: user_id, email, name, display_name, username, is_admin, avatar, plan, chat_quota).
+- New `DashboardViewModel.kt`: loads profile (`GET /me`), wallet balance + transactions, saved kundalis (`GET /me/charts`), AI chat sessions (`GET /ai/chats`). Exposes `deleteAiChat()`, `clearAllAiChats()`, `deleteSavedChart()`.
+- **Rebuilt `DashboardScreen.kt` to match website `/dashboard/` exactly**:
+  - **Header**: avatar (from `/me`), display name, email, wallet balance pill (taps to Billing tab).
+  - **Tab nav**: Home, Activity, Profile, Password, Plan, Billing, Account (scrollable pills, website order).
+  - **Home tab**: wallet hero card (orange gradient, total + paid/bonus breakdown like website), Add Money card, quick actions (Activity, Wallet, Edit Profile, Change Password), Recent Kundalis (5).
+  - **Activity tab**: sub-tabs Kundali / Chats / Wallet / Stats.
+    - Kundali: saved charts list with count, empty state with "Make Kundali" CTA.
+    - Chats: AI sessions with title/mode/date, delete per chat, "Clear All Chats" button.
+    - Wallet: balance hero + Add Money + transaction list.
+    - Stats: 2x2 grid (Kundalis, Total Chats, Wallet Balance, Transactions).
+  - **Profile tab**: avatar, Full Name, Username, Email (read-only display from `/me`).
+  - **Password tab**: current email display, current/new/confirm password fields, Change Password button, forgot-password link.
+  - **Plan tab**: plan name with Pro/Max indicator, Add Money CTA (website shows wallet card here).
+  - **Billing tab**: wallet hero (total + paid/bonus), Add Money button, full transaction history.
+  - **Account tab**: Danger Zone card, Logout, Settings navigation.
+- All data from real APIs. No emojis (Jyotish glyphs only for plan indicators).
+
+### Removed
+- Old marketing-style dashboard content: "Today's Oracle" card, AI search bar with suggestion chips, 8-service grid, astrologer carousel, Divine Connection deities, Numerology grid, Special Methods cards, Panchang quick card. (These services remain accessible via bottom nav and sidebar.)
+
+---
+
 ## [2026-10-09] — Chat History + Wallet website parity
 
 ### Broken / missing
