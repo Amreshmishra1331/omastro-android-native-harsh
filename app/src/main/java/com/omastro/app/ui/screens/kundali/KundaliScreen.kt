@@ -28,16 +28,33 @@ import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.components.VedicDiamondChart
 import com.omastro.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KundaliScreen(
     onBack: () -> Unit,
+    onNavigateToSavedCharts: () -> Unit = {},
     viewModel: KundaliViewModel = viewModel()
 ) {
     val hasData by viewModel.hasData.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.errorMessage.collectAsState()
+    val lastRequest by viewModel.lastRequest.collectAsState()
+
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var saveName by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var saveSuccess by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    // Load a chart selected from SavedChartsScreen, if any.
+    LaunchedEffect(Unit) {
+        com.omastro.app.ui.navigation.PendingChartHolder.consume()?.let { chart ->
+            viewModel.loadSavedChart(chart)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -49,7 +66,18 @@ fun KundaliScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToSavedCharts) {
+                        Icon(Icons.Default.Bookmarks, contentDescription = "Saved charts", tint = SacredGold)
+                    }
                     if (hasData) {
+                        IconButton(onClick = {
+                            saveName = lastRequest?.name ?: ""
+                            saveError = null
+                            saveSuccess = false
+                            showSaveDialog = true
+                        }) {
+                            Icon(Icons.Default.BookmarkAdd, contentDescription = "Save this chart", tint = SacredGold)
+                        }
                         IconButton(onClick = { viewModel.editBirthDetails() }) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit birth details", tint = SacredGold)
                         }
@@ -110,6 +138,80 @@ fun KundaliScreen(
                 else -> KundaliResults(viewModel)
             }
         }
+    }
+
+    // Save chart dialog
+    if (showSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isSaving) showSaveDialog = false },
+            title = { Text("Save this chart") },
+            text = {
+                Column {
+                    Text(
+                        "Give this chart a name to find it later in Saved Charts.",
+                        fontSize = 14.sp,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = saveName,
+                        onValueChange = { saveName = it; saveError = null },
+                        label = { Text("Chart name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isSaving
+                    )
+                    if (saveError != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(saveError!!, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                    }
+                    if (saveSuccess) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Chart saved.", color = SacredGold, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val req = lastRequest ?: return@TextButton
+                        if (saveName.trim().isEmpty()) {
+                            saveError = "Please enter a name for this chart."
+                            return@TextButton
+                        }
+                        isSaving = true
+                        saveError = null
+                        scope.launch {
+                            com.omastro.app.di.AppContainer.savedChartsRepository
+                                .saveChart(saveName.trim(), req)
+                                .onSuccess {
+                                    isSaving = false
+                                    saveSuccess = true
+                                }
+                                .onFailure { err ->
+                                    isSaving = false
+                                    saveError = err.message ?: "Could not save chart."
+                                }
+                        }
+                    },
+                    enabled = !isSaving
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Save")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showSaveDialog = false },
+                    enabled = !isSaving
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

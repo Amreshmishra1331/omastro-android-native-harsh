@@ -146,6 +146,20 @@ interface OmAstroApiService {
     suspend fun searchPlaces(
         @Body request: GeocodeSearchRequest
     ): Response<GeocodeSearchResponse>
+
+    // Saved Charts (user's saved kundalis)
+    @GET("me/charts")
+    suspend fun getSavedCharts(): Response<SavedChartsResponse>
+
+    @POST("me/charts")
+    suspend fun saveChart(
+        @Body request: SaveChartRequest
+    ): Response<SaveChartResponse>
+
+    @DELETE("me/charts/{id}")
+    suspend fun deleteChart(
+        @Path("id") chartId: String
+    ): Response<Map<String, Any>>
 }
 
 // Astrologer chat session models (real backend contract)
@@ -194,3 +208,63 @@ data class GeocodeSearchResponse(
     val allPlaces: List<GeocodePlace>
         get() = if (places.isNotEmpty()) places else (results ?: emptyList())
 }
+
+// Saved Charts models (GET/POST/DELETE /me/charts)
+data class SavedChart(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("birth_date") val birthDate: String = "",
+    @SerializedName("birth_time") val birthTime: String = "",
+    @SerializedName("birth_place") val birthPlace: String = "",
+    @SerializedName("latitude") val latitude: Double = 0.0,
+    @SerializedName("longitude") val longitude: Double = 0.0,
+    @SerializedName("gender") val gender: String = "male",
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("updated_at") val updatedAt: String? = null
+) {
+    /** Convert to KundaliRequest for loading the chart. */
+    fun toKundaliRequest(): com.omastro.app.data.model.KundaliRequest {
+        val dob = birthDate.takeIf { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) } ?: "1990-01-01"
+        val tobParts = birthTime.split(":")
+        val hr = tobParts.getOrNull(0)?.toIntOrNull() ?: 8
+        val mn = tobParts.getOrNull(1)?.toIntOrNull() ?: 30
+        return com.omastro.app.data.model.KundaliRequest(
+            name = name,
+            dob = dob,
+            tobHr = hr,
+            tobMn = mn,
+            tob = "%02d:%02d".format(hr, mn),
+            pob = birthPlace.ifBlank { "New Delhi" },
+            lat = latitude.takeIf { it != 0.0 } ?: 28.6139,
+            lon = longitude.takeIf { it != 0.0 } ?: 77.2090,
+            gender = gender
+        )
+    }
+}
+
+data class SavedChartsResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("charts") val charts: List<SavedChart> = emptyList(),
+    @SerializedName("data") val data: List<SavedChart>? = null,
+    @SerializedName("message") val message: String? = null
+) {
+    val allCharts: List<SavedChart>
+        get() = if (charts.isNotEmpty()) charts else (data ?: emptyList())
+}
+
+data class SaveChartRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("birth_date") val birthDate: String,
+    @SerializedName("birth_time") val birthTime: String,
+    @SerializedName("birth_place") val birthPlace: String = "",
+    @SerializedName("latitude") val latitude: Double = 0.0,
+    @SerializedName("longitude") val longitude: Double = 0.0,
+    @SerializedName("gender") val gender: String = "male"
+)
+
+data class SaveChartResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("chart") val chart: SavedChart? = null,
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("message") val message: String? = null
+)

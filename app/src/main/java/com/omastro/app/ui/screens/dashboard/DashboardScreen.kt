@@ -199,6 +199,26 @@ fun DashboardScreen(
                     onClick = { navController.navigate(Screen.Numerology.route) }
                 )
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickActionItem(
+                    title = "Saved Charts",
+                    subtitle = "My Kundalis",
+                    icon = Icons.Default.Bookmarks,
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController.navigate(Screen.SavedCharts.route) }
+                )
+                QuickActionItem(
+                    title = "Panchang",
+                    subtitle = "Daily Almanac",
+                    icon = Icons.Default.CalendarToday,
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController.navigate(Screen.Panchang.route) }
+                )
+            }
         }
 
         // Daily Mantra Widget

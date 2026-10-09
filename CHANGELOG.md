@@ -123,3 +123,20 @@ All notable changes to the native Android app. Each entry lists what was broken 
 - Matchmaking (groom + bride): place autocomplete for accurate place names (server geocodes the name).
 - AstroHealth birth form: selecting a place auto-fills latitude/longitude (manual entry still available).
 **Removed:** The "find coordinates in a maps app" tip text in Kundali/AstroHealth forms (replaced with auto-fill guidance).
+
+---
+
+## [2026-10-09] — Saved Charts Feature (v2.1.0)
+
+### Added: Saved Kundali Charts
+**What was missing:** Website has `/me/charts` for saved kundalis; the app required re-entering birth details every time.
+**Added:**
+- API: `GET /me/charts` (list), `POST /me/charts` (save with name + birth details), `DELETE /me/charts/{id}` (delete) in `OmAstroApiService`
+- Models: `SavedChart`, `SavedChartsResponse`, `SaveChartRequest`, `SaveChartResponse` (defensive parsing of `charts`/`data` envelope keys)
+- `SavedChartsRepository`: list/save/delete with honest error propagation, no fabricated data
+- `SavedChartsScreen`: chart list with name/birth details/created date, tap-to-load, delete with confirmation dialog, pull-to-refresh, empty state ("No saved charts yet"), error state with retry
+- `SavedChartsViewModel`: loading/error/delete states via StateFlow
+- `KundaliScreen`: bookmark icon in top bar (opens Saved Charts), save icon when viewing a chart (dialog to name and save current birth details); auto-loads chart selected from Saved Charts via `PendingChartHolder`
+- `KundaliViewModel`: tracks `lastRequest` (birth details of displayed chart), new `loadSavedChart()` method
+- Navigation: `Screen.SavedCharts` route; accessible from Kundali top bar and Dashboard quick actions
+- `DashboardScreen`: new "Saved Charts" quick action tile

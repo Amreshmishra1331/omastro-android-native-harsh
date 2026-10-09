@@ -50,6 +50,10 @@ class KundaliViewModel : ViewModel() {
     private val _formError = MutableStateFlow<String?>(null)
     val formError: StateFlow<String?> = _formError.asStateFlow()
 
+    /** The birth details of the currently displayed chart (for save/load). */
+    private val _lastRequest = MutableStateFlow<KundaliRequest?>(null)
+    val lastRequest: StateFlow<KundaliRequest?> = _lastRequest.asStateFlow()
+
     fun setBirthName(v: String) { _birthName.value = v; _formError.value = null }
     fun setBirthDob(v: String) { _birthDob.value = v; _formError.value = null }
     fun setBirthTob(v: String) { _birthTob.value = v; _formError.value = null }
@@ -77,6 +81,26 @@ class KundaliViewModel : ViewModel() {
     fun editBirthDetails() {
         _hasData.value = false
         _errorMessage.value = null
+    }
+
+    /** Load a saved chart: populate the form and fetch. */
+    fun loadSavedChart(chart: com.omastro.app.data.remote.SavedChart) {
+        val req = chart.toKundaliRequest()
+        _birthName.value = req.name
+        _birthDob.value = req.dob
+        _birthTob.value = req.tob
+        _birthPlace.value = req.pob
+        _birthLat.value = req.lat.toString()
+        _birthLon.value = req.lon.toString()
+        _formError.value = null
+        fetchKundali(
+            name = req.name,
+            dob = req.dob,
+            tob = req.tob,
+            pob = req.pob,
+            lat = req.lat,
+            lon = req.lon
+        )
     }
 
     /** Validate the form and compute the chart for the entered details. */
@@ -143,6 +167,7 @@ class KundaliViewModel : ViewModel() {
             getKundaliUseCase(req)
                 .onSuccess {
                     _kundaliData.value = it
+                    _lastRequest.value = req
                     _hasData.value = true
                     _selectedTab.value = 0
                     _isLoading.value = false

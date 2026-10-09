@@ -22,6 +22,7 @@ import com.omastro.app.ui.screens.horoscope.HoroscopeScreen
 import com.omastro.app.ui.screens.kundali.KundaliScreen
 import com.omastro.app.ui.screens.matching.MatchmakingScreen
 import com.omastro.app.ui.screens.panchang.PanchangScreen
+import com.omastro.app.ui.screens.savedcharts.SavedChartsScreen
 import com.omastro.app.ui.screens.settings.SettingsScreen
 import com.omastro.app.ui.screens.wallet.WalletScreen
 import com.omastro.app.data.remote.ApiClient
@@ -88,7 +89,23 @@ class MainActivity : ComponentActivity() {
                             DashboardScreen(navController = navController)
                         }
                         composable(Screen.Kundali.route) {
-                            KundaliScreen(onBack = { navController.popBackStack() })
+                            KundaliScreen(
+                                onBack = { navController.popBackStack() },
+                                onNavigateToSavedCharts = {
+                                    navController.navigate(Screen.SavedCharts.route)
+                                }
+                            )
+                        }
+                        composable(Screen.SavedCharts.route) {
+                            SavedChartsScreen(
+                                onBack = { navController.popBackStack() },
+                                onChartSelected = { chart ->
+                                    PendingChartHolder.set(chart)
+                                    navController.navigate(Screen.Kundali.route) {
+                                        popUpTo(Screen.SavedCharts.route) { inclusive = true }
+                                    }
+                                }
+                            )
                         }
                         composable(Screen.Horoscope.route) {
                             HoroscopeScreen(onBack = { navController.popBackStack() })
