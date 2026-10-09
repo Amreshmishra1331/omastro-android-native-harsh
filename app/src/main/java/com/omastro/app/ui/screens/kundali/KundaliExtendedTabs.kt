@@ -25,6 +25,7 @@ import com.omastro.app.data.model.*
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.PlanetMark
 import com.omastro.app.ui.components.VedicDiamondChart
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.*
 
 // ---------------------------------------------------------------------------
@@ -294,10 +295,157 @@ internal fun KxJaiminiState(
 }
 
 // ---------------------------------------------------------------------------
+// "Ask AI about this" — shared card + per-tab context blocks (all 23 tabs).
+// Flow (Palmistry/Vastu parity): on tap the tab's data block is stored via
+// PendingPhotoContextHolder, then AI chat opens; AiChatViewModel consumes it
+// as a context chip so follow-up questions reference the actual tab data.
+// ---------------------------------------------------------------------------
+
+/**
+ * Seeker + chart identity header shared by every Kundali AI context block.
+ * Only server values are used — nothing is ever invented client-side.
+ */
+internal fun kxSeekerHeader(kundali: KundaliResponse?, section: String): String {
+    val sb = StringBuilder("=== KUNDALI CONTEXT · $section ===\n")
+    val k = kundali
+    if (k != null) {
+        val birth = k.birth
+        sb.append("Seeker: ").append(birth.name.ifBlank { "Seeker" }).append('\n')
+        if (birth.year > 0)
+            sb.append("DOB: ").append("%02d-%02d-%04d".format(birth.day, birth.month, birth.year)).append('\n')
+        if (birth.hour > 0 || birth.minute > 0)
+            sb.append("TOB: ").append("%02d:%02d".format(birth.hour, birth.minute)).append('\n')
+        if (birth.place.isNotBlank()) sb.append("Birth place: ").append(birth.place).append('\n')
+        if (birth.gender.isNotBlank()) sb.append("Gender: ").append(birth.gender).append('\n')
+        val l = k.lagna
+        sb.append("Lagna: ").append(l.rashi.ifBlank { k.meta.lagnaEn })
+            .append(' ').append(l.deg).append('°').append(l.min).append('\'')
+        if (l.lord.isNotBlank()) sb.append(" (Lord ").append(l.lord).append(')')
+        sb.append('\n')
+        val m = k.meta
+        val moon = m.moonSignEn.ifBlank { m.moonSign }
+        if (moon.isNotBlank() || m.nakshatra.isNotBlank()) {
+            sb.append("Moon:")
+            if (moon.isNotBlank()) sb.append(' ').append(moon)
+            if (m.nakshatra.isNotBlank()) sb.append("  Nakshatra: ").append(m.nakshatra)
+            if (m.nakshatraPada > 0) sb.append(" Pada ").append(m.nakshatraPada)
+            sb.append('\n')
+        }
+    }
+    sb.append("Answer the seeker's questions using ONLY the data in this block. ")
+        .append("Base every prediction strictly on these values; never invent placements, dates or scores.\n")
+    return sb.toString()
+}
+
+/** One line per planet: name, sign, house, degree, dignity chips. */
+internal fun kxPlanetLines(planets: List<ApiPlanet>): String {
+    val sb = StringBuilder()
+    planets.filter { it.name.isNotBlank() }.forEach { p ->
+        sb.append("- ").append(p.name).append(": ")
+            .append(p.rashi.ifBlank { "—" })
+            .append(" House ").append(p.house)
+            .append(' ').append(p.degreeFormatted())
+        if (p.nakshatra.isNotBlank()) {
+            sb.append("  Nakshatra ").append(p.nakshatra)
+            if (p.pada > 0) sb.append(" Pada ").append(p.pada)
+            if (p.nakshatraLord.isNotBlank()) sb.append(" (Lord ").append(p.nakshatraLord).append(')')
+        }
+        val chips = p.dignityChips().toMutableList()
+        if (p.isRetrograde() && !chips.contains("Retrograde")) chips.add("Retrograde")
+        if (p.combust && !chips.contains("Combust")) chips.add("Combust")
+        if (chips.isNotEmpty()) sb.append("  [").append(chips.joinToString(", ")).append(']')
+        sb.append('\n')
+    }
+    return sb.toString()
+}
+
+/** House list (any chart) as text: house number, rashi, lord, planets. */
+internal fun kxHouseLines(houses: List<HouseInfo>): String {
+    val sb = StringBuilder()
+    houses.sortedBy { it.number }.forEach { h ->
+        sb.append("House ").append(h.number).append(": ")
+            .append(h.rashi.ifBlank { "—" })
+        if (h.lord.isNotBlank()) sb.append(" (Lord ").append(h.lord).append(')')
+        val names = h.planets.map { it.name }.filter { it.isNotBlank() }
+        if (names.isNotEmpty()) sb.append(" — planets: ").append(names.joinToString(", "))
+        sb.append('\n')
+    }
+    return sb.toString()
+}
+
+/** One line per dasha node, recursive to the depth the server provides. */
+internal fun kxDashaLines(nodes: List<DashaNode>, level: Int = 0, out: StringBuilder = StringBuilder()): String {
+    val pad = "  ".repeat(level)
+    nodes.forEach { n ->
+        out.append(pad).append("- ").append(n.planet)
+            .append(": ").append(n.start).append(" → ").append(n.end)
+        if (n.years > 0) out.append(" (").append(n.years).append("y)")
+        out.append('\n')
+        val children = listOf(n.antardasha, n.pratyantar, n.sookshma, n.prana, n.adi, n.deha)
+            .firstOrNull { it.isNotEmpty() }
+        if (children != null) kxDashaLines(children, level + 1, out)
+    }
+    return out.toString()
+}
+
+/**
+ * Shared gold "Ask AI about this" card. Placed at the end of every Kundali tab.
+ * [label] is the chat chip label (e.g. "Kundali · Yogas"); [contextBlock] is
+ * built lazily on click so lazy-loaded tabs always attach fresh data.
+ */
+@Composable
+internal fun KxAskAiCard(
+    label: String,
+    onOpenAiChat: () -> Unit,
+    contextBlock: () -> String
+) {
+    CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                W.t("kundali_ask_ai_title"),
+                color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                W.t("kundali_ask_ai_sub"),
+                color = TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center,
+                lineHeight = 18.sp
+            )
+            Button(
+                onClick = {
+                    val block = contextBlock()
+                    if (block.isNotBlank()) {
+                        PendingPhotoContextHolder.set(
+                            PhotoContextAttachment(label = label, contextBlock = block)
+                        )
+                    }
+                    onOpenAiChat()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    W.t("kundali_ask_ai_btn"),
+                    color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tab 1 — Birth Info (+ Lucky Elements)
 // ---------------------------------------------------------------------------
 
-internal fun LazyListScope.birthInfoTab(kundali: KundaliResponse?) {
+internal fun LazyListScope.birthInfoTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item { KxSectionTitle("Birth Info") }
     if (kundali == null) {
         item { KxEmpty("No chart data available.") }
@@ -379,11 +527,29 @@ internal fun LazyListScope.birthInfoTab(kundali: KundaliResponse?) {
                         Text("${lucky.number}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                     Column(modifier = Modifier.weight(2f)) {
-                        Text("Lucky Gemstone", color = TextSecondary, fontSize = 11.sp)
-                        Text(lucky.gemstone, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("Lucky Gemstone", color = StarlightWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
+        }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Birth Info",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Birth Info"))
+            sb.append("Ayanamsa: ").append(kundali.meta.ayanamsa).append('\n')
+            kundali.navamshaLagna?.let { d9 ->
+                if (d9.rashi.isNotBlank()) sb.append("Navamsha Lagna: ").append(d9.rashi).append('\n')
+            }
+            val li = kundali.lagnaSignIndex()
+            val lucky = luckyElementsFor(li, kundali.lagna.lord)
+            sb.append("Lucky elements (from Lagna): colour=").append(lucky.color)
+                .append(", number=").append(lucky.number)
+                .append(", gemstone=").append(lucky.gemstone).append('\n')
+            sb.toString()
         }
     }
 }
@@ -410,7 +576,8 @@ internal fun LazyListScope.birthChartTab(
     viewModel: KundaliViewModel,
     kundali: KundaliResponse?,
     selectedDiv: String,
-    chartStyle: String
+    chartStyle: String,
+    onOpenAiChat: () -> Unit
 ) {
     chartsTab(viewModel, kundali, selectedDiv, chartStyle)
 
@@ -445,6 +612,31 @@ internal fun LazyListScope.birthChartTab(
     if (!kundali?.currentTransits.isNullOrEmpty()) {
         item { KxSectionTitle("Current Transits (Gochar)") }
         item { KxTransitsStrip(kundali!!.currentTransits) }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Birth Chart (D1)",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Birth Chart (D1)"))
+            sb.append("--- D1 planet placements ---\n")
+                .append(kxPlanetLines(kundali?.planets ?: emptyList()))
+            kundali?.analysisTabs?.grahaDetail?.takeIf { it.isNotBlank() }?.let {
+                sb.append("--- Graha Detail ---\n").append(it.replace("|", "\n")).append('\n')
+            }
+            kundali?.analysisTabs?.d1Analysis?.takeIf { it.isNotBlank() }?.let {
+                sb.append("--- D1 Analysis ---\n").append(it.replace("|", "\n")).append('\n')
+            }
+            kundali?.saturnTransit?.takeIf { it.active }?.let { st ->
+                sb.append("Saturn transit alert: ").append(st.nameEn)
+                if (st.type.isNotBlank()) sb.append(" (").append(st.type).append(')')
+                if (st.phase.isNotBlank()) sb.append(" phase ").append(st.phase)
+                sb.append('\n')
+                if (st.descriptionEn.isNotBlank()) sb.append(st.descriptionEn).append('\n')
+            }
+            sb.toString()
+        }
     }
 }
 
@@ -516,7 +708,11 @@ internal fun KxTransitsStrip(transits: Map<String, TransitInfo>) {
 // Tab 3 — Navamsha (D9)
 // ---------------------------------------------------------------------------
 
-internal fun LazyListScope.navamshaTab(kundali: KundaliResponse?, chartStyle: String) {
+internal fun LazyListScope.navamshaTab(
+    kundali: KundaliResponse?,
+    chartStyle: String,
+    onOpenAiChat: () -> Unit
+) {
     item { KxSectionTitle("Navamsha (D9) — Chart of Marriage & Inner Strength") }
     if (kundali == null || kundali.d9Houses.isEmpty()) {
         item { KxEmpty("No Navamsha data returned for this chart.") }
@@ -540,6 +736,26 @@ internal fun LazyListScope.navamshaTab(kundali: KundaliResponse?, chartStyle: St
         item { KxSectionTitle("D9 Analysis") }
         item { KxAnalysisTextBlock(analysis) }
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Navamsha (D9)",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Navamsha (D9)"))
+            val kk = kundali
+            val d9Lagna = kk?.navamshaLagna?.rashi?.ifBlank {
+                kk.d9Houses.firstOrNull { it.number == 1 }?.rashi ?: ""
+            } ?: ""
+            if (d9Lagna.isNotBlank()) sb.append("Navamsha Lagna: ").append(d9Lagna).append('\n')
+            sb.append("--- D9 planet placements ---\n")
+                .append(kxHouseLines(kundali?.d9Houses ?: emptyList()))
+            kundali?.analysisTabs?.d9Analysis?.takeIf { it.isNotBlank() }?.let {
+                sb.append("--- D9 Analysis ---\n").append(it.replace("|", "\n")).append('\n')
+            }
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -549,12 +765,50 @@ internal fun LazyListScope.navamshaTab(kundali: KundaliResponse?, chartStyle: St
 internal fun LazyListScope.karakamshaTab(
     state: JaiminiUiState,
     onRetry: () -> Unit,
-    chartStyle: String
+    chartStyle: String,
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
 ) {
     item { KxSectionTitle("Karakamsha — Seat of the Soul's Desire") }
     item {
         KxJaiminiState(state, 3, onRetry) { data ->
             KarakamshaContent(data, chartStyle)
+        }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Karakamsha",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Karakamsha (Jaimini)"))
+            val data = state.data
+            if (data == null) {
+                sb.append("Karakamsha data not loaded for this chart.\n")
+            } else {
+                val kk = data.karakamsha
+                if (kk != null && kk.signEn.isNotBlank())
+                    sb.append("Karakamsha Lagna: ").append(kk.signEn).append('\n')
+                if (kk?.akPlanet?.isNotBlank() == true)
+                    sb.append("Atmakaraka: ").append(kk.akPlanet).append('\n')
+                data.karakas?.details?.ordered()?.forEach { (label, k) ->
+                    if (k != null && k.name.isNotBlank())
+                        sb.append(label).append(": ").append(k.name)
+                            .append(" in ").append(k.rashi).append('\n')
+                }
+                if (data.karakamshaHouses.isNotEmpty()) {
+                    sb.append("--- Karakamsha houses ---\n")
+                    data.karakamshaHouses.sortedBy { it.n }.forEach { h ->
+                        sb.append("House ").append(h.n).append(": ")
+                            .append(h.r?.en ?: "—")
+                        val pls = h.pl.map { it.en }.filter { it.isNotBlank() }
+                        if (pls.isNotEmpty()) sb.append(" — ").append(pls.joinToString(", "))
+                        if (h.isLg) sb.append("  [Karakamsha Lagna]")
+                        sb.append('\n')
+                    }
+                }
+            }
+            sb.toString()
         }
     }
 }
@@ -668,6 +922,7 @@ internal fun LazyListScope.lagnaChartTab(
     chart: ChartData?,
     kundali: KundaliResponse?,
     chartStyle: String,
+    onOpenAiChat: () -> Unit,
     analysisText: String = ""
 ) {
     item { KxSectionTitle(title) }
@@ -695,6 +950,23 @@ internal fun LazyListScope.lagnaChartTab(
     if (analysisText.isNotBlank()) {
         item { KxSectionTitle("Analysis") }
         item { KxAnalysisTextBlock(analysisText) }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · $title",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, title))
+            if (chart != null) {
+                if (chart.lagnaRashi.isNotBlank())
+                    sb.append("$title Lagna: ").append(chart.lagnaRashi).append('\n')
+                sb.append("--- House placements ---\n").append(kxHouseLines(chart.houses))
+            }
+            if (analysisText.isNotBlank())
+                sb.append("--- Analysis ---\n").append(analysisText.replace("|", "\n")).append('\n')
+            sb.toString()
+        }
     }
 }
 
@@ -729,7 +1001,8 @@ internal fun LazyListScope.divisionalTab(
     kundali: KundaliResponse?,
     viewModel: KundaliViewModel,
     selectedDiv: String,
-    chartStyle: String
+    chartStyle: String,
+    onOpenAiChat: () -> Unit
 ) {
     item { KxSectionTitle("Divisional Charts — Vargas D1 to D60") }
     if (kundali == null) {
@@ -808,13 +1081,38 @@ internal fun LazyListScope.divisionalTab(
             }
         }
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Divisional ($active)",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Divisional Chart ($active)"))
+            val allDiv = kundali?.allDivisionalCharts
+            val vgs = if (!allDiv.isNullOrEmpty()) allDiv else kundali?.divisionalCharts ?: emptyMap()
+            val vcs = vgs.keys.sortedBy(::vargaSortKey)
+            val act = vcs.firstOrNull { it.equals(selectedDiv, ignoreCase = true) } ?: vcs.firstOrNull() ?: ""
+            sb.append("Varga: ").append(act).append(" — ")
+                .append(VARGA_MEANINGS[act.uppercase()] ?: "A divisional chart refining the promises of the birth chart.")
+                .append('\n')
+            vgs[act]?.let { v ->
+                val lg = v.lagnaRashi.ifBlank { v.houses.firstOrNull { it.number == 1 }?.rashi ?: "" }
+                if (lg.isNotBlank()) sb.append("$act Lagna: ").append(lg).append('\n')
+                sb.append("--- $act house placements ---\n").append(kxHouseLines(v.houses))
+            }
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Tab 11 — Sodasvarga (16-varga table)
 // ---------------------------------------------------------------------------
 
-internal fun LazyListScope.sodasvargaTab(kundali: KundaliResponse?) {
+internal fun LazyListScope.sodasvargaTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item { KxSectionTitle("Sodasvarga — 16 Vargas × Planets") }
     val sv = kundali?.sodasvarga
     if (sv.isNullOrEmpty()) {
@@ -897,6 +1195,32 @@ internal fun LazyListScope.sodasvargaTab(kundali: KundaliResponse?) {
         Spacer(modifier = Modifier.height(4.dp))
         Text("Scroll horizontally to see all 16 vargas.", color = TextSecondary, fontSize = 11.sp)
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Sodasvarga",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Sodasvarga (16 vargas)"))
+            val sv = kundali?.sodasvarga
+            if (sv.isNullOrEmpty()) {
+                sb.append("No Sodasvarga data returned for this chart.\n")
+            } else {
+                val codes = sv.keys.sortedBy(::vargaSortKey)
+                sb.append("--- Varga x planet: sign occupied ---\n")
+                val planets = ((kundali?.planets ?: emptyList()).map { it.name } + sv.values.flatten().map { it.name })
+                    .distinct().filter { it.isNotBlank() }
+                planets.forEach { planet ->
+                    val cells = codes.map { code ->
+                        val r = sv[code]?.firstOrNull { it.name.equals(planet, ignoreCase = true) }?.rashi
+                        "$code=${r ?: "—"}"
+                    }
+                    sb.append(planet).append(": ").append(cells.joinToString(" ")).append('\n')
+                }
+            }
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -906,7 +1230,8 @@ internal fun LazyListScope.sodasvargaTab(kundali: KundaliResponse?) {
 internal fun LazyListScope.personalityTab(
     kundali: KundaliResponse?,
     state: ReportUiState,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onOpenAiChat: () -> Unit
 ) {
     item { KxSectionTitle("Personality — Five-Chart Combined Analysis") }
     item {
@@ -917,13 +1242,30 @@ internal fun LazyListScope.personalityTab(
             summaryText = kundali?.analysisTabs?.personality ?: ""
         )
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Personality",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Personality Analysis"))
+            val text = state.data?.bestText()?.ifBlank { kundali?.analysisTabs?.personality } ?: ""
+            if (text.isNotBlank()) sb.append("--- Personality report ---\n")
+                .append(text.replace("|", "\n")).append('\n')
+            else sb.append("Personality report not loaded for this chart.\n")
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Tab 15 — Planets (12-column website table)
 // ---------------------------------------------------------------------------
 
-internal fun LazyListScope.planetsFullTab(kundali: KundaliResponse?) {
+internal fun LazyListScope.planetsFullTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item { KxSectionTitle("Grahas — Complete 12-Column Table") }
     val planets = kundali?.planets
         ?.filter { it.name.isNotBlank() }
@@ -1044,6 +1386,45 @@ internal fun LazyListScope.planetsFullTab(kundali: KundaliResponse?) {
         Spacer(modifier = Modifier.height(4.dp))
         Text("Scroll horizontally to see all 12 columns.", color = TextSecondary, fontSize = 11.sp)
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Planets",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Planets (full detail)"))
+            (kundali?.planets ?: emptyList()).filter { it.name.isNotBlank() }.forEach { p ->
+                sb.append("== ").append(p.name).append(" ==\n")
+                sb.append("Sign: ").append(p.rashi).append(' ').append(p.degreeFormatted())
+                    .append("  House: ").append(p.house).append('\n')
+                if (p.nakshatra.isNotBlank()) {
+                    sb.append("Nakshatra: ").append(p.nakshatra)
+                    if (p.pada > 0) sb.append(" Pada ").append(p.pada)
+                    if (p.nakshatraLord.isNotBlank()) sb.append(" (Lord ").append(p.nakshatraLord).append(')')
+                    sb.append('\n')
+                }
+                if (p.d9Rashi.isNotBlank()) {
+                    sb.append("D9: ").append(p.d9Rashi)
+                    if (p.d9House > 0) sb.append(" House ").append(p.d9House)
+                    sb.append('\n')
+                }
+                if (p.ruledHousesFmt.isNotBlank())
+                    sb.append("Rules houses: ").append(p.ruledHousesFmt).append('\n')
+                else if (p.ruledHouses.isNotEmpty())
+                    sb.append("Rules houses: ").append(p.ruledHouses.joinToString(", ")).append('\n')
+                if (p.aspects.isNotEmpty())
+                    sb.append("Aspects houses: ").append(p.aspects.joinToString(", ")).append('\n')
+                val chips = p.dignityChips().toMutableList()
+                if (p.isRetrograde() && !chips.contains("Retrograde")) chips.add("Retrograde")
+                if (p.combust && !chips.contains("Combust")) chips.add("Combust")
+                if (p.vargottama && !chips.contains("Vargottama")) chips.add("Vargottama")
+                sb.append("Status: ").append(if (chips.isNotEmpty()) chips.joinToString(", ") else p.status.ifBlank { "—" }).append('\n')
+                if (p.baladiAvastha.isNotBlank()) sb.append("Avastha: ").append(p.baladiAvastha).append('\n')
+                if (p.charaKaraka.isNotBlank()) sb.append("Chara Karaka: ").append(p.charaKaraka).append('\n')
+            }
+            sb.toString()
+        }
+    }
 }
 
 @Composable
@@ -1079,7 +1460,10 @@ private fun KxDignityChip(label: String) {
 // Tab 16 — Panchang (birth)
 // ---------------------------------------------------------------------------
 
-internal fun LazyListScope.panchangTab(kundali: KundaliResponse?) {
+internal fun LazyListScope.panchangTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item { KxSectionTitle("Birth Panchang") }
     val p = kundali?.panchang
     if (p == null) {
@@ -1111,6 +1495,42 @@ internal fun LazyListScope.panchangTab(kundali: KundaliResponse?) {
         item { KxSectionTitle("Panchang Analysis") }
         item { KxAnalysisTextBlock(text) }
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Birth Panchang",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Birth Panchang"))
+            val p = kundali?.panchang
+            if (p == null) {
+                sb.append("No birth Panchang returned for this chart.\n")
+            } else {
+                sb.append("--- Panchang at birth ---\n")
+                if (p.tithi.isNotBlank()) {
+                    sb.append("Tithi: ").append(p.tithi)
+                    if (p.tithiNum > 0) sb.append(" (${p.tithiNum}/30)")
+                    sb.append('\n')
+                }
+                if (p.paksha.isNotBlank()) sb.append("Paksha: ").append(p.paksha).append('\n')
+                if (p.vara.isNotBlank()) sb.append("Vara: ").append(p.vara).append('\n')
+                if (p.nakshatra.isNotBlank()) {
+                    sb.append("Nakshatra: ").append(p.nakshatra)
+                    if (p.pada > 0) sb.append(" Pada ").append(p.pada)
+                    if (p.nakshatraLord.isNotBlank()) sb.append(" (Lord ").append(p.nakshatraLord).append(')')
+                    sb.append('\n')
+                }
+                if (p.yoga.isNotBlank()) sb.append("Yoga: ").append(p.yoga).append('\n')
+                if (p.karana.isNotBlank()) sb.append("Karana: ").append(p.karana).append('\n')
+                if (p.sunRashi.isNotBlank()) sb.append("Sun Rashi: ").append(p.sunRashi).append('\n')
+                if (p.moonRashi.isNotBlank()) sb.append("Moon Rashi: ").append(p.moonRashi).append('\n')
+            }
+            kundali?.analysisTabs?.panchang?.takeIf { it.isNotBlank() }?.let {
+                sb.append("--- Panchang Analysis ---\n").append(it.replace("|", "\n")).append('\n')
+            }
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1126,7 +1546,10 @@ private val SHADBALA_COLS = listOf(
     "drik" to "Drik"
 )
 
-internal fun LazyListScope.shadbalTab(kundali: KundaliResponse?) {
+internal fun LazyListScope.shadbalTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item { KxSectionTitle("Shadbal — Planetary & House Strength") }
     val sb = kundali?.shadbala
     if (sb == null || sb.shadbala.isNullOrEmpty()) {
@@ -1264,6 +1687,53 @@ internal fun LazyListScope.shadbalTab(kundali: KundaliResponse?) {
         item { KxSectionTitle("Shadbal Analysis") }
         item { KxAnalysisTextBlock(text) }
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Shadbal",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Shadbal (planetary strength)"))
+            val data = kundali?.shadbala
+            if (data == null || data.shadbala.isNullOrEmpty()) {
+                sb.append("No Shadbala data returned for this chart.\n")
+            } else {
+                sb.append("--- Shadbala totals (rupas) ---\n")
+                data.shadbala!!.forEach { (planet, m) ->
+                    val total = (m["total_rupa"] as? Number)?.toDouble()
+                        ?: (m["total"] as? Number)?.toDouble()
+                    val sufficient = m["sufficient"] as? Boolean
+                    sb.append(planet).append(": ")
+                        .append(total?.let { "%.2f".format(it) } ?: "—")
+                        .append(" rupas")
+                    if (sufficient != null) sb.append(" — ").append(if (sufficient) "Strong" else "Weak")
+                    sb.append('\n')
+                }
+                if (!data.bhavabala.isNullOrEmpty()) {
+                    sb.append("--- Bhavabala (house strength) ---\n")
+                    data.bhavabala!!.entries.sortedBy { it.key.toIntOrNull() ?: 99 }.forEach { (house, m) ->
+                        sb.append("House ").append(house).append(": score ")
+                            .append(anyToDisplay(m["total"]).ifBlank { anyToDisplay(m["score"]) })
+                        val lord = anyToDisplay(m["lord"])
+                        if (lord.isNotBlank()) sb.append(" (Lord ").append(lord).append(')')
+                        sb.append('\n')
+                    }
+                }
+                if (!data.vimshopaka.isNullOrEmpty()) {
+                    sb.append("--- Vimshopaka (varga dignity, out of 20) ---\n")
+                    data.vimshopaka!!.forEach { (planet, m) ->
+                        sb.append(planet).append(": ")
+                            .append(anyToDisplay(m["total"])).append(" / ").append(anyToDisplay(m["out_of"]))
+                            .append('\n')
+                    }
+                }
+            }
+            kundali?.analysisTabs?.shadbal?.takeIf { it.isNotBlank() }?.let {
+                sb.append("--- Shadbal Analysis ---\n").append(it.replace("|", "\n")).append('\n')
+            }
+            sb.toString()
+        }
+    }
 }
 
 @Composable
@@ -1283,7 +1753,8 @@ private fun KxVerdictChip(label: String, color: Color) {
 internal fun LazyListScope.bnnTab(
     kundali: KundaliResponse?,
     state: ReportUiState,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onOpenAiChat: () -> Unit
 ) {
     item { KxSectionTitle("Bhrigu Nandi Nadi — Venus · Jupiter · Saturn Triangle") }
     item {
@@ -1294,6 +1765,20 @@ internal fun LazyListScope.bnnTab(
             summaryText = kundali?.analysisTabs?.bnn ?: ""
         )
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Bhrigu Nadi",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Bhrigu Nadi"))
+            val text = state.data?.bestText()?.ifBlank { kundali?.analysisTabs?.bnn } ?: ""
+            if (text.isNotBlank()) sb.append("--- Bhrigu Nadi report ---\n")
+                .append(text.replace("|", "\n")).append('\n')
+            else sb.append("Bhrigu Nadi report not loaded for this chart.\n")
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1303,7 +1788,8 @@ internal fun LazyListScope.bnnTab(
 internal fun LazyListScope.lalKitabFullTab(
     kundali: KundaliResponse?,
     state: ReportUiState,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onOpenAiChat: () -> Unit
 ) {
     item { KxSectionTitle("Lal Kitab — Complete Analysis & Remedies") }
     val summary = kundali?.lalKitab
@@ -1322,6 +1808,27 @@ internal fun LazyListScope.lalKitabFullTab(
     item {
         KxReportState(state = state, tabIndex = 18, onRetry = onRetry)
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Lal Kitab",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Lal Kitab"))
+            kundali?.lalKitab?.let { lk ->
+                if (lk.lagnaRashi.isNotBlank())
+                    sb.append("Lal Kitab Lagna: ").append(lk.lagnaRashi).append('\n')
+                if (lk.note.isNotBlank()) sb.append(lk.note).append('\n')
+                if (lk.yogas.isNotEmpty())
+                    sb.append("Lal Kitab yogas: ").append(lk.yogas.joinToString("; ")).append('\n')
+            }
+            val text = state.data?.bestText() ?: ""
+            if (text.isNotBlank()) sb.append("--- Lal Kitab report ---\n")
+                .append(text.replace("|", "\n")).append('\n')
+            else sb.append("Lal Kitab report not loaded for this chart.\n")
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1330,7 +1837,8 @@ internal fun LazyListScope.lalKitabFullTab(
 
 internal fun LazyListScope.numerologyTab(
     kundali: KundaliResponse?,
-    onOpenNumerology: () -> Unit
+    onOpenNumerology: () -> Unit,
+    onOpenAiChat: () -> Unit
 ) {
     item { KxSectionTitle("Numerology — Ank Jyotish") }
     item {
@@ -1393,6 +1901,26 @@ internal fun LazyListScope.numerologyTab(
             }
         }
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Numerology",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Numerology (Ank Jyotish)"))
+            val birth = kundali?.birth
+            if (birth != null && birth.year > 0) {
+                sb.append("Name: ").append(birth.name.ifBlank { "—" }).append('\n')
+                sb.append("Date of birth: ")
+                    .append("%04d-%02d-%02d".format(birth.year, birth.month, birth.day)).append('\n')
+                sb.append("Compute Mulank, Bhagyank and other numbers from this birth date ")
+                    .append("using standard Chaldean/Vedic numerology.\n")
+            } else {
+                sb.append("No birth details available for numerology.\n")
+            }
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1401,12 +1929,69 @@ internal fun LazyListScope.numerologyTab(
 
 internal fun LazyListScope.charDashaTab(
     state: JaiminiUiState,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
 ) {
     item { KxSectionTitle("Char Dasha — Jaimini Rashi Dashas") }
     item {
         KxJaiminiState(state, 20, onRetry) { data ->
             CharDashaContent(data)
+        }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Char Dasha",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Char Dasha (Jaimini)"))
+            val data = state.data
+            if (data == null) {
+                sb.append("Char Dasha data not loaded for this chart.\n")
+            } else {
+                data.curCharMD?.let { md ->
+                    if (md.signEn.isNotBlank()) {
+                        sb.append("Current Char Mahadasha: ").append(md.signEn)
+                            .append(" (").append(julianDayToDateString(md.startJD))
+                            .append(" → ").append(julianDayToDateString(md.endJD)).append(')')
+                            .append('\n')
+                    }
+                }
+                data.curCharAD?.let { ad ->
+                    if (ad.signEn.isNotBlank()) {
+                        sb.append("Current Char Antardasha: ").append(ad.signEn)
+                            .append(" (").append(julianDayToDateString(ad.startJD))
+                            .append(" → ").append(julianDayToDateString(ad.endJD)).append(')')
+                            .append('\n')
+                    }
+                }
+                data.karakas?.details?.ordered()?.forEach { (label, k) ->
+                    if (k != null && k.name.isNotBlank())
+                        sb.append(label).append(": ").append(k.name)
+                            .append(" in ").append(k.rashi).append('\n')
+                }
+                if (data.charDashas.isNotEmpty()) {
+                    sb.append("--- Char Mahadasha sequence ---\n")
+                    data.charDashas.forEach { cd ->
+                        sb.append("- ").append(cd.signEn)
+                            .append(" (").append(julianDayToDateString(cd.startJD))
+                            .append(" → ").append(julianDayToDateString(cd.endJD)).append(")")
+                        if (cd.years > 0) sb.append(" %.1fy".format(cd.years))
+                        sb.append('\n')
+                    }
+                }
+                if (data.charAntars.isNotEmpty()) {
+                    sb.append("--- Char Antardashas (current cycle) ---\n")
+                    data.charAntars.forEach { ca ->
+                        sb.append("- ").append(ca.signEn)
+                            .append(" (").append(julianDayToDateString(ca.startJD))
+                            .append(" → ").append(julianDayToDateString(ca.endJD)).append(")")
+                            .append('\n')
+                    }
+                }
+            }
+            sb.toString()
         }
     }
 }
@@ -1656,33 +2241,35 @@ internal fun LazyListScope.faladeshTab(
         }
     }
     item {
-        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "Want a personalised reading of this Faladesh?",
-                    color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    "Chat with Om Astro AI about these transits and what they mean for you.",
-                    color = TextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center
-                )
-                Button(
-                    onClick = onOpenAiChat,
-                    colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        "Chat with Om Astro AI",
-                        color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+        KxAskAiCard(
+            label = "Kundali · Faladesh",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Faladesh (transit forecast)"))
+            kundali?.saturnTransit?.let { st ->
+                if (st.active || st.nameEn.isNotBlank()) {
+                    sb.append("Saturn transit: ").append(st.nameEn)
+                    if (st.type.isNotBlank()) sb.append(" (").append(st.type).append(')')
+                    if (st.phase.isNotBlank()) sb.append(" phase ").append(st.phase)
+                    sb.append('\n')
+                    if (st.descriptionEn.isNotBlank()) sb.append(st.descriptionEn).append('\n')
                 }
             }
+            val transits = kundali?.currentTransits ?: emptyMap()
+            if (transits.isEmpty()) {
+                sb.append("No current transit data returned for this chart.\n")
+            } else {
+                sb.append("--- Current Gochar, planet by planet ---\n")
+                transits.forEach { (planet, t) ->
+                    sb.append("- ").append(planet).append(": ").append(t.rashi)
+                    if (t.rashiDeg > 0) sb.append(" %.1f°".format(t.rashiDeg))
+                    if (t.retro) sb.append(" (Retrograde)")
+                    if (t.natalMoonHouse > 0) sb.append(" — House ").append(t.natalMoonHouse).append(" from Moon")
+                    sb.append('\n')
+                    if (t.transitFocus.isNotBlank()) sb.append("  Focus: ").append(t.transitFocus).append('\n')
+                }
+            }
+            sb.toString()
         }
     }
 }
@@ -1759,7 +2346,10 @@ private fun remedyKey(planetName: String): String {
 
 private val REMEDY_SUBTABS = listOf("Ratna", "Rudraksh", "Dhatu", "Jad", "Vedic Upay")
 
-internal fun LazyListScope.remediesTab(kundali: KundaliResponse?) {
+internal fun LazyListScope.remediesTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item { KxSectionTitle("Remedies — Upay & Ratna") }
     item {
         Text(
@@ -1808,6 +2398,43 @@ internal fun LazyListScope.remediesTab(kundali: KundaliResponse?) {
                 3 -> JadContent(planets, focusPlanets)
                 else -> VedicUpayContent(kundali, planets, focusPlanets)
             }
+        }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Remedies",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Remedies (Upay)"))
+            val planets = (kundali?.planets ?: emptyList()).filter { it.name.isNotBlank() }
+            val weakNames = planets.filter {
+                it.dignityChips().contains("Debilitated") || it.combust
+            }.map { it.name }
+            if (weakNames.isNotEmpty())
+                sb.append("Weak/afflicted planets: ").append(weakNames.joinToString(", ")).append('\n')
+            val lagnaLord = kundali?.lagna?.lord ?: ""
+            if (lagnaLord.isNotBlank()) sb.append("Lagna lord: ").append(lagnaLord).append('\n')
+            sb.append("--- Recommended remedies ---\n")
+            (weakNames + listOf(lagnaLord)).filter { it.isNotBlank() }.distinct().forEach { name ->
+                val r = PLANET_REMEDIES[remedyKey(name)] ?: return@forEach
+                sb.append("- ").append(name).append(": gem ").append(r.gem)
+                    .append(" | rudraksha ").append(r.rudraksha)
+                    .append(" | metal ").append(r.metal)
+                    .append(" | root ").append(r.root)
+                    .append(" | mantra \"").append(r.mantra).append('"')
+                    .append(" | daan ").append(r.daan)
+                    .append(" | day ").append(r.day).append('\n')
+            }
+            val doshaRemedies = (kundali?.doshas ?: emptyList()).filter { it.active }
+                .flatMap { d -> d.remedies.map { r -> d.name to r } }
+            if (doshaRemedies.isNotEmpty()) {
+                sb.append("--- Dosha-specific upay ---\n")
+                doshaRemedies.forEach { (doshaName, remedy) ->
+                    sb.append("- ").append(doshaName).append(": ").append(remedy).append('\n')
+                }
+            }
+            sb.toString()
         }
     }
 }

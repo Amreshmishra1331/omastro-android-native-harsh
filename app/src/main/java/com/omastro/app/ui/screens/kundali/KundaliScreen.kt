@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.*
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.DatePickerField
@@ -50,6 +51,8 @@ fun KundaliScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.errorMessage.collectAsState()
     val lastRequest by viewModel.lastRequest.collectAsState()
+    // Recompose on Settings language change so W.t() strings (Ask AI cards) switch live.
+    val lang by LangPrefs.language.collectAsState()
 
     var showSaveDialog by remember { mutableStateOf(false) }
     var saveName by remember { mutableStateOf("") }
@@ -460,38 +463,38 @@ private fun KundaliResults(
             item { SubjectHeader(kundali, subjectName) }
 
             when (selectedTab) {
-                0 -> birthInfoTab(kundali)
-                1 -> birthChartTab(viewModel, kundali, selectedDiv, chartStyle)
-                2 -> navamshaTab(kundali, chartStyle)
-                3 -> karakamshaTab(jaiminiState, { viewModel.retryReport(3) }, chartStyle)
+                0 -> birthInfoTab(kundali, onNavigateToAiChat)
+                1 -> birthChartTab(viewModel, kundali, selectedDiv, chartStyle, onNavigateToAiChat)
+                2 -> navamshaTab(kundali, chartStyle, onNavigateToAiChat)
+                3 -> karakamshaTab(jaiminiState, { viewModel.retryReport(3) }, chartStyle, kundali, onNavigateToAiChat)
                 4 -> lagnaChartTab(
                     "Chandra Lagna — Moon Chart", "The chart cast from the Moon as ascendant: mind, emotions and perception.",
-                    kundali?.chandraChart, kundali, chartStyle
+                    kundali?.chandraChart, kundali, chartStyle, onNavigateToAiChat
                 )
                 5 -> lagnaChartTab(
                     "Surya Lagna — Sun Chart", "The chart cast from the Sun as ascendant: soul, vitality and authority.",
-                    kundali?.suryaChart, kundali, chartStyle
+                    kundali?.suryaChart, kundali, chartStyle, onNavigateToAiChat
                 )
                 6 -> lagnaChartTab(
                     "Chalit — Bhava Chalit", "House cusps shift planets by their exact degrees; a planet near a cusp may move houses.",
-                    kundali?.chalitChart, kundali, chartStyle
+                    kundali?.chalitChart, kundali, chartStyle, onNavigateToAiChat
                 )
-                7 -> divisionalTab(kundali, viewModel, selectedDiv, chartStyle)
-                8 -> dashaTab(kundali)
-                9 -> ashtakavargaTab(kundali)
-                10 -> sodasvargaTab(kundali)
-                11 -> yogasTab(kundali)
-                12 -> doshasTab(kundali)
-                13 -> personalityTab(kundali, personalityState) { viewModel.retryReport(13) }
-                14 -> planetsFullTab(kundali)
-                15 -> panchangTab(kundali)
-                16 -> shadbalTab(kundali)
-                17 -> bnnTab(kundali, bnnState) { viewModel.retryReport(17) }
-                18 -> lalKitabFullTab(kundali, lalKitabState) { viewModel.retryReport(18) }
-                19 -> numerologyTab(kundali, onNavigateToNumerology)
-                20 -> charDashaTab(jaiminiState) { viewModel.retryReport(20) }
+                7 -> divisionalTab(kundali, viewModel, selectedDiv, chartStyle, onNavigateToAiChat)
+                8 -> dashaTab(kundali, onNavigateToAiChat)
+                9 -> ashtakavargaTab(kundali, onNavigateToAiChat)
+                10 -> sodasvargaTab(kundali, onNavigateToAiChat)
+                11 -> yogasTab(kundali, onNavigateToAiChat)
+                12 -> doshasTab(kundali, onNavigateToAiChat)
+                13 -> personalityTab(kundali, personalityState, { viewModel.retryReport(13) }, onNavigateToAiChat)
+                14 -> planetsFullTab(kundali, onNavigateToAiChat)
+                15 -> panchangTab(kundali, onNavigateToAiChat)
+                16 -> shadbalTab(kundali, onNavigateToAiChat)
+                17 -> bnnTab(kundali, bnnState, { viewModel.retryReport(17) }, onNavigateToAiChat)
+                18 -> lalKitabFullTab(kundali, lalKitabState, { viewModel.retryReport(18) }, onNavigateToAiChat)
+                19 -> numerologyTab(kundali, onNavigateToNumerology, onNavigateToAiChat)
+                20 -> charDashaTab(jaiminiState, { viewModel.retryReport(20) }, kundali, onNavigateToAiChat)
                 21 -> faladeshTab(kundali, onNavigateToAiChat)
-                22 -> remediesTab(kundali)
+                22 -> remediesTab(kundali, onNavigateToAiChat)
             }
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
@@ -721,7 +724,10 @@ private fun southLagnaFor(kundali: KundaliResponse, div: String): Int = when (di
 // Dasha tab — current chain + expandable timeline
 // ---------------------------------------------------------------------------
 
-private fun LazyListScope.dashaTab(kundali: KundaliResponse?) {
+private fun LazyListScope.dashaTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item {
         SectionTitle("Vimshottari Dasha — All 7 Levels")
     }
@@ -801,6 +807,44 @@ private fun LazyListScope.dashaTab(kundali: KundaliResponse?) {
     kundali?.analysisTabs?.dasha?.takeIf { it.isNotBlank() }?.let { text ->
         item { SectionTitle("Dasha Analysis") }
         item { KxAnalysisTextBlock(text) }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Dasha",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Vimshottari Dasha"))
+            val dasha = kundali?.vimshottariDasha
+            if (dasha == null) {
+                sb.append("No dasha data returned for this chart.\n")
+            } else {
+                sb.append("--- Current period chain ---\n")
+                listOf(
+                    "Mahadasha" to dasha.currentMahadasha,
+                    "Antardasha" to dasha.currentAntardasha,
+                    "Pratyantardasha" to dasha.currentPratyantar,
+                    "Sookshmadasha" to dasha.currentSookshma,
+                    "Pranadasha" to dasha.currentPrana,
+                    "Adidasha" to dasha.currentAdi,
+                    "Dehadasha" to dasha.currentDeha
+                ).forEach { (level, node) ->
+                    node?.let {
+                        sb.append(level).append(": ").append(it.planet)
+                            .append(" (").append(it.start).append(" → ").append(it.end).append(")")
+                            .append('\n')
+                    }
+                }
+                if (dasha.allMahadashas.isNotEmpty()) {
+                    sb.append("--- Mahadasha timeline (all levels) ---\n")
+                        .append(kxDashaLines(dasha.allMahadashas))
+                }
+            }
+            kundali?.analysisTabs?.dasha?.takeIf { it.isNotBlank() }?.let {
+                sb.append("--- Dasha Analysis ---\n").append(it.replace("|", "\n")).append('\n')
+            }
+            sb.toString()
+        }
     }
 }
 
@@ -944,7 +988,10 @@ private fun ExpandableDashaNode(
 // Yogas tab (auspicious combinations — separate from doshas)
 // ---------------------------------------------------------------------------
 
-private fun LazyListScope.yogasTab(kundali: KundaliResponse?) {
+private fun LazyListScope.yogasTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item {
         SectionTitle("Yogas — Auspicious Combinations")
     }
@@ -998,13 +1045,35 @@ private fun LazyListScope.yogasTab(kundali: KundaliResponse?) {
             }
         }
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Yogas",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Yogas"))
+            sb.append("--- Yogas found in this chart ---\n")
+            (kundali?.yogas ?: emptyList()).forEach { y ->
+                sb.append("- ").append(y.name)
+                    .append(" [").append(y.typeLabel()).append("]\n")
+                if (y.description.isNotBlank())
+                    sb.append("  ").append(y.description.replace("|", " ")).append('\n')
+                if (y.prediction.isNotBlank())
+                    sb.append("  Phal: ").append(y.prediction.replace("|", " ")).append('\n')
+            }
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Doshas tab (afflictions — separate from yogas)
 // ---------------------------------------------------------------------------
 
-private fun LazyListScope.doshasTab(kundali: KundaliResponse?) {
+private fun LazyListScope.doshasTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item {
         SectionTitle("Doshas — Afflictions & Remedies")
     }
@@ -1103,13 +1172,44 @@ private fun LazyListScope.doshasTab(kundali: KundaliResponse?) {
             }
         }
     }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Doshas",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Doshas"))
+            val list = kundali?.doshas ?: emptyList()
+            if (list.isEmpty()) {
+                sb.append("No major doshas detected in this chart.\n")
+            } else {
+                sb.append("--- Doshas found in this chart ---\n")
+                list.forEach { d ->
+                    sb.append("- ").append(d.name)
+                        .append(if (d.active) " [ACTIVE]" else " [not active]")
+                    if (d.severity.isNotBlank()) sb.append(" — severity: ").append(d.severity)
+                    sb.append('\n')
+                    if (d.detail.isNotBlank()) sb.append("  Detail: ").append(d.detail).append('\n')
+                    if (d.analysis.isNotBlank()) sb.append("  Analysis: ").append(d.analysis).append('\n')
+                    if (d.prediction.isNotBlank()) sb.append("  Phal: ").append(d.prediction).append('\n')
+                    if (d.remedies.isNotEmpty()) {
+                        sb.append("  Remedies: ").append(d.remedies.joinToString("; ")).append('\n')
+                    }
+                }
+            }
+            sb.toString()
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Ashtakavarga tab — Sarvashtakavarga bindus
 // ---------------------------------------------------------------------------
 
-private fun LazyListScope.ashtakavargaTab(kundali: KundaliResponse?) {
+private fun LazyListScope.ashtakavargaTab(
+    kundali: KundaliResponse?,
+    onOpenAiChat: () -> Unit
+) {
     item {
         SectionTitle("Sarvashtakavarga — Bindu Strength")
     }
@@ -1161,6 +1261,34 @@ private fun LazyListScope.ashtakavargaTab(kundali: KundaliResponse?) {
                 }
                 Text("${row.points}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
+        }
+    }
+
+    item {
+        KxAskAiCard(
+            label = "Kundali · Ashtakavarga",
+            onOpenAiChat = onOpenAiChat
+        ) {
+            val sb = StringBuilder(kxSeekerHeader(kundali, "Sarvashtakavarga"))
+            val av = kundali?.ashtakavarga
+            if (av == null || av.savByHouse.isEmpty()) {
+                sb.append("No ashtakavarga data returned for this chart.\n")
+            } else {
+                sb.append("Total bindus: ").append(av.savTotal).append(" (max 337)\n")
+                sb.append("--- Bindus by house ---\n")
+                av.savByHouse.sortedBy { it.house }.forEach { row ->
+                    sb.append("House ").append(row.house).append(" (").append(row.rashi).append("): ")
+                        .append(row.points).append(" bindus")
+                        .append(
+                            when {
+                                row.points >= 30 -> " — Strong"
+                                row.points >= 25 -> " — Average"
+                                else -> " — Weak"
+                            }
+                        ).append('\n')
+                }
+            }
+            sb.toString()
         }
     }
 }

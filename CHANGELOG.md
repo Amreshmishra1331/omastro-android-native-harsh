@@ -4,6 +4,58 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — "Ask AI about this" on all 23 Kundali tabs
+
+### Added
+1. **Ask AI on every Kundali tab** (Palmistry/Vastu parity — iOS only had it on Faladesh):
+   - **Before**: the 23 Kundali tabs had NO Ask AI integration — only tab 21 (Faladesh) had a "Chat with Om Astro AI" button, and it opened chat WITHOUT attaching any context.
+   - **After**: a shared gold `KxAskAiCard` ("Want a personalised reading of this section?" + "Ask AI about this" button) at the end of every tab. On tap, the tab's actual data is packaged as a context block and stored via `PendingPhotoContextHolder` (the exact Palmistry/Vastu flow), then AI chat opens and `AiChatViewModel.consumePendingPhotoContext()` attaches it as a context chip — follow-up questions reference the real tab data.
+   - **Per-tab data packaged** (seeker header: name, DOB, TOB, place, gender, Lagna + lord, Moon + Nakshatra/Pada; plus the section's own data; an instruction to answer strictly from the block and never invent values):
+     - Birth Info → ayanamsa, Navamsha Lagna, Lucky elements; Birth Chart → D1 planet placements + Graha Detail + D1 Analysis + Saturn alert; Navamsha → D9 placements + D9 Lagna + D9 Analysis; Karakamsha → Karakamsha Lagna, Atmakaraka, 7 chara karakas, houses; Chandra/Surya/Chalit → that chart's lagna + house placements; Divisional → selected varga (meaning + lagna + placements); Dasha → current 7-level chain + full Mahadasha timeline + Dasha Analysis; Ashtakavarga → total bindus + per-house strength; Sodasvarga → varga × planet sign table; Yogas → every yoga (name, type, prediction); Doshas → every dosha (severity, active state, detail, prediction, remedies); Personality → full report text; Planets → full 12-column detail per planet (nakshatra/pada, D9, ruled/aspected houses, avastha, karaka); Panchang → all birth-panchang fields + analysis; Shadbal → Shadbala totals + Strong/Weak verdicts, Bhavabala, Vimshopaka; Bhrigu Nadi → full report; Lal Kitab → lagna/note/yogas + full report; Numerology → name + DOB for the AI to compute from; Char Dasha → current Char MD/AD, karakas, Mahadasha sequence, antardashas; Faladesh → Saturn transit + all current Gochar with house-from-Moon; Remedies → weak/afflicted planets, full gem/rudraksha/metal/root/mantra/daan/day table + dosha upay.
+   - Fully bilingual (EN/हिन्दी): 3 new keys in `FeatureStrings.kt` (`kundali_ask_ai_*`), auto-switch with Settings language via the `W` system; `KundaliScreen` collects `LangPrefs.language` so cards re-label live. No emojis.
+   - `KxAskAiCard`, `kxSeekerHeader()`, `kxPlanetLines()`, `kxHouseLines()`, `kxDashaLines()` in `KundaliExtendedTabs.kt` (internal, reused by `KundaliScreen.kt`'s dasha/yogas/doshas/ashtakavarga tabs).
+
+### Changed
+- All 22 tab composables take a new `onOpenAiChat: () -> Unit` (required param — compiler enforces wiring); `KundaliResults` passes the existing `onNavigateToAiChat` to every tab.
+- Faladesh tab: the old context-less "Chat with Om Astro AI" card replaced by the shared card — it now attaches the transit context too.
+
+### Removed
+- Nothing.
+
+---
+
+## [2026-10-10] — Dashboard: "New: AI-Powered Readings" section
+
+### Added
+1. **AI-Powered Readings on the dashboard** (`ui/screens/dashboard/DashboardScreen.kt`):
+   - **Before**: Vastu Shastra, Palmistry, and Face Reading were reachable only from the nav drawer — hurting discoverability of the world-class features.
+   - **After**: a prominent "New: AI-Powered Readings" section on the dashboard Home tab, placed right after the quick-actions grid and before "Recent Kundalis" (above the fold): gold "New" badge + title + subtitle, then three gold-bordered cards with icon, bilingual title/subtitle, and chevron — tapping navigates to the respective screen (`Screen.Vastu` / `Screen.Palmistry` / `Screen.FaceReading` routes).
+   - Fully bilingual (EN/हिन्दी): 6 new keys in `FeatureStrings.kt` (`dash_new_badge`, `dash_ai_readings_*`, `dash_vastu_sub`, `dash_palm_sub`, `dash_face_sub`), auto-switch with Settings language via the `W` system; `DashboardScreen` collects `LangPrefs.language` so the section re-labels live. No emojis.
+
+### Changed
+- `HomeTabContent` takes `onVastuClick` / `onPalmistryClick` / `onFaceReadingClick` callbacks; `DashboardScreen` wires them to `navController.navigate(...)`.
+
+### Removed
+- Nothing.
+
+---
+
+## [2026-10-10] — Vastu score honesty: null score instead of fake 0
+
+### Added
+1. **Honest "Insufficient data" state for Vastu scores** (server now returns `"score": null` + `"data_quality": "insufficient"` when inputs are inadequate, instead of a fake 100):
+   - **Before**: `VastuAnalysis.score` defaulted to `0`, so an unscored analysis displayed "0/100" — a fake score.
+   - **After**: `score: Int? = null` (null-preserving in `fromMap`), plus new `dataQuality: String? = null` mirroring the server's `data_quality`. When null: the dial shows a question-mark icon (no arc fill) instead of "0/100"; the grade line shows the new bilingual `vastu_insufficient_data` string ("Insufficient data — no score computed" / "अपर्याप्त जानकारी — स्कोर नहीं निकाला जा सका"); the AI-chat context label shows "(—)" instead of "(null/100)"; the full context block writes "Score: not computed (insufficient input data)" + the data-quality value.
+   - `gradeFor(score: Int?)` and `VastuScoreDial(score: Int?)` updated to handle null.
+
+### Changed
+- `VastuScreen.kt`: AI context chip label, dial, grade text; `FeatureStrings.kt`: 1 new key (`vastu_insufficient_data`, EN+HI).
+
+### Removed
+- Nothing.
+
+---
+
 ## [2026-10-10] — Vastu Compass Mode (live compass + camera)
 
 ### Added

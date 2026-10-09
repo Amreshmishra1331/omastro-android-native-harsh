@@ -226,7 +226,21 @@ object W {
         "vastu_grade_85" to "उत्कृष्ट — वास्तु के अनुरूप",
         "vastu_grade_70" to "अच्छा — अधिकतर अनुरूप",
         "vastu_grade_50" to "औसत — कुछ सुधार सलाहित",
-        "vastu_grade_low" to "सुधार आवश्यक"
+        "vastu_grade_low" to "सुधार आवश्यक",
+        "vastu_insufficient_data" to "अपर्याप्त जानकारी — स्कोर नहीं निकाला जा सका",
+
+        // ---- Kundali "Ask AI about this" (all 23 tabs) ----
+        "kundali_ask_ai_title" to "इस भाग का व्यक्तिगत विश्लेषण चाहिए?",
+        "kundali_ask_ai_sub" to "इस भाग का डेटा Om Astro AI से जोड़ें — आपका अगला चैट संदेश इसका पूरा संदर्भ साथ ले जाएगा।",
+        "kundali_ask_ai_btn" to "इसके बारे में AI से पूछें",
+
+        // ---- Dashboard: AI-Powered Readings section ----
+        "dash_new_badge" to "नया",
+        "dash_ai_readings_title" to "AI-संचालित विश्लेषण",
+        "dash_ai_readings_sub" to "Om Astro AI की फोटो और गृह ऊर्जा रीडिंग",
+        "dash_vastu_sub" to "गृह ऊर्जा विश्लेषण, दोष और उपाय",
+        "dash_palm_sub" to "AI आपकी हथेली की रेखाएं, पर्वत और चिह्न पढ़ता है",
+        "dash_face_sub" to "सामुद्रिक शास्त्र चेहरा विश्लेषण"
     )
 
     private val EN = mapOf(
@@ -423,7 +437,21 @@ object W {
         "vastu_grade_85" to "Excellent — strongly Vastu-aligned",
         "vastu_grade_70" to "Good — mostly aligned",
         "vastu_grade_50" to "Average — some corrections advised",
-        "vastu_grade_low" to "Needs correction"
+        "vastu_grade_low" to "Needs correction",
+        "vastu_insufficient_data" to "Insufficient data — no score computed",
+
+        // ---- Kundali "Ask AI about this" (all 23 tabs) ----
+        "kundali_ask_ai_title" to "Want a personalised reading of this section?",
+        "kundali_ask_ai_sub" to "Attach this section's data to Om Astro AI — your next chat message will carry its full context.",
+        "kundali_ask_ai_btn" to "Ask AI about this",
+
+        // ---- Dashboard: AI-Powered Readings section ----
+        "dash_new_badge" to "New",
+        "dash_ai_readings_title" to "AI-Powered Readings",
+        "dash_ai_readings_sub" to "Photo and home-energy readings by Om Astro AI",
+        "dash_vastu_sub" to "Home-energy analysis, doshas and remedies",
+        "dash_palm_sub" to "AI reads your palm lines, mounts and signs",
+        "dash_face_sub" to "Samudrika Shastra face reading"
     )
 
     /** Active-language string for [key]. Falls back to English. */

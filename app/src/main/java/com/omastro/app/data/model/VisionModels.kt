@@ -48,7 +48,14 @@ data class VastuCheck(
 
 /** Parsed Vastu analysis for UI rendering. Built defensively from the raw map. */
 data class VastuAnalysis(
-    val score: Int = 0,
+    /**
+     * Server score 0..100, or null when the server returned no score
+     * ("data_quality": "insufficient"). Null is honest: the UI must show an
+     * "Insufficient data" state — never a fake 0/100.
+     */
+    val score: Int? = null,
+    /** "ok" | "insufficient" — mirrors the server's data_quality field. */
+    val dataQuality: String? = null,
     val grade: String = "",
     val checks: List<VastuCheck> = emptyList(),
     val doshas: List<VastuDosha> = emptyList(),
@@ -110,7 +117,9 @@ data class VastuAnalysis(
             }
 
             return VastuAnalysis(
-                score = num(data, "score"),
+                // null-preserving: JSON null -> null (honest), absent -> null
+                score = (data["score"] as? Number)?.toInt(),
+                dataQuality = (data["data_quality"] as? String),
                 grade = str(data, "grade"),
                 checks = checks,
                 doshas = doshas.sortedBy {
@@ -144,7 +153,9 @@ data class VastuAnalysis(
         photoNotes: String?
     ): String {
         val sb = StringBuilder("=== VASTU ANALYSIS ===\n")
-        sb.append("Score: ").append(score).append("/100\n")
+        if (score != null) sb.append("Score: ").append(score).append("/100\n")
+        else sb.append("Score: not computed (insufficient input data)\n")
+        if (!dataQuality.isNullOrBlank()) sb.append("Data quality: ").append(dataQuality).append('\n')
         if (grade.isNotBlank()) sb.append("Grade: ").append(grade).append('\n')
         sb.append("Dosha counts: high=").append(highCount)
             .append(", medium=").append(mediumCount)

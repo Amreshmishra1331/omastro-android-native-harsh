@@ -28,11 +28,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import androidx.navigation.NavController
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.SavedChatSession
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.data.remote.SavedChart
 import com.omastro.app.di.AppContainer
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.navigation.PendingChartHolder
 import com.omastro.app.ui.navigation.Screen
 import com.omastro.app.ui.theme.*
@@ -71,6 +73,8 @@ fun DashboardScreen(
     val savedCharts by viewModel.savedCharts.collectAsState()
     val aiChats by viewModel.aiChats.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    // Recompose on Settings language change so W.t() strings (AI Readings cards) switch live.
+    val lang by LangPrefs.language.collectAsState()
 
     var selectedTab by remember { mutableStateOf(DashTab.HOME) }
     var activitySubTab by remember { mutableStateOf(ActivitySubTab.KUNDALI) }
@@ -257,7 +261,10 @@ fun DashboardScreen(
                         },
                         onAddMoney = {
                             navController.navigate(Screen.Wallet.route)
-                        }
+                        },
+                        onVastuClick = { navController.navigate(Screen.Vastu.route) },
+                        onPalmistryClick = { navController.navigate(Screen.Palmistry.route) },
+                        onFaceReadingClick = { navController.navigate(Screen.FaceReading.route) }
                     )
                 }
             }
@@ -396,7 +403,10 @@ private fun HomeTabContent(
     isLoading: Boolean,
     onTabSelect: (DashTab) -> Unit,
     onKundaliClick: (String) -> Unit,
-    onAddMoney: () -> Unit
+    onAddMoney: () -> Unit,
+    onVastuClick: () -> Unit,
+    onPalmistryClick: () -> Unit,
+    onFaceReadingClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Wallet hero card (orange gradient like website)
@@ -508,6 +518,57 @@ private fun HomeTabContent(
             )
         }
 
+        // ============ NEW: AI-POWERED READINGS ============
+        // World-class photo/home readings (Vastu, Palmistry, Face Reading) —
+        // previously only reachable from the nav drawer; now prominent on the
+        // dashboard, above the fold.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = SacredGold
+            ) {
+                Text(
+                    text = W.t("dash_new_badge"),
+                    color = CosmicDeepBlue,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = W.t("dash_ai_readings_title"),
+                    color = StarlightWhite,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = W.t("dash_ai_readings_sub"),
+                    color = StarlightWhite.copy(alpha = 0.6f),
+                    fontSize = 12.sp
+                )
+            }
+        }
+        AiReadingCard(
+            icon = Screen.Vastu.icon,
+            title = W.t("vastu_title"),
+            subtitle = W.t("dash_vastu_sub"),
+            onClick = onVastuClick
+        )
+        AiReadingCard(
+            icon = Screen.Palmistry.icon,
+            title = W.t("palm_title"),
+            subtitle = W.t("dash_palm_sub"),
+            onClick = onPalmistryClick
+        )
+        AiReadingCard(
+            icon = Screen.FaceReading.icon,
+            title = W.t("face_title"),
+            subtitle = W.t("dash_face_sub"),
+            onClick = onFaceReadingClick
+        )
+
         // Recent Kundalis
         Text(
             text = "Recent Kundalis",
@@ -563,6 +624,65 @@ private fun QuickActionButton(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+/** Prominent dashboard card for one AI-powered reading (Vastu / Palmistry / Face Reading). */
+@Composable
+private fun AiReadingCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    CosmicCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        borderGold = true
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(SacredGold.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = SacredGold,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = StarlightWhite,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = subtitle,
+                    color = StarlightWhite.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = SacredGold,
+                modifier = Modifier.size(22.dp)
+            )
+        }
     }
 }
 

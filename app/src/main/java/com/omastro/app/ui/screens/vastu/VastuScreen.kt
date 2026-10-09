@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -341,7 +342,7 @@ fun VastuScreen(
                         if (block.isNotBlank()) {
                             PendingPhotoContextHolder.set(
                                 PhotoContextAttachment(
-                                    label = "${W.t("vastu_ctx_label")} (${analysis.score}/100)",
+                                    label = "${W.t("vastu_ctx_label")} (${analysis.score?.let { "$it/100" } ?: "—"})",
                                     contextBlock = block
                                 )
                             )
@@ -1066,7 +1067,8 @@ private fun VastuResultView(
     }
 }
 
-private fun gradeFor(score: Int): String = when {
+private fun gradeFor(score: Int?): String = when {
+    score == null -> W.t("vastu_insufficient_data")
     score >= 85 -> W.t("vastu_grade_85")
     score >= 70 -> W.t("vastu_grade_70")
     score >= 50 -> W.t("vastu_grade_50")
@@ -1074,9 +1076,10 @@ private fun gradeFor(score: Int): String = when {
 }
 
 @Composable
-private fun VastuScoreDial(score: Int) {
-    val sweep = (score.coerceIn(0, 100) / 100f) * 270f
+private fun VastuScoreDial(score: Int?) {
+    val sweep = if (score == null) 0f else (score.coerceIn(0, 100) / 100f) * 270f
     val arcColor = when {
+        score == null -> StarlightWhite.copy(alpha = 0.30f)
         score >= 85 -> Color(0xFF81C784)
         score >= 70 -> SacredGold
         score >= 50 -> Color(0xFFFFB74D)
@@ -1102,18 +1105,28 @@ private fun VastuScoreDial(score: Int) {
                 style = Stroke(width = 18f, cap = StrokeCap.Round)
             )
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "$score",
-                color = StarlightWhite,
-                fontWeight = FontWeight.Bold,
-                fontSize = 34.sp
+        if (score == null) {
+            // Honest unknown state: never show a fake 0/100.
+            Icon(
+                Icons.Filled.QuestionMark,
+                contentDescription = W.t("vastu_insufficient_data"),
+                tint = StarlightWhite.copy(alpha = 0.75f),
+                modifier = Modifier.size(52.dp)
             )
-            Text(
-                "/ 100",
-                color = StarlightWhite.copy(alpha = 0.55f),
-                fontSize = 12.sp
-            )
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "$score",
+                    color = StarlightWhite,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 34.sp
+                )
+                Text(
+                    "/ 100",
+                    color = StarlightWhite.copy(alpha = 0.55f),
+                    fontSize = 12.sp
+                )
+            }
         }
     }
 }
