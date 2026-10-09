@@ -4,6 +4,20 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — NEW: Kundali "Analysis" Tab (website-rich analysis)
+
+### Missing — rich kundali analysis like omastroai.com/kundali/
+**What was missing:** The app had 7 data tabs (Charts, Grahas, Dasha, Yogas, Doshas, Ashtaka, Lal Kitab) but no consolidated analysis view. The website shows life-area scores, per-planet detailed analysis, 12-house analysis, birth panchang and remedies.
+**What was added** (`KundaliScreen.kt`, new tab index 7 "Analysis"):
+- **Life Area Scores:** 8 cards (Career, Wealth, Marriage, Health, Education, Children, Spirituality, Property) with x/10 scores derived from server-computed Bhava Bala house strength — color-coded progress bars (green ≥7, gold ≥4.5, red below). No invented numbers: scores come from the API's `bhavBala.score`.
+- **Planet Analysis:** Expandable per-planet cards — glyph, Hindi name, rashi/house/degree, dignity chips (Exalted/Debilitated/Own/Vargottama/Yogakaraka/Combust/Retrograde from server `specialStatus`), nakshatra/pada/lord, navamsha, avastha, chara karaka, ruled houses, aspects. Interpretation text built ONLY from real attributes (dignity + house + nakshatra), no invented predictions.
+- **Twelve Houses:** Expandable cards per house — number, rashi, lord, SAV, bhav-bala score, planets present, standard house significations (static jyotish knowledge).
+- **Birth Panchang:** Date, time, place, nakshatra/pada, moon sign, lagna with degrees, ayanamsa — from the kundali response's real birth/meta data.
+- **Remedies (Upay):** Aggregated from API dosha `remedies` lists (active doshas only) + planet-strengthening upay for debilitated/combust planets (standard mantra/daan per planet, applied only where the chart shows affliction).
+**Rules followed:** No emojis (Jyotish glyphs only ♈ ☉ ♂); no fabricated values; calculation stays server-side (scores are server bhav-bala, interpretations describe real attributes).
+
+---
+
 ## [2026-10-09] — NEW: Numerology Suite (12 Tools, matching omastroai.com)
 
 ### Missing feature — full numerology suite

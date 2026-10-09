@@ -394,7 +394,7 @@ private fun KundaliResults(viewModel: KundaliViewModel, subjectName: String) {
     val selectedDiv by viewModel.selectedDivisional.collectAsState()
     val chartStyle by viewModel.chartStyle.collectAsState()
 
-    val tabTitles = listOf("Charts", "Grahas", "Dasha", "Yogas", "Doshas", "Ashtaka", "Lal Kitab")
+    val tabTitles = listOf("Charts", "Grahas", "Dasha", "Yogas", "Doshas", "Ashtaka", "Lal Kitab", "Analysis")
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(
@@ -437,6 +437,7 @@ private fun KundaliResults(viewModel: KundaliViewModel, subjectName: String) {
                 4 -> doshasTab(kundali)
                 5 -> ashtakavargaTab(kundali)
                 6 -> lalKitabTab(kundali)
+                7 -> analysisTab(kundali)
             }
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
@@ -1282,6 +1283,445 @@ private fun LazyListScope.lalKitabTab(kundali: KundaliResponse?) {
             Text(yoga, color = Color.White, fontSize = 13.sp, lineHeight = 20.sp)
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Analysis tab — rich website-style analysis from real server data
+// ---------------------------------------------------------------------------
+
+/** Life area -> houses used for its score (from server bhav-bala). */
+private data class LifeAreaDef(
+    val title: String,
+    val hindi: String,
+    val glyph: String,
+    val houses: List<Int>,
+    val description: String
+)
+
+private val LIFE_AREAS = listOf(
+    LifeAreaDef("Career", "करियर", "♄", listOf(10, 6), "Profession, recognition and authority"),
+    LifeAreaDef("Wealth", "धन", "♃", listOf(2, 11), "Income, savings and accumulated assets"),
+    LifeAreaDef("Marriage", "विवाह", "♀", listOf(7), "Spouse, partnerships and marital harmony"),
+    LifeAreaDef("Health", "स्वास्थ्य", "☉", listOf(1, 6), "Vitality, immunity and physical strength"),
+    LifeAreaDef("Education", "विद्या", "☿", listOf(4, 5), "Learning, intellect and academic success"),
+    LifeAreaDef("Children", "संतान", "♃", listOf(5), "Progeny and creative fulfilment"),
+    LifeAreaDef("Spirituality", "आध्यात्म", "☊", listOf(9, 12), "Dharma, fortune and inner growth"),
+    LifeAreaDef("Property", "भूमि", "♂", listOf(4), "Land, vehicles and fixed assets")
+)
+
+/** Normalize a bhav-bala score (server scale) to 0..10 for display. */
+private fun balaToTen(score: Double): Double {
+    // Server bhav-bala typically ranges ~0..~400+. Map generously: 120+ -> 10.
+    return (score / 12.0).coerceIn(0.0, 10.0)
+}
+
+private fun scoreColor(score: Double): Color = when {
+    score >= 7.0 -> AuspiciousGreen
+    score >= 4.5 -> SacredGold
+    else -> InauspiciousRed
+}
+
+private fun LazyListScope.analysisTab(kundali: KundaliResponse?) {
+    item { SectionTitle("Life Area Scores") }
+    item {
+        Text(
+            "Derived from server-computed Bhava Bala (house strength).",
+            color = TextSecondary, fontSize = 12.sp
+        )
+    }
+    val housesByNum = kundali?.houses?.associateBy { it.number } ?: emptyMap()
+    if (housesByNum.isEmpty()) {
+        item { EmptySection("House strength data not available for this chart.") }
+    } else {
+        val scores = LIFE_AREAS.map { area ->
+            val avg = area.houses.mapNotNull { housesByNum[it]?.bhavBala?.score }
+                .average().let { if (it.isNaN()) 0.0 else it }
+            area to balaToTen(avg)
+        }
+        // 2-column grid of score cards
+        val rows = scores.chunked(2)
+        rows.forEach { row ->
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    row.forEach { (area, score) ->
+                        CosmicCard(modifier = Modifier.weight(1f)) {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(area.glyph, fontSize = 18.sp, color = SacredGold)
+                                    Spacer(Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            area.title, color = Color.White,
+                                            fontSize = 13.sp, fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            area.hindi, color = TextSecondary, fontSize = 11.sp
+                                        )
+                                    }
+                                    Spacer(Modifier.weight(1f))
+                                    Text(
+                                        "%.1f/10".format(score),
+                                        color = scoreColor(score),
+                                        fontSize = 14.sp, fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    progress = (score / 10f).toFloat(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp)),
+                                    color = scoreColor(score),
+                                    trackColor = CosmicCharcoal
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(area.description, color = TextSecondary, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+
+    item { Spacer(Modifier.height(4.dp)) }
+    item { SectionTitle("Planet Analysis") }
+    val planets = kundali?.planets ?: emptyList()
+    if (planets.isEmpty()) {
+        item { EmptySection("Planet data not available.") }
+    } else {
+        items(planets) { planet -> PlanetAnalysisCard(planet, kundali) }
+    }
+
+    item { Spacer(Modifier.height(4.dp)) }
+    item { SectionTitle("Twelve Houses") }
+    val houses = kundali?.houses?.sortedBy { it.number } ?: emptyList()
+    if (houses.isEmpty()) {
+        item { EmptySection("House data not available.") }
+    } else {
+        items(houses) { house -> HouseAnalysisCard(house) }
+    }
+
+    item { Spacer(Modifier.height(4.dp)) }
+    item { SectionTitle("Birth Panchang") }
+    item { BirthPanchangCard(kundali) }
+
+    item { Spacer(Modifier.height(4.dp)) }
+    item { SectionTitle("Remedies (Upay)") }
+    item { RemediesCard(kundali) }
+}
+
+@Composable
+private fun PlanetAnalysisCard(planet: ApiPlanet, kundali: KundaliResponse?) {
+    var expanded by remember { mutableStateOf(false) }
+    val glyph = planet.symbol.ifBlank { planetGlyphFallback(planet.name) }
+    val hindi = planet.nameHi.ifBlank { planetHindiFallback(planet.name) }
+    CosmicCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(glyph, fontSize = 24.sp, color = SacredGold)
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "${planet.name} $hindi".trim(),
+                        color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "${planet.rashi} · House ${planet.house} · ${planet.degreeFormatted()}",
+                        color = TextSecondary, fontSize = 12.sp
+                    )
+                }
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null, tint = SacredGold
+                )
+            }
+            // dignity chips
+            val chips = planet.dignityChips().toMutableList()
+            if (planet.isRetrograde() && !chips.contains("Retrograde")) chips.add("Retrograde")
+            if (chips.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(chips) { chip ->
+                        val c = when (chip) {
+                            "Exalted", "Own Sign", "Vargottama", "Yogakaraka" -> AuspiciousGreen
+                            "Debilitated", "Combust" -> InauspiciousRed
+                            else -> SacredGold
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = c.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                chip, color = c, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            if (expanded) {
+                Spacer(Modifier.height(10.dp))
+                Divider(color = CosmicBorder, thickness = 1.dp)
+                Spacer(Modifier.height(10.dp))
+                PlanetDetailRow("Nakshatra", "${planet.nakshatra} · Pada ${planet.pada} · Lord ${planet.nakshatraLord}")
+                if (planet.d9Rashi.isNotBlank())
+                    PlanetDetailRow("Navamsha", "${planet.d9Rashi} · House ${planet.d9House}")
+                if (planet.baladiAvastha.isNotBlank())
+                    PlanetDetailRow("Avastha", planet.baladiAvastha)
+                if (planet.charaKaraka.isNotBlank())
+                    PlanetDetailRow("Chara Karaka", planet.charaKaraka)
+                if (planet.ruledHousesFmt.isNotBlank())
+                    PlanetDetailRow("Rules Houses", planet.ruledHousesFmt)
+                if (planet.aspects.isNotEmpty())
+                    PlanetDetailRow("Aspects", planet.aspects.joinToString(", ") { "House $it" })
+                Text(
+                    planetInterpretation(planet),
+                    color = StarlightWhite.copy(alpha = 0.85f),
+                    fontSize = 13.sp, lineHeight = 20.sp,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanetDetailRow(label: String, value: String) {
+    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+        Text(
+            "$label: ", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(110.dp)
+        )
+        Text(value, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+    }
+}
+
+/**
+ * Honest interpretation built ONLY from the planet's real attributes —
+ * dignity, house, nakshatra. No invented predictions.
+ */
+private fun planetInterpretation(p: ApiPlanet): String {
+    val sb = StringBuilder()
+    val dignity = p.dignityChips()
+    when {
+        dignity.contains("Exalted") -> sb.append("${p.name} is exalted in ${p.rashi}, giving its full strength in house ${p.house}. ")
+        dignity.contains("Debilitated") -> sb.append("${p.name} is debilitated in ${p.rashi}; its significations need conscious strengthening. ")
+        dignity.contains("Own Sign") -> sb.append("${p.name} is in its own sign ${p.rashi}, steady and reliable in house ${p.house}. ")
+        else -> sb.append("${p.name} occupies ${p.rashi} in house ${p.house}. ")
+    }
+    if (p.isRetrograde()) sb.append("Retrograde motion turns its energy inward — review and refinement over outward action. ")
+    if (p.combust) sb.append("Combust by the Sun, its independent expression is subdued. ")
+    if (p.vargottama) sb.append("Vargottama (same sign in Navamsha) — results are stable and dependable. ")
+    if (p.nakshatra.isNotBlank()) sb.append("In ${p.nakshatra} nakshatra (pada ${p.pada}), coloured by ${p.nakshatraLord}. ")
+    if (p.charaKaraka.isNotBlank()) sb.append("As ${p.charaKaraka}, it shapes key life relationships. ")
+    return sb.toString().trim()
+}
+
+@Composable
+private fun HouseAnalysisCard(house: HouseInfo) {
+    var expanded by remember { mutableStateOf(false) }
+    val bala = house.bhavBala
+    CosmicCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded }
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = SacredGold.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        "${house.number}", color = SacredGold,
+                        fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "${house.rashi} ${house.rashiHi}".trim(),
+                        color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Lord: ${house.lord}" +
+                            (if (house.sav > 0) " · SAV ${house.sav}" else "") +
+                            (if (bala != null && bala.label.isNotBlank()) " · ${bala.label}" else ""),
+                        color = TextSecondary, fontSize = 12.sp
+                    )
+                }
+                if (bala != null) {
+                    Text(
+                        "%.1f".format(balaToTen(bala.score)),
+                        color = scoreColor(balaToTen(bala.score)),
+                        fontSize = 14.sp, fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null, tint = SacredGold
+                )
+            }
+            if (expanded) {
+                Spacer(Modifier.height(8.dp))
+                if (house.planets.isNotEmpty()) {
+                    Text(
+                        "Planets: " + house.planets.joinToString(", ") { it.name },
+                        color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
+                Text(
+                    houseSignificance(house.number),
+                    color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp
+                )
+            }
+        }
+    }
+}
+
+/** Standard house significations (static jyotish knowledge, not per-user data). */
+private fun houseSignificance(n: Int): String = when (n) {
+    1 -> "Self, personality, health and overall vitality."
+    2 -> "Wealth, family, speech and accumulated resources."
+    3 -> "Courage, siblings, communication and short journeys."
+    4 -> "Mother, home, property, vehicles and inner peace."
+    5 -> "Children, intellect, creativity, romance and past-life merit."
+    6 -> "Enemies, debts, disease, competition and daily work."
+    7 -> "Marriage, spouse, partnerships and public dealings."
+    8 -> "Longevity, transformation, inheritance and occult knowledge."
+    9 -> "Fortune, dharma, guru, father and higher learning."
+    10 -> "Career, karma, status, authority and public image."
+    11 -> "Gains, elder siblings, friends and aspirations."
+    12 -> "Expenses, foreign lands, spirituality and liberation."
+    else -> ""
+}
+
+@Composable
+private fun BirthPanchangCard(kundali: KundaliResponse?) {
+    val birth = kundali?.birth
+    val meta = kundali?.meta
+    CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "Birth Panchang", color = SacredGold,
+                fontSize = 14.sp, fontWeight = FontWeight.Bold
+            )
+            if (birth == null) {
+                Text("Birth details unavailable.", color = TextSecondary, fontSize = 12.sp)
+                return@Column
+            }
+            val dateStr = "%02d-%02d-%04d".format(birth.day, birth.month, birth.year)
+            val timeStr = "%02d:%02d".format(birth.hour, birth.minute)
+            PanchangRow("Date", dateStr)
+            PanchangRow("Time", "$timeStr · ${birth.place}")
+            if (!meta?.nakshatra.isNullOrBlank())
+                PanchangRow("Nakshatra", "${meta?.nakshatra} · Pada ${meta?.nakshatraPada}")
+            if (!meta?.moonSign.isNullOrBlank())
+                PanchangRow("Moon Sign", meta?.moonSign ?: "")
+            if (kundali?.lagna?.rashi?.isNotBlank() == true)
+                PanchangRow("Lagna", kundali.lagna.formatted())
+            if (!meta?.ayanamsa.isNullOrBlank())
+                PanchangRow("Ayanamsa", meta?.ayanamsa?.replaceFirstChar { it.uppercase() } ?: "")
+        }
+    }
+}
+
+@Composable
+private fun PanchangRow(label: String, value: String) {
+    Row {
+        Text(
+            label, color = TextSecondary, fontSize = 12.sp,
+            modifier = Modifier.width(100.dp)
+        )
+        Text(value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun RemediesCard(kundali: KundaliResponse?) {
+    val apiRemedies = kundali?.doshas
+        ?.filter { it.active }
+        ?.flatMap { dosha -> dosha.remedies.map { remedy -> dosha.name to remedy } }
+        ?: emptyList()
+    val planetRemedies = buildPlanetRemedies(kundali)
+    if (apiRemedies.isEmpty() && planetRemedies.isEmpty()) {
+        EmptySection("No specific remedies indicated. General upay: chant Gayatri mantra, respect elders, feed birds.")
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        apiRemedies.forEach { (doshaName, remedy) ->
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Text(
+                        doshaName, color = InauspiciousRed,
+                        fontSize = 12.sp, fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(remedy, color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                }
+            }
+        }
+        planetRemedies.forEach { (planet, remedy) ->
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Text(
+                        "$planet Upay", color = SacredGold,
+                        fontSize = 12.sp, fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(remedy, color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Standard strengthening upay for afflicted planets — derived from the
+ * planet's REAL dignity state in this chart, not invented.
+ */
+private fun buildPlanetRemedies(kundali: KundaliResponse?): List<Pair<String, String>> {
+    val out = mutableListOf<Pair<String, String>>()
+    kundali?.planets?.forEach { p ->
+        val afflicted = p.dignityChips().contains("Debilitated") || p.combust
+        if (!afflicted) return@forEach
+        val remedy = when {
+            p.name.startsWith("Saturn", ignoreCase = true) ->
+                "Chant 'Om Sham Shanicharaya Namah' 108 times on Saturdays; donate black sesame or mustard oil; serve the elderly."
+            p.name.startsWith("Mars", ignoreCase = true) ->
+                "Chant 'Om Mangalaya Namah' on Tuesdays; donate red lentils; avoid aggression, exercise regularly."
+            p.name.startsWith("Sun", ignoreCase = true) ->
+                "Offer water to the rising Sun daily; chant 'Om Suryaya Namah'; respect father and authority."
+            p.name.startsWith("Moon", ignoreCase = true) ->
+                "Chant 'Om Chandraya Namah' on Mondays; donate white items (rice, milk); keep the mind calm through meditation."
+            p.name.startsWith("Mercury", ignoreCase = true) ->
+                "Chant 'Om Budhaya Namah' on Wednesdays; donate green moong; study and speak truthfully."
+            p.name.startsWith("Jupiter", ignoreCase = true) ->
+                "Chant 'Om Gurave Namah' on Thursdays; donate yellow items; respect teachers and gurus."
+            p.name.startsWith("Venus", ignoreCase = true) ->
+                "Chant 'Om Shukraya Namah' on Fridays; donate white sweets; keep surroundings clean and harmonious."
+            p.name.startsWith("Rahu", ignoreCase = true) ->
+                "Chant 'Om Rahave Namah' on Saturdays; donate black blankets; avoid shortcuts and intoxicants."
+            p.name.startsWith("Ketu", ignoreCase = true) ->
+                "Chant 'Om Ketave Namah' on Tuesdays; feed dogs; practice detachment and charity."
+            else -> ""
+        }
+        if (remedy.isNotBlank()) out.add(p.name to remedy)
+    }
+    return out
 }
 
 // ---------------------------------------------------------------------------
