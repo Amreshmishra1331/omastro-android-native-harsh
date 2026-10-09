@@ -356,6 +356,24 @@ class AiChatViewModel : ViewModel() {
         }
     }
 
+    /** Clear all saved chat sessions (website parity: DELETE /ai/chats). */
+    fun clearAllSessions() {
+        val mode = _selectedMode.value
+        viewModelScope.launch {
+            chatRepository.clearAllChats()
+                .onSuccess {
+                    val flow = states.getValue(mode)
+                    flow.value = flow.value.copy(savedSessions = emptyList())
+                }
+                .onFailure { err ->
+                    val flow = states.getValue(mode)
+                    flow.value = flow.value.copy(
+                        error = err.message ?: "Could not clear chats."
+                    )
+                }
+        }
+    }
+
     private fun buildSessionTitle(messages: List<ChatMessage>): String {
         val firstUser = messages.firstOrNull { it.isUser }?.message?.trim()
         val date = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date())

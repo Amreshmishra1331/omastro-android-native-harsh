@@ -52,7 +52,8 @@ fun SavedSessionsDialog(
     isLoading: Boolean,
     onDismiss: () -> Unit,
     onSelect: (SavedChatSession) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    onClearAll: () -> Unit = {}
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -124,8 +125,21 @@ fun SavedSessionsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close", color = SacredGold, fontWeight = FontWeight.SemiBold)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (sessions.isNotEmpty()) {
+                    TextButton(onClick = onClearAll) {
+                        Text("Clear All", color = Color(0xFFFF8A80), fontWeight = FontWeight.SemiBold)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Close", color = SacredGold, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     )

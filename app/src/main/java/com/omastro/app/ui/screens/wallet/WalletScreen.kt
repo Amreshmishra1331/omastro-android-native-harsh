@@ -33,12 +33,20 @@ fun WalletScreen(
 ) {
     val coinBalance by viewModel.coinBalance.collectAsState()
     val walletBalanceInr by viewModel.walletBalanceInr.collectAsState()
+    val paidBalanceInr by viewModel.paidBalanceInr.collectAsState()
+    val bonusBalanceInr by viewModel.bonusBalanceInr.collectAsState()
     val transactions by viewModel.transactions.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val message by viewModel.message.collectAsState()
     val pendingOrder by viewModel.pendingOrder.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Load balance and transactions on screen launch (website parity).
+    LaunchedEffect(Unit) {
+        viewModel.refreshBalance()
+        viewModel.refreshTransactions()
+    }
 
     LaunchedEffect(message) {
         message?.let {
@@ -135,6 +143,40 @@ fun WalletScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Paid + Bonus breakdown (website parity)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "₹${String.format("%.2f", paidBalanceInr)}",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Paid Balance",
+                                    color = StarlightWhite.copy(alpha = 0.5f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "₹${String.format("%.2f", bonusBalanceInr)}",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Bonus Balance",
+                                    color = StarlightWhite.copy(alpha = 0.5f),
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Use coins for Kundali, Horoscope and astrologer consultations",
                             color = StarlightWhite.copy(alpha = 0.6f),
@@ -263,7 +305,7 @@ private fun TransactionRow(tx: WalletTransaction) {
             }
             val isCredit = tx.type == "credit"
             Text(
-                text = "${if (isCredit) "+" else "-"}${tx.amount}",
+                text = "${if (isCredit) "+" else "-"}₹${String.format("%.2f", tx.amount / 100.0)}",
                 color = if (isCredit) Color(0xFF4CAF50) else Color(0xFFFF5252),
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp

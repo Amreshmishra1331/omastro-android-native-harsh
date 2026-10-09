@@ -340,7 +340,8 @@ fun AiChatScreen(
                 viewModel.loadSession(it)
                 showSessionsDialog = false
             },
-            onDelete = { viewModel.deleteSession(it) }
+            onDelete = { viewModel.deleteSession(it) },
+            onClearAll = { viewModel.clearAllSessions() }
         )
     }
 

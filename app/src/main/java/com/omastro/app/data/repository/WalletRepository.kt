@@ -18,6 +18,18 @@ class WalletRepository(
     private val _walletBalancePaise = MutableStateFlow(0)
     val walletBalancePaise: StateFlow<Int> = _walletBalancePaise.asStateFlow()
 
+    private val _paidBalancePaise = MutableStateFlow(0)
+    val paidBalancePaise: StateFlow<Int> = _paidBalancePaise.asStateFlow()
+
+    private val _bonusBalancePaise = MutableStateFlow(0)
+    val bonusBalancePaise: StateFlow<Int> = _bonusBalancePaise.asStateFlow()
+
+    private val _paidBalanceInr = MutableStateFlow(0.0)
+    val paidBalanceInr: StateFlow<Double> = _paidBalanceInr.asStateFlow()
+
+    private val _bonusBalanceInr = MutableStateFlow(0.0)
+    val bonusBalanceInr: StateFlow<Double> = _bonusBalanceInr.asStateFlow()
+
     private val _walletBalanceInr = MutableStateFlow(0.0)
     val walletBalanceInr: StateFlow<Double> = _walletBalanceInr.asStateFlow()
 
@@ -31,6 +43,10 @@ class WalletRepository(
             if (res.isSuccessful && body != null && body.success && body.data != null) {
                 _walletBalancePaise.value = body.data.totalPaise
                 _walletBalanceInr.value = body.data.totalInr
+                _paidBalancePaise.value = body.data.paidPaise
+                _bonusBalancePaise.value = body.data.bonusPaise
+                _paidBalanceInr.value = body.data.paidInr
+                _bonusBalanceInr.value = body.data.bonusInr
                 Result.success(body.data.totalInr)
             } else {
                 Result.failure(IOException("Failed to load wallet balance: HTTP ${res.code()}"))

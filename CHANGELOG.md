@@ -4,6 +4,33 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Chat History + Wallet website parity
+
+### Broken / missing
+- **Wallet transactions never loaded**: `WalletViewModel.refreshTransactions()` was a no-op (comment said "No-op if the repository pushes updates itself" — but nothing pushed). Transaction history always showed empty.
+- **No Paid/Bonus breakdown**: API returns `paid_paise`, `bonus_paise`, `total_paise` (+ INR equivalents) but the UI only showed the total. Website shows the breakdown.
+- **No "Clear All" in AI chat history**: `ChatRepository.clearAllChats()` (DELETE /ai/chats) existed but was never exposed in the ViewModel or UI.
+- **Transaction amounts in raw paise**: `TransactionRow` displayed the raw integer (e.g. "-5000") instead of formatted INR (e.g. "-₹50.00").
+
+### Added
+- `WalletViewModel.refreshTransactions()` now calls `walletRepo.getTransactions()` and surfaces errors.
+- `WalletViewModel.refreshBalance()` added; `WalletScreen` loads balance + transactions on launch via `LaunchedEffect(Unit)`.
+- Paid/Bonus breakdown UI: two columns under the total balance showing "Paid Balance" and "Bonus Balance" in INR.
+- `WalletRepository` now exposes `paidBalancePaise`, `bonusBalancePaise`, `paidBalanceInr`, `bonusBalanceInr` StateFlows, populated from `GET /wallet/balance`.
+- `AiChatViewModel.clearAllSessions()` wired to `ChatRepository.clearAllChats()`; "Clear All" button added to `SavedSessionsDialog` (red, left-aligned, only shown when sessions exist).
+- `SavedSessionsDialog` accepts optional `onClearAll` callback (defaults to no-op for backward compatibility).
+- `AiChatScreen` passes `onClearAll = { viewModel.clearAllSessions() }`.
+
+### Already present (verified, no changes needed)
+- AI chat history: list (GET /ai/chats), open/restore (GET /ai/chats/{id} with messages + context), save (POST /ai/chats), delete (DELETE /ai/chats/{id}) — all wired in ViewModel + dialog UI.
+- Astrologer chat history: resume via `GET /astrologers/chat/history` (session_id or astrologer_slug) — the website has no separate "list past astrologer chats" endpoint; history restores on session open, which the app already does.
+- Wallet Add Money: Razorpay integration (createOrder → RazorpayPaymentActivity → verifyPayment) — already functional.
+
+### Removed
+- Nothing.
+
+---
+
 ## [2026-10-09] — Kundali 23-tab build fixes (CI green)
 
 ### Fixed

@@ -28,6 +28,8 @@ class WalletViewModel : ViewModel() {
 
     val coinBalance: StateFlow<Int> = walletRepo.coinBalance
     val walletBalanceInr: StateFlow<Double> = walletRepo.walletBalanceInr
+    val paidBalanceInr: StateFlow<Double> = walletRepo.paidBalanceInr
+    val bonusBalanceInr: StateFlow<Double> = walletRepo.bonusBalanceInr
     val transactions: StateFlow<List<WalletTransaction>> = walletRepo.transactions
 
     val rechargePacks: List<RechargePack> = walletRepo.getRechargePacks()
@@ -114,8 +116,18 @@ class WalletViewModel : ViewModel() {
 
     fun refreshTransactions() {
         viewModelScope.launch {
-            // Repository exposes the transaction list; refresh hook for pull-to-refresh.
-            // No-op if the repository pushes updates itself.
+            _isProcessing.value = true
+            walletRepo.getTransactions()
+                .onFailure { err ->
+                    _message.value = err.message ?: "Could not load transactions."
+                }
+            _isProcessing.value = false
+        }
+    }
+
+    fun refreshBalance() {
+        viewModelScope.launch {
+            walletRepo.refreshBalance()
         }
     }
 
