@@ -539,7 +539,9 @@ private fun CategoryScoresCard(areas: Map<String, RashifalArea>) {
 
 @Composable
 private fun CategoryScoreRow(area: RashifalArea) {
-    val barColor = scoreColor(area.score)
+    // Honesty: a missing server score renders "—" with no bar — never a fake 0/10.
+    val score = area.score
+    val barColor = if (score != null) scoreColor(score) else StarlightWhite.copy(alpha = 0.3f)
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -553,22 +555,24 @@ private fun CategoryScoreRow(area: RashifalArea) {
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "${area.score}/10",
+                text = if (score != null) "$score/10" else "—",
                 color = barColor,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        LinearProgressIndicator(
-            progress = (area.score.coerceIn(0, 10)) / 10f,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(7.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            color = barColor,
-            trackColor = CosmicCharcoal
-        )
+        if (score != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            LinearProgressIndicator(
+                progress = (score.coerceIn(0, 10)) / 10f,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(7.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = barColor,
+                trackColor = CosmicCharcoal
+            )
+        }
         if (area.text.isNotBlank()) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(

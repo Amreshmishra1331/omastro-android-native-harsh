@@ -1651,9 +1651,12 @@ internal fun LazyListScope.shadbalTab(
         if (!sb.vimshopaka.isNullOrEmpty()) {
             item { KxSectionTitle("Vimshopaka — Varga Dignity Score (out of 20)") }
             items(sb.vimshopaka.entries.toList()) { (planet, m) ->
-                val total = (m["total"] as? Number)?.toDouble() ?: 0.0
-                val outOf = (m["out_of"] as? Number)?.toDouble() ?: 20.0
-                val pct = (m["percent"] as? Number)?.toDouble() ?: if (outOf > 0) total / outOf * 100 else 0.0
+                // Honesty: a missing "total" must never become a fake 0/20 red
+                // bar. Null stays null and the row says the score is unavailable.
+                val total: Double? = (m["total"] as? Number)?.toDouble()
+                val outOf: Double? = (m["out_of"] as? Number)?.toDouble()
+                val pct: Double? = (m["percent"] as? Number)?.toDouble()
+                    ?: if (outOf != null && outOf > 0 && total != null) total / outOf * 100 else null
                 CosmicCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         Row(
@@ -1666,18 +1669,33 @@ internal fun LazyListScope.shadbalTab(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(planet, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
+                            if (total != null) {
+                                Text(
+                                    "${anyToDisplay(m["total"])} / ${anyToDisplay(m["out_of"])}",
+                                    color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                )
+                            } else {
+                                Text(
+                                    "—",
+                                    color = TextSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                )
+                            }
+                        }
+                        if (pct != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = (pct / 100.0).toFloat().coerceIn(0f, 1f),
+                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                color = if (pct >= 50) AuspiciousGreen else if (pct >= 30) SacredGold else InauspiciousRed,
+                                trackColor = CosmicCharcoal
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                "${anyToDisplay(m["total"])} / ${anyToDisplay(m["out_of"])}",
-                                color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                W.t("honesty_vimshopaka_na"),
+                                color = TextSecondary, fontSize = 12.sp
                             )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = (pct / 100.0).toFloat().coerceIn(0f, 1f),
-                            modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                            color = if (pct >= 50) AuspiciousGreen else if (pct >= 30) SacredGold else InauspiciousRed,
-                            trackColor = CosmicCharcoal
-                        )
                     }
                 }
             }

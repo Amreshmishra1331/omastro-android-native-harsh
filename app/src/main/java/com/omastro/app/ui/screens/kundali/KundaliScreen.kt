@@ -1228,10 +1228,13 @@ private fun LazyListScope.ashtakavargaTab(
             ) {
                 Column {
                     Text("Total Bindus", color = TextSecondary, fontSize = 12.sp)
-                    Text("${av?.savTotal ?: 0}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                    Text(
+                        av?.savTotal?.toString() ?: "—",
+                        color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 22.sp
+                    )
                 }
                 Text(
-                    "Average ${(av?.savTotal ?: 0) / 12} per house",
+                    av?.savTotal?.let { "Average ${it / 12} per house" } ?: "—",
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
@@ -1274,7 +1277,7 @@ private fun LazyListScope.ashtakavargaTab(
             if (av == null || av.savByHouse.isEmpty()) {
                 sb.append("No ashtakavarga data returned for this chart.\n")
             } else {
-                sb.append("Total bindus: ").append(av.savTotal).append(" (max 337)\n")
+                av.savTotal?.let { sb.append("Total bindus: ").append(it).append(" (max 337)\n") }
                 sb.append("--- Bindus by house ---\n")
                 av.savByHouse.sortedBy { it.house }.forEach { row ->
                     sb.append("House ").append(row.house).append(" (").append(row.rashi).append("): ")

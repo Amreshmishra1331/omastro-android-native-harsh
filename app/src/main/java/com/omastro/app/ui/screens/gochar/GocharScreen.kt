@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import com.omastro.app.ui.i18n.W
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,6 +46,10 @@ fun GocharScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var showForm by remember { mutableStateOf(true) }
+
+    // Honest form error: coordinates are never silently defaulted to Delhi —
+    // an invalid/blank lat/lon blocks the calculation with a clear message.
+    var formError by remember { mutableStateOf<String?>(null) }
 
     // Birth detail inputs
     var name by remember { mutableStateOf("") }
@@ -180,6 +186,7 @@ fun GocharScreen(
                                 pob = place.displayName
                                 lat = place.lat.toString()
                                 lon = place.lon.toString()
+                                formError = null
                             },
                             label = "Place of Birth",
                             placeholder = "Type city name, e.g. Jaipur"
@@ -187,8 +194,8 @@ fun GocharScreen(
                     }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            GocharInputField("Latitude", lat, { lat = it }, Modifier.weight(1f))
-                            GocharInputField("Longitude", lon, { lon = it }, Modifier.weight(1f))
+                            GocharInputField("Latitude", lat, { lat = it; formError = null }, Modifier.weight(1f))
+                            GocharInputField("Longitude", lon, { lon = it; formError = null }, Modifier.weight(1f))
                         }
                     }
                     item {
@@ -238,22 +245,43 @@ fun GocharScreen(
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        formError?.let { err ->
+                            Text(
+                                text = err,
+                                color = Color(0xFFFF8A80),
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            )
+                        }
                         Button(
                             onClick = {
-                                if (name.isNotBlank() && dob.isNotBlank() && transitDate.isNotBlank()) {
-                                    showForm = false
-                                    viewModel.calculate(
-                                        name = name.trim(),
-                                        dob = dob.trim(),
-                                        tob = tob.trim().ifBlank { "08:30" },
-                                        pob = pob.trim().ifBlank { "New Delhi" },
-                                        lat = lat.toDoubleOrNull() ?: 28.6139,
-                                        lon = lon.toDoubleOrNull() ?: 77.2090,
-                                        gender = gender,
-                                        transitDate = transitDate.trim()
-                                    )
+                                formError = null
+                                if (name.isBlank() || dob.isBlank() || transitDate.isBlank()) {
+                                    return@Button
                                 }
+                                val latVal = lat.toDoubleOrNull()
+                                val lonVal = lon.toDoubleOrNull()
+                                if (latVal == null || latVal < -90 || latVal > 90 ||
+                                    lonVal == null || lonVal < -180 || lonVal > 180
+                                ) {
+                                    formError = W.t("honesty_gochar_coords")
+                                    return@Button
+                                }
+                                showForm = false
+                                viewModel.calculate(
+                                    name = name.trim(),
+                                    dob = dob.trim(),
+                                    tob = tob.trim().ifBlank { "08:30" },
+                                    pob = pob.trim().ifBlank { "New Delhi" },
+                                    lat = latVal,
+                                    lon = lonVal,
+                                    gender = gender,
+                                    transitDate = transitDate.trim()
+                                )
                             },
                             modifier = Modifier
                                 .fillMaxWidth()

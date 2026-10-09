@@ -288,7 +288,8 @@ data class SavHouse(
 
 data class AshtakavargaData(
     @SerializedName("savByHouse") val savByHouse: List<SavHouse> = emptyList(),
-    @SerializedName("savTotal") val savTotal: Int = 0
+    // Honesty: null when the server omits it — never a fabricated 0.
+    @SerializedName("savTotal") val savTotal: Int? = null
 )
 
 data class LalKitabData(

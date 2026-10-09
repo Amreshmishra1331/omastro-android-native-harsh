@@ -52,7 +52,9 @@ data class RashifalDasha(
 
 data class RashifalArea(
     @SerializedName("label") val label: String = "",
-    @SerializedName("score") val score: Int = 0,
+    // Honesty: null when the server omits the score — the UI renders an
+    // honest "—" instead of a fabricated 0/10.
+    @SerializedName("score") val score: Int? = null,
     @SerializedName("text") val text: String = ""
 )
 

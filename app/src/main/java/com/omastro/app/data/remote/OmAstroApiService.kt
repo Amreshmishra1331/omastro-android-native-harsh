@@ -397,9 +397,16 @@ data class SavedChart(
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("updated_at") val updatedAt: String? = null
 ) {
-    /** Convert to KundaliRequest for loading the chart. */
-    fun toKundaliRequest(): com.omastro.app.data.model.KundaliRequest {
-        val dob = birthDate.takeIf { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) } ?: "1990-01-01"
+    /**
+     * Convert to KundaliRequest for loading the chart.
+     * Honesty: malformed stored birth data (bad date, or missing coordinates
+     * the code itself treats as 0.0) returns null instead of a fabricated
+     * "1990-01-01" / Delhi-coordinates chart — the caller must show an
+     * honest error.
+     */
+    fun toKundaliRequest(): com.omastro.app.data.model.KundaliRequest? {
+        val dob = birthDate.takeIf { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) } ?: return null
+        if (latitude == 0.0 || longitude == 0.0) return null
         val tobParts = birthTime.split(":")
         val hr = tobParts.getOrNull(0)?.toIntOrNull() ?: 8
         val mn = tobParts.getOrNull(1)?.toIntOrNull() ?: 30
@@ -410,8 +417,8 @@ data class SavedChart(
             tobMn = mn,
             tob = "%02d:%02d".format(hr, mn),
             pob = birthPlace.ifBlank { "New Delhi" },
-            lat = latitude.takeIf { it != 0.0 } ?: 28.6139,
-            lon = longitude.takeIf { it != 0.0 } ?: 77.2090,
+            lat = latitude,
+            lon = longitude,
             gender = gender
         )
     }

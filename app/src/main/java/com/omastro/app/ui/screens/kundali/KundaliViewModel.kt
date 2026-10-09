@@ -7,6 +7,7 @@ import com.omastro.app.data.model.KundaliRequest
 import com.omastro.app.data.model.KundaliResponse
 import com.omastro.app.data.model.ReportData
 import com.omastro.app.di.AppContainer
+import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -181,7 +182,13 @@ class KundaliViewModel : ViewModel() {
 
     /** Load a saved chart: populate the form and fetch. */
     fun loadSavedChart(chart: com.omastro.app.data.remote.SavedChart) {
+        // Honesty: malformed stored birth data must never open someone else's
+        // chart (previously a silent "1990-01-01" fallback).
         val req = chart.toKundaliRequest()
+        if (req == null) {
+            _formError.value = W.t("honesty_saved_bad_data")
+            return
+        }
         _birthName.value = req.name
         _birthDob.value = req.dob
         _birthTob.value = req.tob

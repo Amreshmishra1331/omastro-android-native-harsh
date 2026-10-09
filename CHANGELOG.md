@@ -4,6 +4,52 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Deep Honesty Audit: remaining fabricated/mock/fallback data eliminated
+
+Full-codebase grep audit (93 Kotlin files) for `lorem` / `TODO` / `FIXME` (none found), mock/dummy/fake/sample (only code comments describing honesty decisions), hardcoded scores, `?: 0` fallbacks on scores, silent coordinate defaults, and AI context builders. Five real issues found and fixed; everything else documented as a verified non-issue (see "Verified non-issues" below).
+
+### Fixed
+1. **Numerology "Name Correction" fabricated zero** (`ui/screens/numerology/NumerologyToolViewModel.kt`):
+   - **Before**: `(data["expression"] as? Number)?.toInt() ?: 0` and `dob?.let { moolank(it.first) } ?: 0` — if the server omitted `expression`, the UI showed "Expression: 0" and "Lucky Moolank target: 0" as if real (Moolank 0 is impossible), and the guidance tip referenced "Moolank (0)".
+   - **After**: null-preserving `Int?`; missing values render bilingual honest text ("Not returned by server" / "Not available"), and the tip falls back to a generic bilingual "read the full server analysis before changing spellings" line when Moolank is unavailable. New keys: `honesty_not_returned`, `honesty_not_available`, `honesty_num_tip_generic`.
+2. **Kundali Shadbal tab: Vimshopaka fake-zero progress bar** (`ui/screens/kundali/KundaliExtendedTabs.kt`):
+   - **Before**: `total ?: 0.0` / `pct ?: 0.0` — a Vimshopaka row whose server map lacked `total` rendered a red 0% progress bar, a fabricated zero score.
+   - **After**: null-preserving; rows with no score show "—" and the bilingual line "Score unavailable — not returned by server." (new key `honesty_vimshopaka_na`) with no progress bar.
+3. **Saved-chart load fabricated a 1990-01-01 chart** (`data/remote/OmAstroApiService.kt`, `ui/screens/kundali/KundaliViewModel.kt`):
+   - **Before**: `SavedChart.toKundaliRequest()` silently substituted `dob = "1990-01-01"` for a malformed stored birth date and Delhi's `28.6139, 77.2090` when stored coordinates were `0.0` (the codebase's own "missing" marker) — opening a chart for the WRONG date/place presented as the user's.
+   - **After**: `toKundaliRequest()` returns null on malformed stored data (bad date OR missing coordinates); `loadSavedChart()` shows an honest bilingual error on the form ("This saved chart has incomplete birth data — it cannot be opened.", key `honesty_saved_bad_data`) and does NOT compute any chart.
+4. **Gochar screen silently substituted Delhi coordinates** (`ui/screens/gochar/GocharScreen.kt`):
+   - **Before**: blank/invalid lat/lon were silently replaced with Delhi's `28.6139, 77.2090` while the birth place field could say any city — a chart computed for Delhi labeled with the user's city.
+   - **After**: coordinates are validated (numeric, lat −90..90, lon −180..180); invalid input blocks the calculation with a bilingual error ("Please pick your birth city from the search suggestions so coordinates are accurate.", key `honesty_gochar_coords`). Error clears when the user edits the fields or picks a city.
+5. **Horoscope life-area cards fake 0/10** (`data/model/HoroscopeModels.kt`, `ui/screens/horoscope/HoroscopeScreen.kt`):
+   - **Before**: `RashifalArea.score: Int = 0` — an area the server sent without a score rendered "0/10" with an empty bar as if the server scored it zero.
+   - **After**: `score: Int? = null`; missing scores render "—" with no progress bar.
+
+6. **Kundali Ashtakavarga "Total Bindus" fake zero** (`data/model/KundaliModels.kt`, `ui/screens/kundali/KundaliScreen.kt`):
+   - **Before**: `AshtakavargaData.savTotal: Int = 0` — a server section that sent house rows but no total rendered "Total Bindus 0".
+   - **After**: `savTotal: Int? = null`; missing totals render "—" in the section header and are omitted from the AI context block (no "null" leaking into chat context).
+
+### Added
+- 6 bilingual (EN/हिन्दी) honesty strings in `FeatureStrings.kt` (`honesty_not_returned`, `honesty_not_available`, `honesty_saved_bad_data`, `honesty_gochar_coords`, `honesty_vimshopaka_na`, `honesty_num_tip_generic`) — auto-switch with Settings language via the `W` system. No emojis.
+
+### Verified non-issues (with evidence)
+- `lorem`, `TODO`, `FIXME`: zero hits in all 93 files.
+- AI context builders (`AiChatViewModel.buildContext`, `buildBirthDataContext`, `KxAskAiCard` per-tab blocks, vision `renderGeneric`): only user-supplied birth data, server-returned blocks, and server parsed-facts — no prefabricated reading text anywhere.
+- Vastu score dial: already null-safe (question-mark "Insufficient data" state, `VastuAnalysis.score: Int?`).
+- Vastu pada `?: 0` (`VisionRepository.kt:74`): lookup-only for the pada picker; a missing pada never renders — the picker falls back to its honest hint text.
+- Palmistry / Face Reading / Astro Health result cards: render only present server fields; nulls are skipped, empty lists hidden; API failures show honest error cards with retry.
+- Matchmaking: missing server score shows the honest "Incomplete server response" card.
+- Horoscope overall score: `data.scores["overall"]` nullable lookup — shown only when the server sent it.
+- Muhurat day rows: server-computed rows; scores are intrinsic to each row (no client fabrication).
+- Ashtakavarga per-house `SavHouse.points`: rows exist only when the server sent the section (guarded by `savByHouse.isEmpty()` → honest "No ashtakavarga data returned"); no client-invented rows.
+- Repositories: all API failures return `Result.failure` (honest error states); the single `getVastuReference` empty-fallback is reference data for a picker, not a reading — the picker degrades to plain numbers with its honest hint.
+- AI chat quota pill: shown only when `limit > 0`.
+- Kundali birth form lat/lon: Delhi values are pre-filled VISIBLY in the coordinate fields (`KundaliScreen.kt:250-251`, `AstroHealthScreen.kt:125-126`) and the form validates ranges before any calculation — the user always sees what is used.
+- Numerology deterministic tools (Moolank, Lo Shu, Kua, Time Cycles): pure rule-based math from the user's own DOB — no server-style fabricated readings.
+- `KundaliRequest` data-class defaults (Delhi coords): defaults are never relied on — every call site passes explicit, validated values.
+
+---
+
 ## [2026-10-10] — "Ask AI about this" on all 23 Kundali tabs
 
 ### Added

@@ -240,7 +240,15 @@ object W {
         "dash_ai_readings_sub" to "Om Astro AI की फोटो और गृह ऊर्जा रीडिंग",
         "dash_vastu_sub" to "गृह ऊर्जा विश्लेषण, दोष और उपाय",
         "dash_palm_sub" to "AI आपकी हथेली की रेखाएं, पर्वत और चिह्न पढ़ता है",
-        "dash_face_sub" to "सामुद्रिक शास्त्र चेहरा विश्लेषण"
+        "dash_face_sub" to "सामुद्रिक शास्त्र चेहरा विश्लेषण",
+
+        // ---- Honesty audit: no fabricated scores/readings ----
+        "honesty_not_returned" to "सर्वर से प्राप्त नहीं हुआ",
+        "honesty_not_available" to "उपलब्ध नहीं",
+        "honesty_saved_bad_data" to "इस सहेजी गई कुंडली में जन्म विवरण अधूरा है — इसे खोला नहीं जा सकता।",
+        "honesty_gochar_coords" to "सटीक निर्देशांक के लिए जन्म शहर खोज सुझावों में से चुनें।",
+        "honesty_vimshopaka_na" to "स्कोर उपलब्ध नहीं — सर्वर से प्राप्त नहीं हुआ।",
+        "honesty_num_tip_generic" to "वर्तनी बदलने से पहले ऊपर दिया गया पूरा सर्वर विश्लेषण अवश्य पढ़ें।"
     )
 
     private val EN = mapOf(
@@ -451,7 +459,15 @@ object W {
         "dash_ai_readings_sub" to "Photo and home-energy readings by Om Astro AI",
         "dash_vastu_sub" to "Home-energy analysis, doshas and remedies",
         "dash_palm_sub" to "AI reads your palm lines, mounts and signs",
-        "dash_face_sub" to "Samudrika Shastra face reading"
+        "dash_face_sub" to "Samudrika Shastra face reading",
+
+        // ---- Honesty audit: no fabricated scores/readings ----
+        "honesty_not_returned" to "Not returned by server",
+        "honesty_not_available" to "Not available",
+        "honesty_saved_bad_data" to "This saved chart has incomplete birth data — it cannot be opened.",
+        "honesty_gochar_coords" to "Please pick your birth city from the search suggestions so coordinates are accurate.",
+        "honesty_vimshopaka_na" to "Score unavailable — not returned by server.",
+        "honesty_num_tip_generic" to "Read the full server analysis above before changing any spellings."
     )
 
     /** Active-language string for [key]. Falls back to English. */

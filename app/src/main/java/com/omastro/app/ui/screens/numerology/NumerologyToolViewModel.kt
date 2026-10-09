@@ -3,6 +3,7 @@ package com.omastro.app.ui.screens.numerology
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.omastro.app.di.AppContainer
+import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -381,17 +382,24 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
         val body = res.getOrThrow()
         val data = body["data"] as? Map<*, *> ?: throw IllegalStateException("Empty response from server.")
         val text = (data["analysis_text"] as? String).orEmpty()
-        val expr = (data["expression"] as? Number)?.toInt() ?: 0
+        // Honesty: a missing server "expression" or unparsable DOB must never
+        // render as a fabricated "0". Null stays null and the UI says so.
+        val expr: Int? = (data["expression"] as? Number)?.toInt()
         val dob = parseDob(_dob.value)
-        val lucky = dob?.let { moolank(it.first) } ?: 0
+        val lucky: Int? = dob?.let { moolank(it.first) }
+        val tip = if (lucky != null) {
+            "A name whose Expression matches your Moolank ($lucky) or Bhagyank is considered most harmonious. Consult the full analysis above before changing spellings."
+        } else {
+            W.t("honesty_num_tip_generic")
+        }
         return ToolResult("Name Correction", listOf(
             ResultSection("Current name numbers", listOf(
-                ResultLine("Expression", "$expr"),
-                ResultLine("Lucky Moolank target", "$lucky")
+                ResultLine("Expression", expr?.toString() ?: W.t("honesty_not_returned")),
+                ResultLine("Lucky Moolank target", lucky?.toString() ?: W.t("honesty_not_available"))
             )),
             ResultSection("Server Analysis", listOf(ResultLine("Detail", text.ifBlank { "No analysis returned." }))),
             ResultSection("Guidance", listOf(
-                ResultLine("Tip", "A name whose Expression matches your Moolank ($lucky) or Bhagyank is considered most harmonious. Consult the full analysis above before changing spellings.")
+                ResultLine("Tip", tip)
             ))
         ))
     }
