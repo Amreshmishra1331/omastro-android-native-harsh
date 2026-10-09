@@ -8,9 +8,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +38,11 @@ fun AstrologersScreen(
 ) {
     val astrologers by viewModel.astrologers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val listError by viewModel.listError.collectAsState()
+    val autoMatchPhase by viewModel.autoMatchPhase.collectAsState()
+    val pendingConsent by viewModel.pendingConsent.collectAsState()
+    val sessionError by viewModel.sessionError.collectAsState()
+    val activeSlug by viewModel.activeSlug.collectAsState()
 
     Scaffold(
         topBar = {
@@ -53,7 +60,7 @@ fun AstrologersScreen(
         },
         containerColor = CosmicDeepBlue
     ) { padding ->
-        if (isLoading) {
+        if (isLoading && astrologers.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = SacredGold)
             }
@@ -67,14 +74,177 @@ fun AstrologersScreen(
             ) {
                 item { Spacer(modifier = Modifier.height(6.dp)) }
 
+                // Auto-match entry: "Finding best astrologers…" (website parity).
+                item {
+                    AutoMatchCard(
+                        phase = autoMatchPhase,
+                        onStart = { viewModel.startAutoMatch() }
+                    )
+                }
+
+                if (listError != null) {
+                    item {
+                        Text(
+                            text = listError ?: "",
+                            color = Color(0xFFFF8A80),
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+
+                if (sessionError != null) {
+                    item {
+                        Text(
+                            text = sessionError ?: "",
+                            color = Color(0xFFFF8A80),
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                }
+
                 items(astrologers) { astro ->
-                    AstrologerListItem(astro = astro, onChatClick = { onAstrologerClick(astro.id) })
+                    AstrologerListItem(astro = astro, onChatClick = { onAstrologerClick(astro.slug) })
                 }
 
                 item { Spacer(modifier = Modifier.height(20.dp)) }
             }
         }
     }
+
+    // Auto-match result: when the ViewModel picks an astrologer without needing
+    // consent, it sets activeSlug — navigate to chat.
+    val navigatedSlug = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(activeSlug, pendingConsent) {
+        val slug = activeSlug
+        if (slug != null && pendingConsent == null && navigatedSlug.value != slug) {
+            navigatedSlug.value = slug
+            onAstrologerClick(slug)
+        }
+        if (slug == null) navigatedSlug.value = null
+    }
+
+    // Rate consent dialog (offline OR rate > ₹5/min — website parity).
+    pendingConsent?.let { astro ->
+        RateConsentDialog(
+            astro = astro,
+            onConfirm = { viewModel.confirmConsent() },
+            onDismiss = { viewModel.dismissConsent() }
+        )
+    }
+}
+
+@Composable
+private fun AutoMatchCard(
+    phase: ConsultationViewModel.AutoMatchPhase,
+    onStart: () -> Unit
+) {
+    val searching = phase == ConsultationViewModel.AutoMatchPhase.SEARCHING
+    CosmicCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = !searching) { onStart() }
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (searching) {
+                CircularProgressIndicator(
+                    color = SacredGold,
+                    modifier = Modifier.size(28.dp),
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.SupportAgent,
+                    contentDescription = null,
+                    tint = SacredGold,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (searching) "Finding best astrologers…" else "Chat Now",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = if (searching) "Matching you with an available astrologer"
+                    else "Auto-match with an online astrologer (₹5/min)",
+                    color = StarlightWhite.copy(alpha = 0.6f),
+                    fontSize = 12.sp
+                )
+            }
+            if (!searching) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = SacredGold
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Rate consent dialog (website parity): shown when the astrologer is offline
+ * or costs more than ₹5/min. Declining charges nothing.
+ */
+@Composable
+private fun RateConsentDialog(
+    astro: Astrologer,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val offline = !astro.online
+    val expensive = astro.ratePaise > 500
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Start chat with ${astro.name}?", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                if (offline) {
+                    Text(
+                        "${astro.name} is currently offline. Start the chat with this astrologer anyway?",
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                if (expensive) {
+                    Text(
+                        "Rate: ${astro.displayRate} (higher than the expected ₹5/min).",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SacredSaffron
+                    )
+                } else {
+                    Text(
+                        "Rate: ${astro.displayRate}.",
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Yes, start", color = SacredGold, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = StarlightWhite.copy(alpha = 0.7f))
+            }
+        },
+        containerColor = CosmicNavy,
+        titleContentColor = Color.White,
+        textContentColor = StarlightWhite.copy(alpha = 0.85f)
+    )
 }
 
 @Composable

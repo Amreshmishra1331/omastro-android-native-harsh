@@ -209,12 +209,13 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(
                             route = Screen.Chat.route,
-                            arguments = listOf(navArgument("astrologerId") { type = NavType.StringType })
+                            arguments = listOf(navArgument("slug") { type = NavType.StringType })
                         ) { backStackEntry ->
-                            val astrologerId = backStackEntry.arguments?.getString("astrologerId") ?: "1"
+                            val slug = backStackEntry.arguments?.getString("slug") ?: ""
                             ChatScreen(
-                                astrologerId = astrologerId,
-                                onBack = { navController.popBackStack() }
+                                astrologerSlug = slug,
+                                onBack = { navController.popBackStack() },
+                                onNavigateToWallet = { navController.navigate(Screen.Wallet.route) }
                             )
                         }
                         composable(Screen.Wallet.route) {

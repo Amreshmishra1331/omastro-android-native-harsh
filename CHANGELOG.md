@@ -4,6 +4,40 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Astrologer consultation A-Z rebuild (website parity)
+
+### Broken / missing
+- **Wrong API params**: `chat/open` sent `astrologer_id` (server expects `slug`); `chat/history` sent `astrologer_id` query (server expects `session_id`/`astrologer_slug`); `chat/close` sent both (server takes only `session_id`). Sessions never registered correctly.
+- **Billing tick was 60s**: website bills on a 30s heartbeat; the app ticked every 60s, drifting from server expectations.
+- **No insufficient-balance handling**: session start/tick failures showed a generic error; the website blocks with an Add Money popup and locks input.
+- **No humanizing delays**: replies appeared instantly as one bubble; the website uses 2-6s pre-typing pause, per-sentence bubbles (first 2-3.5s, later 3-12s by length), 0.7-1.3s between bubbles, send locked until done.
+- **No greeting, no idle handling**: website sends a personalized greeting (2-6s delay + 1.2s typing) and nudges/closes idle chats (1-min nudge, 2-min hard close).
+- **No birth-data attach**: website gates chat entry on birth attach and sends context with every message.
+- **No review flow**: website shows a 5-star review card after close.
+- **No auto-match**: website has "Finding best astrologers…" preferring online ₹5/min.
+- **No rate consent**: website warns when the astrologer is offline or costs > ₹5/min.
+- **No review endpoint**: `POST /astrologers/review` was missing from the API service.
+- **AI messages lacked billing handshake**: astrologer messages didn't send `billing_mode: 'astrologer'` + `astro_session`, so the server couldn't skip the per-message AI debit.
+- **Navigation passed `id` not `slug`**: chat route carried `astro.id` (e.g. "astro-01") but all chat/billing endpoints need the `slug`.
+
+### Removed
+- 60-second billing tick (now 30s per website).
+- Instant single-bubble reply rendering in astrologer chat.
+- `OpenChatRequest(astrologer_id)`, `CloseChatRequest(astrologer_id, session_id)` shapes.
+- Old `ConsultationViewModel` chat flow (`initChat`, `endConsultation`, 60s timer).
+
+### Added
+- **API (`OmAstroApiService`)**: corrected `chat/open` (`{slug}`), `chat/history` (`?session_id=&astrologer_slug=`), `chat/close` (`{session_id}`); typed billing session models (`AstroSessionStartRequest`, `AstroSessionTickRequest`, `AstroSessionState/Response`); new `POST /astrologers/review`.
+- **Models**: `AstroSessionState` (session_uuid, rate_paise, billed_seconds, free_seconds_used/left, wallet_total_paise, wallet_covers_sec, status, insufficient flag, resumed); `AstrologerReviewRequest`; `ChatHistoryResponse/Data`; `OpenChatData`.
+- **Repository**: `openChat` returns server-minted UUID; `loadChatHistory` restores messages; `startBillingSession`/`tickBillingSession` return full state (callers check `insufficient`); `submitReview`.
+- **ChatRepository**: `sendAiMessage` gains `billingMode`, `astroSession`, `ctxLabel` params.
+- **ViewModel rewrite**: auto-match (online ₹5/min preferred), rate consent gate, birth attach gate, greeting with delays, humanizing per-sentence delivery with generation-counter abort, read ticks, 30s billing tick, 1s display timer, idle nudge/close, Add Money flow with retry-after-topup, review submission.
+- **ChatScreen rewrite**: WhatsApp-style fullscreen chat; header with photo/name/online-or-typing status + FREE TRIAL badge; floating MM:SS timer pill; per-sentence bubbles; animated 3-dot typing; center system bubbles; read ticks; rate consent dialog; birth attach dialog (name/gender/DOB picker/TOB AM-PM picker/place search); Add Money popup; 5-star review card.
+- **AstrologersScreen**: "Chat Now" auto-match card with "Finding best astrologers…" state; rate consent dialog.
+- **Navigation**: chat route now carries the astrologer `slug` (`chat/{slug}`); dashboard + list pass `astro.slug`.
+
+---
+
 ## [2026-10-09] — AI chat full context system (website parity)
 
 ### Broken / missing

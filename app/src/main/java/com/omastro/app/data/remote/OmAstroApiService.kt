@@ -86,10 +86,15 @@ interface OmAstroApiService {
         @Query("category") category: String? = null
     ): Response<AstrologersResponse>
 
+    // Astrologer chat — real backend contract (verified 2026-10-09):
+    //  open  POST {slug}            -> {success,data:{registered,session_id}}
+    //  history GET ?session_id=&astrologer_slug= -> {success,data:{messages,astrologer,birth_context}}
+    //  close POST {session_id}
     @GET("astrologers/chat/history")
     suspend fun getChatHistory(
-        @Query("astrologer_id") astrologerId: String
-    ): Response<List<ChatMessage>>
+        @Query("session_id") sessionId: String? = null,
+        @Query("astrologer_slug") astrologerSlug: String? = null
+    ): Response<ChatHistoryResponse>
 
     @POST("astrologers/chat/open")
     suspend fun openChat(
@@ -101,20 +106,31 @@ interface OmAstroApiService {
         @Body request: CloseChatRequest
     ): Response<Map<String, Any>>
 
-    // Astrologer consultation billing session (real per-minute billing)
+    // Astrologer consultation billing session (real per-minute billing).
+    // start/tick/end -> {success,data:{session_uuid,rate_paise,billed_seconds,
+    //   free_seconds_used,free_seconds_left,wallet_total_paise,wallet_covers_sec,status}}
+    // NOTE: insufficient balance is signalled as success:true with data.insufficient=true
+    // (the AJAX error is re-wrapped by kg_rest_astro_bridge) — check the flag, not HTTP status.
     @POST("astrologers/session/start")
     suspend fun startAstroSession(
-        @Body request: Map<String, String>
-    ): Response<Map<String, Any>>
+        @Body request: AstroSessionStartRequest
+    ): Response<AstroSessionResponse>
 
     @POST("astrologers/session/tick")
     suspend fun tickAstroSession(
-        @Body request: Map<String, String>
-    ): Response<Map<String, Any>>
+        @Body request: AstroSessionTickRequest
+    ): Response<AstroSessionResponse>
 
     @POST("astrologers/session/end")
     suspend fun endAstroSession(
-        @Body request: Map<String, String>
+        @Body request: AstroSessionTickRequest
+    ): Response<AstroSessionResponse>
+
+    // Astrologer review — POST {slug, stars 1-5, review <=500 chars, session_id}.
+    // One review per session (UNIQUE on session_id, server-enforced).
+    @POST("astrologers/review")
+    suspend fun submitAstrologerReview(
+        @Body request: AstrologerReviewRequest
     ): Response<Map<String, Any>>
 
     // Wallet (real INR wallet)
@@ -188,6 +204,27 @@ interface OmAstroApiService {
         @Body request: KundaliRequest
     ): Response<Map<String, Any>>
 
+    // Dedicated kundali report endpoints (typed envelopes, verified live 2026-10-09)
+    @POST("kundali/personality")
+    suspend fun getPersonality(
+        @Body request: KundaliRequest
+    ): Response<ReportEnvelope>
+
+    @POST("kundali/bnn")
+    suspend fun getBnnReport(
+        @Body request: KundaliRequest
+    ): Response<ReportEnvelope>
+
+    @POST("kundali/lal-kitab")
+    suspend fun getLalKitabFull(
+        @Body request: KundaliRequest
+    ): Response<ReportEnvelope>
+
+    @POST("kundali/jaimini")
+    suspend fun getJaimini(
+        @Body request: KundaliRequest
+    ): Response<JaiminiEnvelope>
+
     // Numerology
     @POST("numerology")
     suspend fun getNumerology(
@@ -234,21 +271,10 @@ interface OmAstroApiService {
     ): Response<Map<String, Any>>
 }
 
-// Astrologer chat session models (real backend contract)
-data class OpenChatRequest(
-    @SerializedName("astrologer_id") val astrologerId: String
-)
-
-data class OpenChatResponse(
-    @SerializedName("success") val success: Boolean = false,
-    @SerializedName("session_id") val sessionId: String? = null,
-    @SerializedName("message") val message: String? = null
-)
-
-data class CloseChatRequest(
-    @SerializedName("astrologer_id") val astrologerId: String,
-    @SerializedName("session_id") val sessionId: String? = null
-)
+// (Astrologer chat session models now live in
+//  com.omastro.app.data.model.AstrologerModels — OpenChatRequest/Response,
+//  CloseChatRequest, AstroSessionStartRequest, AstroSessionTickRequest,
+//  AstroSessionState/Response, AstrologerReviewRequest, ChatHistoryResponse.)
 
 // Geocode place search models (GET /geocode/search?q=)
 // Real response: {"success":true,"data":{"results":[{"name","country","state","display","lat","lon","tz"}]}}

@@ -275,7 +275,7 @@ fun DashboardScreen(
                     items(astrologers.take(10)) { astro ->
                         AstrologerCard(
                             astrologer = astro,
-                            onClick = { navController.navigate(Screen.Chat.createRoute(astro.id)) }
+                            onClick = { navController.navigate(Screen.Chat.createRoute(astro.slug)) }
                         )
                     }
                 }

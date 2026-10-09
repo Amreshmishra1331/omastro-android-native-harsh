@@ -41,6 +41,7 @@ object AppContainer {
     val startBillingSessionUseCase by lazy { StartBillingSessionUseCase(consultationRepository) }
     val tickBillingSessionUseCase by lazy { TickBillingSessionUseCase(consultationRepository) }
     val endBillingSessionUseCase by lazy { EndBillingSessionUseCase(consultationRepository) }
+    val submitAstrologerReviewUseCase by lazy { SubmitAstrologerReviewUseCase(consultationRepository) }
 
     val getWalletBalanceUseCase by lazy { GetWalletBalanceUseCase(walletRepository) }
     val rechargeCoinsUseCase by lazy { RechargeCoinsUseCase(walletRepository) }

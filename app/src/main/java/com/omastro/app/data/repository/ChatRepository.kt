@@ -50,6 +50,11 @@ class ChatRepository(
      * @param history last 12 turns as ChatHistoryTurn(role, text)
      * @param aiModel model tier (lite/pro/expert)
      * @param language "en" | "hi"
+     * @param billingMode pass "astrologer" for astrologer consultations — the server
+     *   skips the normal per-message AI debit when a live billing session UUID is
+     *   present (the per-minute heartbeat owns the charge).
+     * @param astroSession billing session UUID from POST /astrologers/session/start
+     * @param ctxLabel label for the attached birth context (e.g. "Birth Chart: ...")
      */
     suspend fun sendAiMessage(
         message: String,
@@ -58,7 +63,10 @@ class ChatRepository(
         context: String? = null,
         history: List<ChatHistoryTurn> = emptyList(),
         aiModel: AiModel = AiModel.LITE,
-        language: String = "en"
+        language: String = "en",
+        billingMode: String? = null,
+        astroSession: String? = null,
+        ctxLabel: String? = null
     ): Result<AiChatFullResponse> {
         return try {
             val payload = mutableMapOf<String, Any?>(
@@ -72,6 +80,15 @@ class ChatRepository(
                 // Server truncates to 28,000 chars; truncate client-side too
                 // to keep payloads predictable.
                 payload["context"] = context.take(28000)
+            }
+            if (!ctxLabel.isNullOrBlank()) {
+                payload["ctx_label"] = ctxLabel
+            }
+            if (!billingMode.isNullOrBlank()) {
+                payload["billing_mode"] = billingMode
+            }
+            if (!astroSession.isNullOrBlank()) {
+                payload["astro_session"] = astroSession
             }
             if (history.isNotEmpty()) {
                 // Last 12 turns, each text truncated to 4000 chars (website parity)

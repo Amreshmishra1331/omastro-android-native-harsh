@@ -4,7 +4,6 @@ import android.app.Activity
 import com.google.android.play.core.review.ReviewManager
 import com.google.android.play.core.review.ReviewManagerFactory
 import com.omastro.app.data.model.*
-import com.omastro.app.data.remote.OpenChatResponse
 import com.omastro.app.data.repository.ConsultationRepository
 import com.omastro.app.data.repository.WalletRepository
 import kotlinx.coroutines.flow.StateFlow
@@ -16,29 +15,42 @@ class GetAstrologersUseCase(private val repository: ConsultationRepository) {
         repository.getAstrologers(category)
 }
 
+/** Registers a chat session; returns the server-minted session UUID. */
 class OpenChatSessionUseCase(private val repository: ConsultationRepository) {
-    suspend operator fun invoke(astrologerId: String): Result<OpenChatResponse> =
-        repository.openChat(astrologerId)
+    suspend operator fun invoke(slug: String): Result<String> =
+        repository.openChat(slug)
 }
 
 class CloseChatSessionUseCase(private val repository: ConsultationRepository) {
-    suspend operator fun invoke(astrologerId: String, sessionId: String? = null): Result<Boolean> =
-        repository.closeChat(astrologerId, sessionId)
+    suspend operator fun invoke(sessionId: String): Result<Boolean> =
+        repository.closeChat(sessionId)
 }
 
+/** Opens/resumes billing; returns full session state (check insufficient flag). */
 class StartBillingSessionUseCase(private val repository: ConsultationRepository) {
-    suspend operator fun invoke(astrologerId: String): Result<String?> =
-        repository.startBillingSession(astrologerId)
+    suspend operator fun invoke(slug: String): Result<AstroSessionState> =
+        repository.startBillingSession(slug)
 }
 
+/** 30s heartbeat; returns updated session state. */
 class TickBillingSessionUseCase(private val repository: ConsultationRepository) {
-    suspend operator fun invoke(sessionUuid: String): Result<Boolean> =
+    suspend operator fun invoke(sessionUuid: String): Result<AstroSessionState> =
         repository.tickBillingSession(sessionUuid)
 }
 
+/** Final bill + close; returns final session state. */
 class EndBillingSessionUseCase(private val repository: ConsultationRepository) {
-    suspend operator fun invoke(sessionUuid: String): Result<Boolean> =
+    suspend operator fun invoke(sessionUuid: String): Result<AstroSessionState?> =
         repository.endBillingSession(sessionUuid)
+}
+
+class SubmitAstrologerReviewUseCase(private val repository: ConsultationRepository) {
+    suspend operator fun invoke(
+        slug: String,
+        stars: Int,
+        review: String,
+        sessionId: String
+    ): Result<Boolean> = repository.submitReview(slug, stars, review, sessionId)
 }
 
 class GetWalletBalanceUseCase(private val repository: WalletRepository) {
