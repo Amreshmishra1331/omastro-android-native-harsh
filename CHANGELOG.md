@@ -4,6 +4,26 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — FIX: Wallet balance (was 0) + Numerology welcome message
+
+### Broken / missing
+- **Wallet balance always 0**: `WalletRepository.coinBalance` was a `MutableStateFlow(0)` never updated from any API. No `/wallet/balance` endpoint existed on the server. Dashboard, Settings, and Wallet screens all displayed ₹0.00 regardless of actual balance.
+- **Numerology hub header mismatched website**: App showed "Vedic · Pythagorean · Chaldean / Complete Number Science / Twelve tools..." — the website's numerology section uses a simple "Numerology" header.
+
+### Removed
+- Hardcoded 0 wallet balance (replaced with live API data).
+- "Coins" terminology from WalletScreen balance display (now shows ₹ INR).
+- Overly elaborate numerology hub header text.
+
+### Added
+- **Server**: New `GET /omastro/v1/wallet/balance` endpoint (`kg_rest_wallet_balance` in rest-api.php) returning `paid_paise`, `bonus_paise`, `total_paise` and INR equivalents from `kg_get_wallet_balance()`.
+- **Android API**: `OmAstroApiService.getWalletBalance()`, `WalletBalanceData` and `WalletBalanceResponse` models.
+- **Android repo**: `WalletRepository.refreshBalance()` fetches live balance into `walletBalancePaise` / `walletBalanceInr` StateFlows.
+- **UI**: WalletScreen, DashboardScreen, and SettingsScreen now display the real INR balance (₹ formatted to 2 decimals). `HomeViewModel.loadData()` refreshes balance on startup; `WalletViewModel` refreshes on init.
+- **Numerology**: Hub header simplified to "Numerology" + "Discover what your numbers reveal about your life path, personality and destiny." matching the website's tone.
+
+---
+
 ## [2026-10-09] — FIX: Kundali input — place search, date/time pickers
 
 ### Broken / missing

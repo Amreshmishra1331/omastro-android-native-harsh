@@ -118,6 +118,9 @@ interface OmAstroApiService {
     ): Response<Map<String, Any>>
 
     // Wallet (real INR wallet)
+    @GET("wallet/balance")
+    suspend fun getWalletBalance(): Response<WalletBalanceResponse>
+
     @GET("wallet/transactions")
     suspend fun getWalletTransactions(
         @Query("limit") limit: Int = 20,

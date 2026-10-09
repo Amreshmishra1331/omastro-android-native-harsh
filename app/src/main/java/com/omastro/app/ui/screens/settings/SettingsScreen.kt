@@ -37,7 +37,7 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val authRepo = AppContainer.authRepository
     val user by authRepo.currentUser.collectAsState()
-    val walletBalance by AppContainer.walletRepository.coinBalance.collectAsState()
+    val walletBalanceInr by AppContainer.walletRepository.walletBalanceInr.collectAsState()
 
     var showDisclaimerDialog by remember { mutableStateOf(false) }
     var drawerDialog by remember { mutableStateOf<DrawerDialog?>(null) }
@@ -109,7 +109,7 @@ fun SettingsScreen(
                             if (user != null) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Wallet balance: ₹$walletBalance",
+                                    text = "Wallet balance: ₹${String.format("%.2f", walletBalanceInr)}",
                                     color = SacredGold,
                                     fontWeight = FontWeight.Medium,
                                     fontSize = 12.sp
@@ -147,7 +147,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.AccountBalanceWallet,
                         title = "Wallet Balance & Add Money",
-                        subtitle = "Current balance: ₹$walletBalance"
+                        subtitle = "Current balance: ₹${String.format("%.2f", walletBalanceInr)}"
                     )
                 }
             }

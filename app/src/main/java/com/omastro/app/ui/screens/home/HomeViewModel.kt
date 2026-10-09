@@ -17,6 +17,7 @@ class HomeViewModel : ViewModel() {
 
     val currentUser: StateFlow<UserProfile?> = AppContainer.authRepository.currentUser
     val coinBalance: StateFlow<Int> = AppContainer.walletRepository.coinBalance
+    val walletBalanceInr: StateFlow<Double> = AppContainer.walletRepository.walletBalanceInr
 
     private val _panchang = MutableStateFlow<PanchangResponse?>(null)
     val panchang: StateFlow<PanchangResponse?> = _panchang.asStateFlow()
@@ -35,6 +36,8 @@ class HomeViewModel : ViewModel() {
 
     fun loadData() {
         viewModelScope.launch {
+            AppContainer.walletRepository.refreshBalance()
+
             val panchangRes = getPanchangUseCase()
             panchangRes.onSuccess { _panchang.value = it }
 

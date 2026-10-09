@@ -14,8 +14,31 @@ class WalletRepository(
     private val _coinBalance = MutableStateFlow(0)
     val coinBalance: StateFlow<Int> = _coinBalance.asStateFlow()
 
+    // Real INR wallet balance (in paise, from /wallet/balance API)
+    private val _walletBalancePaise = MutableStateFlow(0)
+    val walletBalancePaise: StateFlow<Int> = _walletBalancePaise.asStateFlow()
+
+    private val _walletBalanceInr = MutableStateFlow(0.0)
+    val walletBalanceInr: StateFlow<Double> = _walletBalanceInr.asStateFlow()
+
     private val _transactions = MutableStateFlow<List<WalletTransaction>>(emptyList())
     val transactions: StateFlow<List<WalletTransaction>> = _transactions.asStateFlow()
+
+    suspend fun refreshBalance(): Result<Double> {
+        return try {
+            val res = api.getWalletBalance()
+            val body = res.body()
+            if (res.isSuccessful && body != null && body.success && body.data != null) {
+                _walletBalancePaise.value = body.data.totalPaise
+                _walletBalanceInr.value = body.data.totalInr
+                Result.success(body.data.totalInr)
+            } else {
+                Result.failure(IOException("Failed to load wallet balance: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     fun getRechargePacks(): List<RechargePack> {
         return listOf(

@@ -10,6 +10,21 @@ data class WalletTransaction(
     @SerializedName("date") val date: String
 )
 
+data class WalletBalanceData(
+    @SerializedName("paid_paise") val paidPaise: Int = 0,
+    @SerializedName("bonus_paise") val bonusPaise: Int = 0,
+    @SerializedName("total_paise") val totalPaise: Int = 0,
+    @SerializedName("paid_inr") val paidInr: Double = 0.0,
+    @SerializedName("bonus_inr") val bonusInr: Double = 0.0,
+    @SerializedName("total_inr") val totalInr: Double = 0.0
+)
+
+data class WalletBalanceResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: WalletBalanceData? = null,
+    @SerializedName("message") val message: String? = null
+)
+
 data class RechargePack(
     val id: String,
     val coins: Int,

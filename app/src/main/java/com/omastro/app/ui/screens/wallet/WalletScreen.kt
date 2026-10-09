@@ -32,6 +32,7 @@ fun WalletScreen(
     viewModel: WalletViewModel = viewModel()
 ) {
     val coinBalance by viewModel.coinBalance.collectAsState()
+    val walletBalanceInr by viewModel.walletBalanceInr.collectAsState()
     val transactions by viewModel.transactions.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val message by viewModel.message.collectAsState()
@@ -128,7 +129,7 @@ fun WalletScreen(
                             CircularProgressIndicator(color = SacredGold, modifier = Modifier.size(36.dp))
                         } else {
                             Text(
-                                text = "$coinBalance Coins",
+                                text = "₹${String.format("%.2f", walletBalanceInr)}",
                                 color = SacredGold,
                                 fontSize = 34.sp,
                                 fontWeight = FontWeight.Bold

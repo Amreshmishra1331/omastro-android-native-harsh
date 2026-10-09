@@ -43,7 +43,7 @@ fun DashboardScreen(
     onMenuClick: (() -> Unit)? = null
 ) {
     val user by viewModel.currentUser.collectAsState()
-    val walletBalance by viewModel.coinBalance.collectAsState()
+    val walletBalanceInr by viewModel.walletBalanceInr.collectAsState()
     val panchang by viewModel.panchang.collectAsState()
     val astrologers by viewModel.astrologers.collectAsState()
     val mantra by viewModel.dailyMantra.collectAsState()
@@ -107,7 +107,7 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "₹$walletBalance",
+                            text = "₹${String.format("%.2f", walletBalanceInr)}",
                             color = SacredGold,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp

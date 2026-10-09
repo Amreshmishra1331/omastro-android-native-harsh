@@ -27,6 +27,7 @@ class WalletViewModel : ViewModel() {
     private val rechargeCoinsUseCase = AppContainer.rechargeCoinsUseCase
 
     val coinBalance: StateFlow<Int> = walletRepo.coinBalance
+    val walletBalanceInr: StateFlow<Double> = walletRepo.walletBalanceInr
     val transactions: StateFlow<List<WalletTransaction>> = walletRepo.transactions
 
     val rechargePacks: List<RechargePack> = walletRepo.getRechargePacks()
@@ -36,6 +37,16 @@ class WalletViewModel : ViewModel() {
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    init {
+        refreshBalance()
+    }
+
+    fun refreshBalance() {
+        viewModelScope.launch {
+            walletRepo.refreshBalance()
+        }
+    }
 
     /**
      * A freshly issued order awaiting payment, together with the pack being

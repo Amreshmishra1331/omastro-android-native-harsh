@@ -56,21 +56,14 @@ fun NumerologyScreen(
             item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
                 Column {
                     Text(
-                        text = "Vedic · Pythagorean · Chaldean",
-                        color = SacredGoldLight,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Complete Number Science",
+                        text = "Numerology",
                         color = Color.White,
-                        fontSize = 20.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Twelve tools — from your core numbers to name correction and lucky timing.",
+                        text = "Discover what your numbers reveal about your life path, personality and destiny.",
                         color = TextSecondary,
                         fontSize = 13.sp
                     )
