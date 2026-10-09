@@ -153,6 +153,18 @@ interface OmAstroApiService {
         @Body request: Map<String, String>
     ): Response<Map<String, Any>>
 
+    // Numerology compatibility (two-person number matching)
+    @POST("numerology/compatibility")
+    suspend fun getNumerologyCompatibility(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    // Numerology name check (expression / soul urge / personality numbers)
+    @POST("numerology/name-check")
+    suspend fun getNumerologyNameCheck(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
+
     // Geocode place search (city autocomplete for birth places)
     @POST("geocode/search")
     suspend fun searchPlaces(

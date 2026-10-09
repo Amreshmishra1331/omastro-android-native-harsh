@@ -19,6 +19,9 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     object AstroHealth : Screen("astro_health", "Astro Health", Icons.Default.HealthAndSafety)
     object Numerology : Screen("numerology", "Numerology", Icons.Default.Calculate)
+    object NumerologyTool : Screen("numerology_tool/{toolId}", "Numerology Tool") {
+        fun createRoute(toolId: String) = "numerology_tool/$toolId"
+    }
     object SavedCharts : Screen("saved_charts", "Saved Charts", Icons.Default.Bookmarks)
     object Gochar : Screen("gochar", "Gochar", Icons.Default.Public)
     object Muhurat : Screen("muhurat", "Muhurat", Icons.Default.Schedule)

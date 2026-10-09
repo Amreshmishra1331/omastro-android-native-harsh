@@ -160,6 +160,19 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.Numerology.route) {
                             com.omastro.app.ui.screens.numerology.NumerologyScreen(
+                                onBack = { navController.popBackStack() },
+                                onToolSelected = { toolId ->
+                                    navController.navigate(Screen.NumerologyTool.createRoute(toolId))
+                                }
+                            )
+                        }
+                        composable(
+                            route = Screen.NumerologyTool.route,
+                            arguments = listOf(navArgument("toolId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val toolId = backStackEntry.arguments?.getString("toolId") ?: "moolank"
+                            com.omastro.app.ui.screens.numerology.NumerologyToolScreen(
+                                toolId = toolId,
                                 onBack = { navController.popBackStack() }
                             )
                         }

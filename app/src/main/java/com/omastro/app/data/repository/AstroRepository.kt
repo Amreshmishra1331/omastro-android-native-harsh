@@ -136,6 +136,34 @@ class AstroRepository(
         }
     }
 
+    suspend fun getNumerologyCompatibility(params: Map<String, String>): Result<Map<String, Any>> {
+        return try {
+            val res = api.getNumerologyCompatibility(params)
+            val body = res.body()
+            if (res.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                Result.failure(IOException("Compatibility request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getNumerologyNameCheck(params: Map<String, String>): Result<Map<String, Any>> {
+        return try {
+            val res = api.getNumerologyNameCheck(params)
+            val body = res.body()
+            if (res.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                Result.failure(IOException("Name check request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getBnnAnalysis(request: KundaliRequest): Result<Map<String, Any>> {
         return try {
             val res = api.getBnnAnalysis(request)

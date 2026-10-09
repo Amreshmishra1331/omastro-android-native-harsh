@@ -4,6 +4,27 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — NEW: Numerology Suite (12 Tools, matching omastroai.com)
+
+### Missing feature — full numerology suite
+**What was missing:** The app had a single basic numerology profile screen (name + DOB → one analysis text). The website offers 12 distinct numerology tools. 11 of 12 were absent.
+**API contracts (verified live 2026-10-09 against production):**
+- `POST /wp-json/omastro/v1/numerology` with `{name, dob}` → `{"success":true,"data":{"analysis_text", ...}}` (Moolank, Bhagyank, Success Number, karmic debts, missing numbers + full profile text)
+- `POST /wp-json/omastro/v1/numerology/compatibility` with `{name1,dob1,name2,dob2}` → `{"success":true,"data":{"score", "analysis_text"}}`
+- `POST /wp-json/omastro/v1/numerology/name-check` with `{name, dob}` → `{"success":true,"data":{"expression","soul","personality","chaldean","analysis_text"}}`
+**Removed:** Old single-screen `NumerologyScreen.kt` + `NumerologyViewModel.kt` (basic profile only).
+**Added:**
+- `OmAstroApiService.getNumerologyCompatibility()` + `getNumerologyNameCheck()`; `AstroRepository` wrappers with honest error propagation
+- `ui/screens/numerology/NumerologyTools.kt`: pure deterministic computations (digital-root reduction preserving master numbers 11/22, Moolank, Bhagyank, Success Number, karmic-debt detection 13/14/16/19, Lo Shu 3x3 grid + 8 arrows, Personal Year/Month/Day, Kua number + East/West group lucky directions, lucky weekdays, Vedic planet rulers, gem/color/day/mantra remedies per planet, mobile-number compatibility scoring, pinnacles)
+- `NumerologyTool.kt`: 12-tool registry (Moolank & Life Path, Lo Shu Grid, Name Numerology, Time Cycles, Karmic Debt, Compatibility, Gems & Remedies, Lucky Calendar, Mobile/Lucky Number, Name Correction, Kua Number, Planetary Numbers) in website order
+- `NumerologyHubScreen.kt`: 2-column tool-card grid entry screen ("Vedic · Pythagorean · Chaldean — Complete Number Science")
+- `NumerologyToolViewModel.kt`: per-tool input state (name/DOB/second person/phone/gender), validation, dispatches to real APIs (compatibility, name-check) or client-side computation; structured `ToolResult` (sections/lines) with honest error states
+- `NumerologyToolScreen.kt`: generic tool screen — dynamic input form per tool (only the fields each tool needs), loading spinner, structured result cards (highlighted key numbers), error card with Retry
+- `Screen.NumerologyTool("numerology_tool/{toolId}")` route + `MainActivity` composable with `toolId` nav argument
+- No emojis anywhere; no fabricated values — API tools show server data, computed tools show deterministic derivations from the user's real inputs with honest empty states
+
+---
+
 ## [2026-10-09] — NEW: Muhurat Screen (Shubh Muhurat Finder)
 
 ### Missing feature added — real POST /muhurat wiring
