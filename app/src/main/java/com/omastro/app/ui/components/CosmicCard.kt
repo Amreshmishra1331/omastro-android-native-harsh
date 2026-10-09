@@ -105,7 +105,7 @@ fun AstrologyHeader(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "$coinBalance 🪙",
+                    text = "$coinBalance",
                     color = SacredGoldLight,
                     fontSize = 13.sp
                 )

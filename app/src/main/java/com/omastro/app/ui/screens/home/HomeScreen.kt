@@ -65,7 +65,7 @@ fun HomeScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Namaste, ${user?.name ?: "Seeker"} 🙏",
+                            text = "Namaste, ${user?.name ?: "Seeker"}",
                             style = MaterialTheme.typography.titleLarge,
                             color = SacredGoldLight
                         )

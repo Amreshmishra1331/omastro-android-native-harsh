@@ -67,9 +67,9 @@ fun PanchangScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
-                            TimingColumn("🌅 Sunrise", panchang?.sunrise ?: "06:18 AM")
-                            TimingColumn("🌇 Sunset", panchang?.sunset ?: "06:22 PM")
-                            TimingColumn("🌙 Moonrise", panchang?.moonrise ?: "08:45 PM")
+                            TimingColumn("Sunrise", panchang?.sunrise ?: "06:18 AM")
+                            TimingColumn("Sunset", panchang?.sunset ?: "06:22 PM")
+                            TimingColumn("Moonrise", panchang?.moonrise ?: "08:45 PM")
                         }
                     }
                 }

@@ -116,7 +116,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🪙", fontSize = 20.sp)
+                            Text("Coins", fontSize = 14.sp)
                             Spacer(modifier = Modifier.width(12.dp))
                             Text("Recharge & Coin Balance", color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                         }

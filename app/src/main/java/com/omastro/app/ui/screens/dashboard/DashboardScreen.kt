@@ -80,8 +80,6 @@ fun DashboardScreen(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🪙", fontSize = 14.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "$coins Coins",
                             color = SacredGold,
@@ -211,8 +209,6 @@ fun DashboardScreen(
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "🕉️", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "DAILY MAHAMANTRA",
                             color = RadiantAmber,
@@ -338,7 +334,7 @@ private fun AstrologerMiniCard(
                     .background(CosmicNavy),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "🧘", fontSize = 22.sp)
+                Icon(Icons.Filled.Person, contentDescription = null, tint = SacredGold, modifier = Modifier.size(22.dp))
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(

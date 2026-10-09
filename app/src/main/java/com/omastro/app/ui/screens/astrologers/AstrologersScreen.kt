@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,7 +86,7 @@ private fun AstrologerListItem(
                         .background(CosmicNavy),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "🧘", fontSize = 28.sp)
+                    Icon(Icons.Filled.Person, contentDescription = "Astrologer", tint = SacredGold, modifier = Modifier.size(28.dp))
                 }
                 if (astro.isOnline) {
                     Box(
