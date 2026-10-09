@@ -4,6 +4,22 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — NEW: Gochar (Planetary Transits) Screen
+
+### Entire feature was missing from the app
+**What was missing:** Website has `/gochar` and `/transit` endpoints for planetary transit analysis; the app had zero Gochar presence. The Dashboard "Transits" service tile navigated to the Rashifal screen (`Screen.Horoscope`) as a placeholder — wrong destination.
+**Removed:** Nothing (pure addition, except fixing the Dashboard tile destination).
+**Added:**
+- API: `POST("gochar")` in `OmAstroApiService` + `GocharRequest` (birth details: name, dob, tob, pob, lat, lon, gender + `transit_date`) and `GocharResponse` (defensive `success/message/data` envelope; `data` kept as `Map<String, Any>` since the transit payload shape is rich and evolving)
+- Repository: `AstroRepository.getGochar()` with honest HTTP/error propagation
+- UseCase: `GetGocharUseCase`, registered in `AppContainer` as `getGocharUseCase`
+- `GocharViewModel`: birth-detail + transit-date form state, `calculate()` invoking the use case, loading/error/result StateFlows, `todayString()` default transit date, `clearResult()`
+- `GocharScreen` (`ui/screens/gochar/`): birth form (name, DOB, time, `PlaceSearchField` birth-place autocomplete with lat/lon auto-fill + manual fallback, gender FilterChips, transit date field); empty state card explaining the feature; loading ("Calculating transits..."); honest error state ("Transit Analysis Unavailable" + Retry); results with Sade Sati section (when `sade_sati`/`sadesati` key present), per-planet transit cards with Jyotish glyphs (☉ ☽ ♂ ☿ ♃ ♀ ♄ ☊ ☋) when a planets/transits list is present, timeline section, summary prose, and a defensive key-value renderer for any remaining payload keys — renders only keys actually present, never invented values; "Analyze Another Date" reset button
+- Navigation: `Screen.Gochar("gochar", "Gochar")` route + composable in `MainActivity`; Dashboard "Transits" tile now routes to `Screen.Gochar`
+- No emojis anywhere; professional Jyotish glyphs only
+
+---
+
 ## [2026-10-09] — Rashifal Screen Redesign to Match omastroai.com/rashifal/
 
 ### Rashifal models rebuilt to match the REAL POST /rashifal response

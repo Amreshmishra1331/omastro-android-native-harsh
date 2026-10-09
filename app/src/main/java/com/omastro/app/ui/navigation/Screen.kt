@@ -20,6 +20,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object AstroHealth : Screen("astro_health", "Astro Health", Icons.Default.HealthAndSafety)
     object Numerology : Screen("numerology", "Numerology", Icons.Default.Calculate)
     object SavedCharts : Screen("saved_charts", "Saved Charts", Icons.Default.Bookmarks)
+    object Gochar : Screen("gochar", "Gochar", Icons.Default.Public)
     object Auth : Screen("auth", "Sign In")
 }
 

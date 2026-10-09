@@ -45,11 +45,17 @@ interface OmAstroApiService {
         @Body request: Map<String, String>
     ): Response<RashifalEnvelope>
 
-    // Panchang
+    // Panchang (real contract: {"success":true,"data":{"core_data":{...},"analysis_text":"..."}})
     @POST("panchang")
     suspend fun getPanchang(
         @Body request: Map<String, String>
-    ): Response<PanchangResponse>
+    ): Response<PanchangEnvelope>
+
+    // Hora — planetary hours (real contract: {"success":true,"data":{"day":[...],"night":[...]}})
+    @POST("hora")
+    suspend fun getHora(
+        @Body request: Map<String, String>
+    ): Response<HoraEnvelope>
 
     // Matchmaking (Kundali Milan)
     @POST("matching")

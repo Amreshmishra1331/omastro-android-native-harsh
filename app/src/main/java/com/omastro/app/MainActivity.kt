@@ -158,6 +158,11 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() }
                             )
                         }
+                        composable(Screen.Gochar.route) {
+                            com.omastro.app.ui.screens.gochar.GocharScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
                         composable(Screen.Auth.route) {
                             AuthScreen(
                                 onLoginSuccess = {
