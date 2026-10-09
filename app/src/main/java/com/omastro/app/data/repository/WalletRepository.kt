@@ -6,19 +6,15 @@ import com.omastro.app.data.remote.OmAstroApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.IOException
 
 class WalletRepository(
     private val api: OmAstroApiService = ApiClient.apiService
 ) {
-    private val _coinBalance = MutableStateFlow(500)
+    private val _coinBalance = MutableStateFlow(0)
     val coinBalance: StateFlow<Int> = _coinBalance.asStateFlow()
 
-    private val _transactions = MutableStateFlow<List<WalletTransaction>>(
-        listOf(
-            WalletTransaction("tx_1", "credit", 500, "Welcome Divine Gift Coins", "08 Oct 2026"),
-            WalletTransaction("tx_2", "debit", 50, "Detailed Kundali D9 Calculation", "08 Oct 2026")
-        )
-    )
+    private val _transactions = MutableStateFlow<List<WalletTransaction>>(emptyList())
     val transactions: StateFlow<List<WalletTransaction>> = _transactions.asStateFlow()
 
     fun getRechargePacks(): List<RechargePack> {
@@ -31,82 +27,51 @@ class WalletRepository(
         )
     }
 
-    suspend fun createOrder(pack: RechargePack): Result<RazorpayOrderResponse> {
+    suspend fun getTransactions(limit: Int = 20, offset: Int = 0): Result<List<WalletTransaction>> {
         return try {
-            val res = api.createRechargeOrder(RazorpayOrderRequest(pack.id, pack.priceInr))
-            if (res.isSuccessful && res.body() != null) {
-                Result.success(res.body()!!)
+            val res = api.getWalletTransactions(limit, offset)
+            val body = res.body()
+            if (res.isSuccessful && body != null) {
+                _transactions.value = body
+                Result.success(body)
             } else {
-                // Mock order for testing / sandbox Razorpay
-                Result.success(
-                    RazorpayOrderResponse(
-                        orderId = "order_omastro_${System.currentTimeMillis()}",
-                        amount = (pack.priceInr * 100).toInt(),
-                        currency = "INR",
-                        keyId = "rzp_test_OmAstroLive2026"
-                    )
-                )
+                Result.failure(IOException("Failed to load transactions: HTTP ${res.code()}"))
             }
         } catch (e: Exception) {
-            Result.success(
-                RazorpayOrderResponse(
-                    orderId = "order_omastro_${System.currentTimeMillis()}",
-                    amount = (pack.priceInr * 100).toInt(),
-                    currency = "INR",
-                    keyId = "rzp_test_OmAstroLive2026"
-                )
-            )
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createOrder(pack: RechargePack): Result<TopupOrderResponse> {
+        return try {
+            val amountPaise = (pack.priceInr * 100).toInt()
+            val res = api.createTopupOrder(TopupOrderRequest(amountPaise))
+            val body = res.body()
+            if (res.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                Result.failure(IOException("Failed to create top-up order: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
     suspend fun verifyPayment(
         orderId: String,
         paymentId: String,
-        signature: String,
-        pack: RechargePack
-    ): Result<PaymentVerifyResponse> {
+        signature: String
+    ): Result<TopupVerifyResponse> {
         return try {
-            val res = api.verifyPayment(PaymentVerifyRequest(orderId, paymentId, signature, pack.id))
-            if (res.isSuccessful && res.body() != null) {
-                val data = res.body()!!
-                _coinBalance.value = data.newBalance
-                Result.success(data)
+            val res = api.verifyTopup(TopupVerifyRequest(orderId, paymentId, signature))
+            val body = res.body()
+            if (res.isSuccessful && body != null && body.success) {
+                Result.success(body)
             } else {
-                creditRecharge(pack)
-                Result.success(
-                    PaymentVerifyResponse(
-                        success = true,
-                        newBalance = _coinBalance.value,
-                        message = "Recharge of ${pack.coins + pack.bonusCoins} Coins Successful!"
-                    )
-                )
+                Result.failure(IOException("Payment verification failed: HTTP ${res.code()}"))
             }
         } catch (e: Exception) {
-            creditRecharge(pack)
-            Result.success(
-                PaymentVerifyResponse(
-                    success = true,
-                    newBalance = _coinBalance.value,
-                    message = "Recharge of ${pack.coins + pack.bonusCoins} Coins Successful!"
-                )
-            )
+            Result.failure(e)
         }
-    }
-
-    private fun creditRecharge(pack: RechargePack) {
-        val totalAdded = pack.coins + pack.bonusCoins
-        val newBal = _coinBalance.value + totalAdded
-        _coinBalance.value = newBal
-
-        val newTx = WalletTransaction(
-            id = "tx_${System.currentTimeMillis()}",
-            type = "credit",
-            amount = totalAdded,
-            description = "Coin Recharge (${pack.id})",
-            date = "Today"
-        )
-        val list = _transactions.value.toMutableList()
-        list.add(0, newTx)
-        _transactions.value = list
     }
 }

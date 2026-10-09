@@ -6,83 +6,62 @@ import com.omastro.app.data.remote.OmAstroApiService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.IOException
 
 class AuthRepository(
     private val api: OmAstroApiService = ApiClient.apiService
 ) {
-    private val _currentUser = MutableStateFlow<UserProfile?>(UserProfile(id = 108, name = "Astro Seeker", coinBalance = 500))
+    private val _currentUser = MutableStateFlow<UserProfile?>(null)
     val currentUser: StateFlow<UserProfile?> = _currentUser.asStateFlow()
 
-    private val _authConfig = MutableStateFlow(AuthConfigResponse())
-    val authConfig: StateFlow<AuthConfigResponse> = _authConfig.asStateFlow()
-
-    suspend fun fetchAuthConfig(): Result<AuthConfigResponse> {
+    suspend fun login(email: String, password: String): Result<LoginResponse> {
         return try {
-            val response = api.getAuthConfig()
-            if (response.isSuccessful && response.body() != null) {
-                val config = response.body()!!
-                _authConfig.value = config
-                Result.success(config)
+            val response = api.login(LoginRequest(email, password))
+            val body = response.body()
+            if (response.isSuccessful && body != null && body.token != null) {
+                ApiClient.setAuthToken(body.token)
+                body.user?.let { _currentUser.value = it }
+                Result.success(body)
             } else {
-                // Fallback default config if backend is initializing
-                val default = AuthConfigResponse(
-                    success = true,
-                    loginMethod = "both",
-                    phoneOtpChannels = listOf("sms", "whatsapp"),
-                    otpLength = 6,
-                    otpExpirySeconds = 300,
-                    whatsappSupportEnabled = true,
-                    googleAuthEnabled = true
-                )
-                _authConfig.value = default
-                Result.success(default)
+                Result.failure(IOException("Login failed: HTTP ${response.code()}"))
             }
         } catch (e: Exception) {
-            val fallback = AuthConfigResponse()
-            _authConfig.value = fallback
-            Result.success(fallback)
+            Result.failure(e)
         }
     }
 
-    suspend fun sendOtp(destination: String, channel: String): Result<SendOtpResponse> {
+    suspend fun register(
+        name: String,
+        email: String,
+        password: String,
+        mobile: String? = null
+    ): Result<RegisterResponse> {
         return try {
-            val response = api.sendOtp(SendOtpRequest(destination, channel))
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            val response = api.register(RegisterRequest(name, email, password, mobile))
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                Result.success(body)
             } else {
-                Result.success(SendOtpResponse(success = true, message = "OTP sent successfully to $destination via $channel"))
+                Result.failure(IOException("Registration failed: HTTP ${response.code()}"))
             }
         } catch (e: Exception) {
-            Result.success(SendOtpResponse(success = true, message = "Demo OTP (654321) sent to $destination"))
+            Result.failure(e)
         }
     }
 
-    suspend fun verifyOtp(destination: String, otp: String, channel: String): Result<VerifyOtpResponse> {
+    suspend fun verifySignupOtp(email: String, otp: String): Result<VerifySignupOtpResponse> {
         return try {
-            val response = api.verifyOtp(VerifyOtpRequest(destination, otp, channel))
-            if (response.isSuccessful && response.body() != null) {
-                val res = response.body()!!
-                if (res.token != null) {
-                    ApiClient.setAuthToken(res.token)
-                }
-                res.user?.let { _currentUser.value = it }
-                Result.success(res)
+            val response = api.verifySignupOtp(VerifySignupOtpRequest(email, otp))
+            val body = response.body()
+            if (response.isSuccessful && body != null && body.token != null) {
+                ApiClient.setAuthToken(body.token)
+                body.user?.let { _currentUser.value = it }
+                Result.success(body)
             } else {
-                val mockUser = UserProfile(
-                    id = 108,
-                    name = "Vedic Seeker",
-                    email = if (destination.contains("@")) destination else null,
-                    phone = if (!destination.contains("@")) destination else null,
-                    coinBalance = 500
-                )
-                _currentUser.value = mockUser
-                ApiClient.setAuthToken("demo_jwt_token_omastro_ai")
-                Result.success(VerifyOtpResponse(success = true, token = "demo_jwt_token", user = mockUser, message = "Logged in successfully"))
+                Result.failure(IOException("OTP verification failed: HTTP ${response.code()}"))
             }
         } catch (e: Exception) {
-            val mockUser = UserProfile(id = 108, name = "Vedic Seeker", coinBalance = 500)
-            _currentUser.value = mockUser
-            Result.success(VerifyOtpResponse(success = true, token = "demo_jwt_token", user = mockUser, message = "Welcome to OmAstro AI"))
+            Result.failure(e)
         }
     }
 
