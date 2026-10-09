@@ -4,6 +4,36 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — FIX: Google Sign-In broken + Auth UI matched to Flutter exactly
+
+### Broken / missing
+- **Google Sign-In was broken at runtime**: tapping "Sign in with Google" showed the inline error "getCredentialAsync no provider dependencies found - please ensure the desired provider dependencies are added". Root cause: Credential Manager's Google ID provider (`androidx.credentials` + `googleid`) requires a Play Services build that ships the Credential Manager provider; devices/emulators without it (including the Appetize test device) throw this error even though the Gradle dependencies were present.
+- **Auth UI did not match the Flutter app** (user sent the Flutter screenshot): ours had the ॐ maroon logo, "Email"-only field, no Remember Password checkbox, no Terms checkbox on login, "or continue with email" divider, and the Google button above the login button. Flutter has: sparkle icon in a light-orange square, "OmAstro AI" in orange, "Sign In"/"Create Account" tabs, "Email or Mobile Number" field, Remember Password + Forgot Password row, Terms & Conditions checkbox, "Log In" button, "OR" divider, Google button after the login button, "Don't have an account? Create Account" footer.
+
+### Removed
+- Credential Manager Google Sign-In stack: `GoogleSignInHelper.signIn()` (suspend, Credential Manager based), `GetGoogleIdOption` usage, and the three Gradle artifacts `androidx.credentials:credentials`, `androidx.credentials:credentials-play-services-auth`, `com.google.android.libraries.identity.googleid:googleid`.
+- Old auth styling: ॐ maroon-square brand header, cream page background, outlined white input fields, orange-pill tabs ("Sign Up"), "or continue with email" divider text, per-form "Welcome Back"/"Create Account" titles, "Secure Vedic astrology guidance" tagline.
+
+### Added
+- **Working Google Sign-In** via classic `play-services-auth` (`com.google.android.gms:play-services-auth:21.2.0`):
+  - `GoogleSignInHelper.getClient(context)` builds `GoogleSignInOptions` with `requestIdToken(GOOGLE_SERVER_CLIENT_ID)` + `requestEmail`; `GoogleSignInHelper.parseResult(intent)` extracts the ID token from the account-picker result (never throws; maps status 12501 to Cancelled).
+  - `AuthScreen` registers a `rememberLauncherForActivityResult(StartActivityForResult())`; on tap it calls `client.signOut()` first (so the account chooser always appears) then launches `client.signInIntent`. Success → `AuthViewModel.signInWithGoogle(idToken)` → POST /auth/firebase as before.
+- **Flutter-exact auth UI** (`AuthScreen.kt`):
+  - Light-gray page (#F4F5F7), white 24dp card with soft shadow; sparkle (`AutoAwesome`) icon in a light-orange rounded square, "OmAstro AI" in Flutter orange (#FF6B00), per-mode subtitle ("Welcome Back! Please log in to continue." etc.).
+  - Tabs "Sign In" / "Create Account" on a light-gray pill; active tab is a white elevated pill with orange text.
+  - Filled (borderless) light-gray input fields with orange leading icons: "Email or Mobile Number" (person icon), "Password" (lock icon + eye toggle); signup adds Full Name, Email, Mobile (+91), Password + strength meter, Confirm Password.
+  - Login: "Remember Password" orange checkbox (checked by default) + "Forgot Password?" orange link on the right; "I agree to the Terms & Conditions and Privacy Policy" orange checkbox with orange underlined links opening real Terms/Privacy dialogs.
+  - Orange "Log In" / "Create Account" buttons, "OR" divider, white Google button with the Canvas-drawn G mark placed AFTER the primary button, footer links ("Don't have an account? Create Account" / "Already have an account? Sign In").
+- **Backend wiring for the new fields**:
+  - `LoginRequest` gains `remember: Boolean` (server issues a 90-day token when true, 60-day otherwise — verified live against production `kg_rest_auth_login`).
+  - `AuthViewModel`: `rememberPassword` (default true) and `termsAccepted` (default true) state; `login()` now accepts a valid email OR a 10-digit mobile number (backend resolves either via its `email`/`identifier`/`mobile` params) and requires the terms checkbox.
+  - `AuthRepository.login()` and `LoginUseCase` accept the `remember` flag (default false, existing callers unaffected).
+
+### Verification note
+- Brace/paren balance verified on all touched files; no references remain to the removed `Light*` palette names or Credential Manager APIs. Awaiting CI build.
+
+---
+
 ## [2026-10-09] — NEW: Sign in with Google + Flutter-style Light Auth Theme
 
 ### Missing

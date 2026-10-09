@@ -28,7 +28,12 @@ object OtpChannels {
 
 data class LoginRequest(
     @SerializedName("email") val email: String,
-    @SerializedName("password") val password: String
+    @SerializedName("password") val password: String,
+    /**
+     * "Remember Password" checkbox (Flutter login). When true the server
+     * issues a 90-day token instead of the default 60-day token.
+     */
+    @SerializedName("remember") val remember: Boolean = false
 )
 
 data class LoginResponse(

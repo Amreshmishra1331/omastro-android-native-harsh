@@ -111,10 +111,12 @@ dependencies {
     // Firebase Cloud Messaging
     implementation("com.google.firebase:firebase-messaging-ktx:23.4.1")
 
-    // Google Sign-In via Credential Manager (Sign in with Google button)
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    // Google Sign-In via classic play-services-auth (Sign in with Google button).
+    // NOTE: Credential Manager (androidx.credentials + googleid) was removed:
+    // its Google ID provider throws "getCredentialAsync no provider dependencies
+    // found" on devices/emulators whose Play Services lacks the provider. The
+    // classic GoogleSignInClient flow below works on all Play-Services devices.
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     // Razorpay Standard SDK
     implementation("com.razorpay:checkout:1.6.33")

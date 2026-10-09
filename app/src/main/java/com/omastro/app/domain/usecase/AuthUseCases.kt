@@ -7,8 +7,8 @@ import com.omastro.app.data.model.VerifySignupOtpResponse
 import com.omastro.app.data.repository.AuthRepository
 
 class LoginUseCase(private val repository: AuthRepository) {
-    suspend operator fun invoke(email: String, password: String): Result<LoginResponse> =
-        repository.login(email, password)
+    suspend operator fun invoke(email: String, password: String, remember: Boolean = false): Result<LoginResponse> =
+        repository.login(email, password, remember)
 }
 
 class RegisterUseCase(private val repository: AuthRepository) {

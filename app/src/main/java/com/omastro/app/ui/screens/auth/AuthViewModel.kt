@@ -47,6 +47,20 @@ class AuthViewModel : ViewModel() {
     private val _loginPassword = MutableStateFlow("")
     val loginPassword: StateFlow<String> = _loginPassword.asStateFlow()
 
+    /**
+     * Flutter login "Remember Password" checkbox. Checked by default; when
+     * true the server issues a 90-day token (60-day default otherwise).
+     */
+    private val _rememberPassword = MutableStateFlow(true)
+    val rememberPassword: StateFlow<Boolean> = _rememberPassword.asStateFlow()
+
+    /**
+     * Flutter "I agree to the Terms & Conditions and Privacy Policy" checkbox.
+     * Checked by default; login/signup require it to be checked.
+     */
+    private val _termsAccepted = MutableStateFlow(true)
+    val termsAccepted: StateFlow<Boolean> = _termsAccepted.asStateFlow()
+
     // --- Signup fields ---
     private val _signupName = MutableStateFlow("")
     val signupName: StateFlow<String> = _signupName.asStateFlow()
@@ -98,6 +112,8 @@ class AuthViewModel : ViewModel() {
 
     fun setLoginEmail(v: String) { _loginEmail.value = v; clearMessages() }
     fun setLoginPassword(v: String) { _loginPassword.value = v; clearMessages() }
+    fun setRememberPassword(v: Boolean) { _rememberPassword.value = v; clearMessages() }
+    fun setTermsAccepted(v: Boolean) { _termsAccepted.value = v; clearMessages() }
     fun setSignupName(v: String) { _signupName.value = v; clearMessages() }
     fun setSignupEmail(v: String) { _signupEmail.value = v; clearMessages() }
     fun setSignupMobile(v: String) { _signupMobile.value = v.filter { it.isDigit() }.take(10); clearMessages() }
@@ -133,26 +149,41 @@ class AuthViewModel : ViewModel() {
     private fun isValidEmail(email: String): Boolean =
         email.isNotBlank() && Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
 
+    /**
+     * Flutter login accepts "Email or Mobile Number": a valid email address
+     * or a 10-digit mobile number. The backend /auth/login resolves either
+     * via its `email`/`identifier`/`mobile` params.
+     */
+    private fun isValidIdentifier(identifier: String): Boolean {
+        val t = identifier.trim()
+        return Patterns.EMAIL_ADDRESS.matcher(t).matches() ||
+            (t.all { it.isDigit() } && t.length == 10)
+    }
+
     private fun isValidMobile(mobile: String): Boolean =
         mobile.isBlank() || (mobile.length == 10 && mobile.all { it.isDigit() })
 
     // ---------- actions ----------
 
     fun login() {
-        val email = _loginEmail.value.trim()
+        val identifier = _loginEmail.value.trim()
         val password = _loginPassword.value
-        if (!isValidEmail(email)) {
-            _errorMessage.value = "Please enter a valid email address."
+        if (!isValidIdentifier(identifier)) {
+            _errorMessage.value = "Please enter a valid email address or 10-digit mobile number."
             return
         }
         if (password.isBlank()) {
             _errorMessage.value = "Please enter your password."
             return
         }
+        if (!_termsAccepted.value) {
+            _errorMessage.value = "Please accept the Terms & Conditions and Privacy Policy to continue."
+            return
+        }
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-            authRepository.login(email, password)
+            authRepository.login(identifier, password, _rememberPassword.value)
                 .onSuccess { response: com.omastro.app.data.model.LoginResponse ->
                     val token = response.token
                     if (!token.isNullOrBlank()) {
@@ -194,6 +225,10 @@ class AuthViewModel : ViewModel() {
         }
         if (password != confirm) {
             _errorMessage.value = "Passwords do not match."
+            return
+        }
+        if (!_termsAccepted.value) {
+            _errorMessage.value = "Please accept the Terms & Conditions and Privacy Policy to continue."
             return
         }
         viewModelScope.launch {
@@ -282,8 +317,9 @@ class AuthViewModel : ViewModel() {
     }
 
     /**
-     * Google Sign-In: called with the Google ID token obtained via Credential
-     * Manager. Posts it to POST /auth/firebase and completes login on success.
+     * Google Sign-In: called with the Google ID token obtained via the classic
+     * GoogleSignInClient account picker. Posts it to POST /auth/firebase and
+     * completes login on success.
      */
     fun signInWithGoogle(idToken: String) {
         if (idToken.isBlank()) {

@@ -14,9 +14,9 @@ class AuthRepository(
     private val _currentUser = MutableStateFlow<UserProfile?>(null)
     val currentUser: StateFlow<UserProfile?> = _currentUser.asStateFlow()
 
-    suspend fun login(email: String, password: String): Result<LoginResponse> {
+    suspend fun login(email: String, password: String, remember: Boolean = false): Result<LoginResponse> {
         return try {
-            val response = api.login(LoginRequest(email, password))
+            val response = api.login(LoginRequest(email, password, remember))
             val body = response.body()
             if (response.isSuccessful && body != null && body.token != null) {
                 ApiClient.setAuthToken(body.token)

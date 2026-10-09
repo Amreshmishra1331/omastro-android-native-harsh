@@ -1,16 +1,15 @@
 package com.omastro.app.ui.screens.auth
 
 import android.content.Context
-import androidx.credentials.CredentialManager
-import androidx.credentials.CustomCredential
-import androidx.credentials.GetCredentialRequest
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import android.content.Intent
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 /**
- * Google OAuth Web client ID used as the server client ID for Credential
- * Manager's [GetGoogleIdOption].
+ * Google OAuth Web client ID used as the server client ID for
+ * [GoogleSignInOptions.requestIdToken].
  *
  * The returned ID token's `aud` claim will be this client ID, and the
  * production backend (POST /auth/firebase) accepts it — it is in the
@@ -26,11 +25,31 @@ object GoogleAuthConfig {
 }
 
 /**
- * Thin wrapper around Credential Manager for "Sign in with Google".
+ * "Sign in with Google" via the classic play-services-auth [GoogleSignInClient].
  *
- * Flow: [signIn] shows the Google account picker → returns the Google ID
- * token → caller posts it to POST /auth/firebase (see
+ * Why not Credential Manager: its Google ID provider throws
+ * "getCredentialAsync no provider dependencies found" on devices/emulators
+ * whose Google Play Services build lacks the Credential Manager provider.
+ * The classic [GoogleSignInClient] account-picker flow works on every
+ * Play-Services device and returns the same Google ID token, which the
+ * caller posts to POST /auth/firebase (see
  * [com.omastro.app.data.repository.AuthRepository.signInWithGoogle]).
+ *
+ * Usage (Compose):
+ * ```
+ * val launcher = rememberLauncherForActivityResult(
+ *     ActivityResultContracts.StartActivityForResult()
+ * ) { result ->
+ *     when (val r = GoogleSignInHelper.parseResult(result.data)) {
+ *         is GoogleSignInHelper.Result.Success -> viewModel.signInWithGoogle(r.idToken)
+ *         is GoogleSignInHelper.Result.Cancelled -> { /* silent */ }
+ *         is GoogleSignInHelper.Result.Error -> viewModel.setGoogleError(r.message)
+ *     }
+ * }
+ * // onClick: sign out first so the account picker always shows, then launch.
+ * val client = GoogleSignInHelper.getClient(context)
+ * client.signOut().addOnCompleteListener { launcher.launch(client.signInIntent) }
+ * ```
  */
 object GoogleSignInHelper {
 
@@ -40,38 +59,35 @@ object GoogleSignInHelper {
         data class Error(val message: String) : Result
     }
 
-    suspend fun signIn(context: Context): Result {
+    fun getClient(context: Context): GoogleSignInClient {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(GoogleAuthConfig.GOOGLE_SERVER_CLIENT_ID)
+            .requestEmail()
+            .build()
+        return GoogleSignIn.getClient(context, gso)
+    }
+
+    /**
+     * Parses the result [Intent] from the Google sign-in activity into a
+     * [Result]. Never throws.
+     */
+    fun parseResult(data: Intent?): Result {
         return try {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(GoogleAuthConfig.GOOGLE_SERVER_CLIENT_ID)
-                .build()
-
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
-                .build()
-
-            val credentialManager = CredentialManager.create(context)
-            val response = credentialManager.getCredential(context, request)
-            val credential = response.credential
-
-            if (credential is CustomCredential &&
-                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
-            ) {
-                try {
-                    val googleIdTokenCredential =
-                        GoogleIdTokenCredential.createFrom(credential.data)
-                    Result.Success(googleIdTokenCredential.idToken)
-                } catch (e: GoogleIdTokenParsingException) {
-                    Result.Error("Could not read the Google credential. Please try again.")
-                }
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account?.idToken
+            if (!idToken.isNullOrBlank()) {
+                Result.Success(idToken)
             } else {
-                Result.Error("Unexpected credential type. Please try again.")
+                Result.Error("Google did not return a sign-in token. Please try again.")
             }
-        } catch (e: androidx.credentials.exceptions.GetCredentialCancellationException) {
-            Result.Cancelled()
-        } catch (e: androidx.credentials.exceptions.NoCredentialException) {
-            Result.Error("No Google accounts found on this device. Add a Google account in Settings and try again.")
+        } catch (e: ApiException) {
+            // 12501 = SIGN_IN_CANCELLED (user dismissed the picker)
+            if (e.statusCode == 12501) {
+                Result.Cancelled()
+            } else {
+                Result.Error("Google sign-in failed (code ${e.statusCode}). Please try again.")
+            }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Google sign-in failed. Please try again.")
         }
