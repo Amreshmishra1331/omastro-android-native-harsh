@@ -13,7 +13,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.omastro.app.data.model.PlanetInfo
+import com.omastro.app.data.model.ApiPlanet
+import com.omastro.app.data.model.planetGlyphFallback
+import com.omastro.app.data.model.rashiGlyph
 import com.omastro.app.ui.theme.*
 
 /**
@@ -25,7 +27,7 @@ import com.omastro.app.ui.theme.*
  */
 @Composable
 fun SouthIndianChart(
-    planets: List<PlanetInfo>,
+    planets: List<ApiPlanet>,
     ascendantSign: Int,
     chartTitle: String = "South Indian Chart",
     modifier: Modifier = Modifier
@@ -38,7 +40,7 @@ fun SouthIndianChart(
         9 to (3 to 0), 8 to (3 to 1), 7 to (3 to 2), 6 to (3 to 3)
     )
 
-    val planetsBySign: Map<Int, List<PlanetInfo>> = planets.groupBy { it.signNumber }
+    val planetsBySign: Map<Int, List<ApiPlanet>> = planets.groupBy { it.rashiIndex }
 
     Column(
         modifier = modifier
@@ -84,15 +86,10 @@ fun SouthIndianChart(
 @Composable
 private fun SouthIndianCell(
     signNumber: Int,
-    planets: List<PlanetInfo>,
+    planets: List<ApiPlanet>,
     isAscendant: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val signNames = mapOf(
-        1 to "Mesha", 2 to "Vrishabha", 3 to "Mithuna", 4 to "Karka",
-        5 to "Simha", 6 to "Kanya", 7 to "Tula", 8 to "Vrishchika",
-        9 to "Dhanu", 10 to "Makara", 11 to "Kumbha", 12 to "Meena"
-    )
     Column(
         modifier = modifier
             .border(0.75.dp, CosmicBorderGold)
@@ -102,9 +99,9 @@ private fun SouthIndianCell(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "$signNumber",
+                text = rashiGlyph(signNumber),
                 color = SacredGold,
-                fontSize = 10.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
             if (isAscendant) {
@@ -117,17 +114,13 @@ private fun SouthIndianCell(
                 )
             }
         }
-        Text(
-            text = signNames[signNumber] ?: "",
-            color = StarlightWhite.copy(alpha = 0.55f),
-            fontSize = 8.sp
-        )
         Spacer(modifier = Modifier.height(2.dp))
         planets.take(4).forEach { planet ->
+            val glyph = planet.symbol.ifBlank { planetGlyphFallback(planet.name) }
             Text(
-                text = planetAbbreviation(planet.name) + if (planet.isRetrograde) " (R)" else "",
+                text = glyph + if (planet.isRetrograde()) " (R)" else "",
                 color = Color.White,
-                fontSize = 10.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center
             )
@@ -135,21 +128,5 @@ private fun SouthIndianCell(
         if (planets.size > 4) {
             Text("+${planets.size - 4} more", color = TextSecondary, fontSize = 8.sp)
         }
-    }
-}
-
-private fun planetAbbreviation(name: String): String {
-    val lower = name.lowercase()
-    return when {
-        lower.startsWith("sun") || lower == "surya" -> "Su"
-        lower.startsWith("moon") || lower == "chandra" -> "Mo"
-        lower.startsWith("mars") || lower == "mangal" -> "Ma"
-        lower.startsWith("mercury") || lower == "budh" -> "Me"
-        lower.startsWith("jupiter") || lower == "guru" -> "Ju"
-        lower.startsWith("venus") || lower == "shukra" -> "Ve"
-        lower.startsWith("saturn") || lower == "shani" -> "Sa"
-        lower.startsWith("rahu") -> "Ra"
-        lower.startsWith("ketu") -> "Ke"
-        else -> name.take(2).replaceFirstChar { it.uppercase() }
     }
 }

@@ -46,6 +46,8 @@ class KundaliViewModel : ViewModel() {
     val birthLat: StateFlow<String> = _birthLat.asStateFlow()
     private val _birthLon = MutableStateFlow("")
     val birthLon: StateFlow<String> = _birthLon.asStateFlow()
+    private val _birthGender = MutableStateFlow("male") // male | female | other
+    val birthGender: StateFlow<String> = _birthGender.asStateFlow()
 
     private val _formError = MutableStateFlow<String?>(null)
     val formError: StateFlow<String?> = _formError.asStateFlow()
@@ -60,8 +62,9 @@ class KundaliViewModel : ViewModel() {
     fun setBirthPlace(v: String) { _birthPlace.value = v; _formError.value = null }
     fun setBirthLat(v: String) { _birthLat.value = v.filter { it.isDigit() || it == '.' || it == '-' }; _formError.value = null }
     fun setBirthLon(v: String) { _birthLon.value = v.filter { it.isDigit() || it == '.' || it == '-' }; _formError.value = null }
+    fun setBirthGender(v: String) { _birthGender.value = v; _formError.value = null }
 
-    // Tab state: 0=Charts, 1=Grahas, 2=Dasha, 3=Yogas, 4=Ashtakavarga, 5=LalKitab, 6=JaiminiHealth
+    // Tab state: 0=Charts, 1=Grahas, 2=Dasha, 3=Yogas, 4=Doshas, 5=Ashtakavarga, 6=LalKitab
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
@@ -92,6 +95,7 @@ class KundaliViewModel : ViewModel() {
         _birthPlace.value = req.pob
         _birthLat.value = req.lat.toString()
         _birthLon.value = req.lon.toString()
+        _birthGender.value = req.gender.ifBlank { "male" }
         _formError.value = null
         fetchKundali(
             name = req.name,
@@ -99,7 +103,8 @@ class KundaliViewModel : ViewModel() {
             tob = req.tob,
             pob = req.pob,
             lat = req.lat,
-            lon = req.lon
+            lon = req.lon,
+            gender = req.gender.ifBlank { "male" }
         )
     }
 
@@ -136,7 +141,7 @@ class KundaliViewModel : ViewModel() {
             _formError.value = "Longitude must be a number between -180 and 180."
             return
         }
-        fetchKundali(name, dob, tob, pob, lat, lon)
+        fetchKundali(name, dob, tob, pob, lat, lon, _birthGender.value)
     }
 
     fun fetchKundali(
@@ -145,7 +150,8 @@ class KundaliViewModel : ViewModel() {
         tob: String,
         pob: String,
         lat: Double,
-        lon: Double
+        lon: Double,
+        gender: String = "male"
     ) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -162,6 +168,7 @@ class KundaliViewModel : ViewModel() {
                 pob = pob,
                 lat = lat,
                 lon = lon,
+                gender = gender,
                 ayanamsa = "lahiri"
             )
             getKundaliUseCase(req)

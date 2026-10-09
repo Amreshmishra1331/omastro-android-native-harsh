@@ -33,11 +33,11 @@ interface OmAstroApiService {
         @Body request: Map<String, String>
     ): Response<Map<String, Any>>
 
-    // Kundali
+    // Kundali (envelope: {"success": true, "data": {...}})
     @POST("kundali")
     suspend fun calculateKundali(
         @Body request: KundaliRequest
-    ): Response<KundaliResponse>
+    ): Response<KundaliEnvelope>
 
     // Rashifal (daily horoscope)
     @POST("rashifal")

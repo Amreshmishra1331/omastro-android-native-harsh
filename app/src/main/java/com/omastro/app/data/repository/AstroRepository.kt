@@ -13,8 +13,11 @@ class AstroRepository(
         return try {
             val res = api.calculateKundali(request)
             val body = res.body()
-            if (res.isSuccessful && body != null) {
-                Result.success(body)
+            val data = body?.data
+            if (res.isSuccessful && body != null && data != null) {
+                Result.success(data)
+            } else if (res.isSuccessful && body != null) {
+                Result.failure(IOException("Kundali request failed: empty data envelope"))
             } else {
                 Result.failure(IOException("Kundali request failed: HTTP ${res.code()}"))
             }

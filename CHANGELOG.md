@@ -4,6 +4,58 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Kundali Screen Redesign to Match Website API Depth
+
+### Kundali models rewritten to match the REAL POST /kundali response
+**What was broken:** `KundaliResponse` expected flat fields (`ascendant_sign`, `d1_houses`, `dasha_timeline`, `yogas` as YogaDoshaItem, etc.) that the production API does NOT return. The real API returns `{"success": true, "data": {...}}` with `data.planets[]` (full detail incl. server glyph `symbol`, `nameHi`, `rashiHi`, `specialStatus[]`), `data.houses[]` (with `bhavBala`), `data.d9Houses[]`, `data.yogas[]` ({name, description, type, prediction}), `data.doshas[]` ({name, active, severity, detail, analysis, prediction, remedies[]}), `data.vimshottariDasha` (nested mahadasha→antardasha→pratyantar→sookshma), `data.ashtakavarga.savByHouse[]`, `data.lalKitab`, `data.divisionalCharts` (Navamsha, Dashamsha with real houses). Verified live against production on 2026-10-09 — no deserializer or envelope-unwrapping existed, so chart data could not parse.
+**Removed:** Old flat `PlanetInfo`, `VimshottariDashaItem`, `YogaDoshaItem`, `AshtakavargaHouseBindu`, `LalKitabRemedyItem`, `BNNCombination`, `JaiminiKaraka`, `AstroHealthIndicator` classes and fabricated default values (`ascendantSignName="Aries (Mesha)"` etc.).
+**Added:**
+- `KundaliEnvelope` (success + data) — `OmAstroApiService.calculateKundali` now returns `Response<KundaliEnvelope>`; `AstroRepository.getKundali` unwraps `data` honestly and fails loudly on an empty envelope
+- `KundaliResponse` = real `data` payload: meta, birth, lagna, navamshaLagna, suryaLagna, chandraLagna, planets, houses, d9Houses, yogas, doshas, vimshottariDasha, ashtakavarga, lalKitab, divisionalCharts
+- `ApiPlanet` with server glyph, Hindi names, deg/min/sec, nakshatra + pada + lord, D9 rashi/house, `specialStatus[]` dignity chips, charaKaraka, baladiAvastha, ruledHousesFmt
+- `DashaNode` recursive model handling all nesting levels (antardasha/pratyantar/sookshma/prana/adi/deha)
+- Helpers: `rashiGlyph()` (♈..♓), `rashiNameToIndex()`, `planetGlyphFallback()` (☉ ☽ ♂ ☿ ♃ ♀ ♄ ☊ ☋), `planetHindiFallback()`
+
+### Birth form rebuilt with website-parity fields
+**What was missing:** No gender field (API accepts `gender`; website asks for it). Flat ungrouped field list.
+**Removed:** Single flat field column.
+**Added:** Grouped sections — "Personal Details" (Full Name + Gender segmented control Male/Female/Other), "Date & Time of Birth" (DOB, TOB + unknown-time guidance), "Place of Birth" (PlaceSearchField + lat/lon). Gender flows through `KundaliViewModel.birthGender` → `KundaliRequest.gender`; saved-chart load restores it.
+
+### North Indian diamond chart — visually rich rewrite
+**What was broken:** Basic canvas — rashi numbers only, plain planet names, fixed 320dp box, `SacredGoldDark` thin lines.
+**Removed:** Old number-only rendering.
+**Added:** Gold lines on dark cosmic background; large rashi glyphs (♈..♓) per bhava; planet Jyotish glyphs from the server `symbol` field; gold "Lg" Lagna badge on house 1; dim house numbers at cell corners; responsive `fillMaxWidth + aspectRatio(1f)` sizing; glyph legend caption. D1/D9/D10 all render (D9 from `d9Houses`, D10 from real `divisionalCharts.Dashamsha`).
+
+### South Indian chart — glyph upgrade
+**What was broken:** Two-letter planet abbreviations ("Su", "Mo"), sign numbers in headers.
+**Removed:** `planetAbbreviation()` helper.
+**Added:** Server glyphs (☉ ☽ ♂ …) per planet, rashi glyph headers, Asc highlight kept; sign-based placement unchanged (verified correct).
+
+### Grahas tab — detailed planet table
+**What was broken:** Simple cards (name, rashi, dignity string).
+**Removed:** Old card list.
+**Added:** Horizontally-scrollable production table — GRAHA (glyph + EN/HI name) | RASHI (EN/HI) | HOUSE | DEGREE (° ′ + avastha) | NAKSHATRA (pada, lord, D9 rashi) | DIGNITY/STATUS (color-coded chips: Own Sign/Exalted/Vargottama/Yogakaraka gold-green, Debilitated/Combust red, Retrograde blue + Hindi status string).
+
+### Dasha tab — current chain + expandable timeline
+**What was broken:** Flat mahadasha list only (lord/start/end/duration from a model the API never returned).
+**Removed:** Old flat dasha cards.
+**Added:** "Current Period" hero (Mahadasha → Antardasha → Pratyantardasha chain with ACTIVE badge, real dates from API); expandable mahadasha timeline — tap expands antardashas, antardashas expand to pratyantars (real nested API data); current periods auto-expanded and gold-highlighted.
+
+### Yogas & Doshas — split into two honest sections
+**What was broken:** Yogas and doshas merged in one tab from a fabricated model.
+**Removed:** Combined "Yogas & Doshas" tab, old `YogaDoshaItem` rendering.
+**Added:** "Yogas" tab — Raja Yoga (gold) vs Ava-Yoga (red) badges, bilingual names/descriptions (split on |), Phal predictions. "Doshas" tab — severity badges (Warning amber / Critical red), Active/Not-Active state, detail + analysis + prediction, numbered Upay (remedies) list; honest "No major doshas detected" empty state.
+
+### Charts tab — 12 Bhavas with Bhav Bala
+**Added:** Per-bhava rows with rashi (EN/HI), lord, SAV bindus, and server `bhavBala` strength label chips.
+
+### Ashtakavarga & Lal Kitab — real data wiring
+**What was broken:** Old tabs consumed models the API never returned (always empty states).
+**Removed:** Old `AshtakavargaHouseBindu`/`LalKitabRemedyItem`/`BNN`/`Jaimini`/`Health` placeholder tabs.
+**Added:** Ashtakavarga tab — SAV total hero + 12 house rows with points and Strong/Average/Weak strength labels. Lal Kitab tab — lagna rashi, server note, yoga strings; honest empty states. Tabs are now: Charts, Grahas, Dasha, Yogas, Doshas, Ashtaka, Lal Kitab.
+
+---
+
 ## [2026-10-09] — AI Chat Screen Redesign to Match Website
 
 ### AI Chat redesigned to match omastroai.com/ai-chat/

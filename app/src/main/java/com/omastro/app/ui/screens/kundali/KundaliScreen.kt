@@ -1,6 +1,8 @@
 package com.omastro.app.ui.screens.kundali
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -26,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.*
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.PlaceSearchField
+import com.omastro.app.ui.components.PlanetMark
 import com.omastro.app.ui.components.VedicDiamondChart
 import com.omastro.app.ui.theme.*
 import kotlinx.coroutines.launch
@@ -49,7 +52,6 @@ fun KundaliScreen(
     var saveSuccess by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // Load a chart selected from SavedChartsScreen, if any.
     LaunchedEffect(Unit) {
         com.omastro.app.ui.navigation.PendingChartHolder.consume()?.let { chart ->
             viewModel.loadSavedChart(chart)
@@ -135,12 +137,11 @@ fun KundaliScreen(
                     }
                 }
                 !hasData -> BirthDetailsForm(viewModel)
-                else -> KundaliResults(viewModel)
+                else -> KundaliResults(viewModel, lastRequest?.name ?: "")
             }
         }
     }
 
-    // Save chart dialog
     if (showSaveDialog) {
         AlertDialog(
             onDismissRequest = { if (!isSaving) showSaveDialog = false },
@@ -216,12 +217,13 @@ fun KundaliScreen(
 }
 
 // ---------------------------------------------------------------------------
-// Birth details entry form
+// Birth details entry form — grouped sections like the website
 // ---------------------------------------------------------------------------
 
 @Composable
 private fun BirthDetailsForm(viewModel: KundaliViewModel) {
     val name by viewModel.birthName.collectAsState()
+    val gender by viewModel.birthGender.collectAsState()
     val dob by viewModel.birthDob.collectAsState()
     val tob by viewModel.birthTob.collectAsState()
     val place by viewModel.birthPlace.collectAsState()
@@ -229,7 +231,6 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
     val lon by viewModel.birthLon.collectAsState()
     val formError by viewModel.formError.collectAsState()
 
-    // Sensible editable defaults (New Delhi); the user should correct them.
     LaunchedEffect(Unit) {
         if (lat.isBlank()) viewModel.setBirthLat("28.6139")
         if (lon.isBlank()) viewModel.setBirthLon("77.2090")
@@ -240,66 +241,118 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "Enter Birth Details",
+            text = "Janam Kundali",
             color = Color.White,
-            fontSize = 20.sp,
+            fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Your Kundali is computed from these details using the Lahiri ayanamsa.",
+            text = "Enter birth details exactly as on record. The chart is computed on our servers using the Lahiri ayanamsa.",
             color = TextSecondary,
-            fontSize = 13.sp
+            fontSize = 13.sp,
+            lineHeight = 19.sp
         )
 
-        CosmicCard(borderGold = true, modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                BirthField(name, viewModel::setBirthName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
-                BirthField(dob, viewModel::setBirthDob, "Date of Birth", "YYYY-MM-DD  e.g. 1995-08-15", KeyboardType.Number)
-                BirthField(tob, viewModel::setBirthTob, "Time of Birth", "HH:MM 24-hour  e.g. 08:30", KeyboardType.Number)
-                PlaceSearchField(
-                    value = place,
-                    onValueChange = viewModel::setBirthPlace,
-                    onPlaceSelected = { selected ->
-                        viewModel.setBirthLat(selected.lat.toString())
-                        viewModel.setBirthLon(selected.lon.toString())
-                    },
-                    label = "Place of Birth",
-                    placeholder = "Type city name, e.g. Jaipur"
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        BirthField(lat, viewModel::setBirthLat, "Latitude", "e.g. 26.9124", KeyboardType.Number)
-                    }
-                    Box(modifier = Modifier.weight(1f)) {
-                        BirthField(lon, viewModel::setBirthLon, "Longitude", "e.g. 75.7873", KeyboardType.Number)
+        FormSectionCard(title = "Personal Details") {
+            BirthField(name, viewModel::setBirthName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Gender", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("male" to "Male", "female" to "Female", "other" to "Other").forEach { (value, label) ->
+                    val selected = gender == value
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (selected) SacredGold else CosmicCharcoal,
+                        border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, CosmicBorder),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.setBirthGender(value) }
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (selected) CosmicDeepBlue else Color.White,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 10.dp)
+                        )
                     }
                 }
-                Text(
-                    text = "Select your birth city above to auto-fill coordinates, or enter them manually.",
-                    color = TextSecondary,
-                    fontSize = 11.sp
-                )
             }
         }
 
+        FormSectionCard(title = "Date & Time of Birth") {
+            BirthField(dob, viewModel::setBirthDob, "Date of Birth", "YYYY-MM-DD  e.g. 1995-08-15", KeyboardType.Number)
+            BirthField(tob, viewModel::setBirthTob, "Time of Birth", "HH:MM 24-hour  e.g. 08:30", KeyboardType.Number)
+            Text(
+                text = "Use 24-hour format. If the exact time is unknown, leave 12:00 and note it — predictions will be approximate.",
+                color = TextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 16.sp
+            )
+        }
+
+        FormSectionCard(title = "Place of Birth") {
+            PlaceSearchField(
+                value = place,
+                onValueChange = viewModel::setBirthPlace,
+                onPlaceSelected = { selected ->
+                    viewModel.setBirthLat(selected.lat.toString())
+                    viewModel.setBirthLon(selected.lon.toString())
+                },
+                label = "Birth City",
+                placeholder = "Type city name, e.g. Jaipur"
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    BirthField(lat, viewModel::setBirthLat, "Latitude", "e.g. 26.9124", KeyboardType.Number)
+                }
+                Box(modifier = Modifier.weight(1f)) {
+                    BirthField(lon, viewModel::setBirthLon, "Longitude", "e.g. 75.7873", KeyboardType.Number)
+                }
+            }
+            Text(
+                text = "Select your birth city above to auto-fill coordinates, or enter them manually.",
+                color = TextSecondary,
+                fontSize = 11.sp
+            )
+        }
+
         formError?.let {
-            Text(text = it, color = InauspiciousRed, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text(
+                text = it,
+                color = InauspiciousRed,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         Button(
             onClick = { viewModel.submitBirthDetails() },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(54.dp),
             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(14.dp)
         ) {
             Text("Generate Kundali", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun FormSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    CosmicCard(borderGold = true, modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            content()
+        }
     }
 }
 
@@ -331,20 +384,17 @@ private fun BirthField(
 }
 
 // ---------------------------------------------------------------------------
-// Results (7 analysis tabs)
+// Results
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun KundaliResults(viewModel: KundaliViewModel) {
+private fun KundaliResults(viewModel: KundaliViewModel, subjectName: String) {
     val kundali by viewModel.kundaliData.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     val selectedDiv by viewModel.selectedDivisional.collectAsState()
     val chartStyle by viewModel.chartStyle.collectAsState()
 
-    val tabTitles = listOf(
-        "Charts", "Grahas", "Dasha", "Yogas & Doshas",
-        "Ashtakavarga", "Lal Kitab & BNN", "Jaimini & Health"
-    )
+    val tabTitles = listOf("Charts", "Grahas", "Dasha", "Yogas", "Doshas", "Ashtaka", "Lal Kitab")
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(
@@ -377,28 +427,16 @@ private fun KundaliResults(viewModel: KundaliViewModel) {
         ) {
             item { Spacer(modifier = Modifier.height(6.dp)) }
 
-            // Subject header (from the API response, never hardcoded)
-            item {
-                kundali?.let { k ->
-                    CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
-                        Column {
-                            Text(k.ascendantSignName, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("Nakshatra: ${k.nakshatra}", color = Color.White, fontSize = 13.sp)
-                            Text("Current: ${k.currentDasha}", color = TextSecondary, fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
+            item { SubjectHeader(kundali, subjectName) }
 
             when (selectedTab) {
                 0 -> chartsTab(viewModel, kundali, selectedDiv, chartStyle)
                 1 -> grahasTab(kundali)
                 2 -> dashaTab(kundali)
                 3 -> yogasTab(kundali)
-                4 -> ashtakavargaTab(kundali)
-                5 -> lalKitabTab(kundali)
-                6 -> jaiminiHealthTab(kundali)
+                4 -> doshasTab(kundali)
+                5 -> ashtakavargaTab(kundali)
+                6 -> lalKitabTab(kundali)
             }
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
@@ -406,13 +444,56 @@ private fun KundaliResults(viewModel: KundaliViewModel) {
     }
 }
 
+@Composable
+private fun SubjectHeader(kundali: KundaliResponse?, subjectName: String) {
+    if (kundali == null) return
+    val meta = kundali.meta
+    val lagna = kundali.lagna
+    CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (subjectName.isNotBlank()) {
+                Text(subjectName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            }
+            Text(
+                text = "Lagna: ${lagna.rashi.ifBlank { meta.lagnaEn }}${if (lagna.rashiHi.isNotBlank()) " (${lagna.rashiHi})" else ""}  ${lagna.deg}°${lagna.min}'",
+                color = SacredGold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                if (meta.nakshatra.isNotBlank()) {
+                    Text("✦ ${meta.nakshatra}", color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                }
+                if (meta.moonSignEn.isNotBlank()) {
+                    Text(
+                        "☽ ${meta.moonSignEn}${if (meta.moonSignHi.isNotBlank()) " (${meta.moonSignHi})" else ""}",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            val curDasha = kundali.vimshottariDasha?.currentDasha?.ifBlank { meta.curDasha } ?: meta.curDasha
+            if (curDasha.isNotBlank()) {
+                Text("Current Dasha: $curDasha", color = TextSecondary, fontSize = 12.sp)
+            }
+            if (meta.ayanamsa.isNotBlank()) {
+                Text("Ayanamsa: ${meta.ayanamsa.replaceFirstChar { it.uppercase() }}", color = TextSecondary, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Charts tab
+// ---------------------------------------------------------------------------
+
 private fun LazyListScope.chartsTab(
     viewModel: KundaliViewModel,
     kundali: KundaliResponse?,
     selectedDiv: String,
     chartStyle: String
 ) {
-    // Style selector — both options genuinely render.
     item {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -439,10 +520,9 @@ private fun LazyListScope.chartsTab(
         }
     }
 
-    // Divisional pills backed by real API maps (D1, D9, D10).
     item {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val divs = listOf("D1" to "D1 Lagna", "D9" to "D9 Navamsha", "D10" to "D10 Career")
+            val divs = listOf("D1" to "D1 · Lagna", "D9" to "D9 · Navamsha", "D10" to "D10 · Dashamsha")
             items(divs) { (code, label) ->
                 val isSelected = selectedDiv == code
                 Surface(
@@ -462,162 +542,507 @@ private fun LazyListScope.chartsTab(
         }
     }
 
-    // Chart render. South-Indian needs per-planet signs, which the API provides
-    // only for D1 — divisionals render as the varga-relative North-Indian diamond.
     item {
-        val houses = when (selectedDiv) {
-            "D9" -> kundali?.d9Houses ?: emptyMap()
-            "D10" -> kundali?.d10Houses ?: emptyMap()
-            else -> kundali?.d1Houses ?: emptyMap()
-        }
-        // AND-14 fix: use the ascendant exactly as the API returns it — no invented offsets.
-        val asc = kundali?.ascendantSign ?: 1
-        if (chartStyle == "South Indian" && selectedDiv == "D1") {
+        if (kundali == null) {
+            EmptySection("No chart data available.")
+        } else if (chartStyle == "South Indian") {
             SouthIndianChart(
-                planets = kundali?.planets ?: emptyList(),
-                ascendantSign = asc,
-                chartTitle = "South Indian Chart — D1"
+                planets = southPlanetsFor(kundali, selectedDiv),
+                ascendantSign = southLagnaFor(kundali, selectedDiv),
+                chartTitle = "South Indian — $selectedDiv Chart"
             )
         } else {
+            val (lagnaSign, marks) = northMarksFor(kundali, selectedDiv)
             VedicDiamondChart(
-                ascendantSign = asc,
-                housesPlanets = houses,
-                chartTitle = "$chartStyle — $selectedDiv Chart"
+                lagnaSign = lagnaSign,
+                housePlanets = marks,
+                chartTitle = "North Indian Diamond — $selectedDiv Chart"
             )
         }
     }
 
     item {
-        Text("12 Bhavas (Houses)", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        SectionTitle("12 Bhavas (Houses)")
     }
     item {
-        val houses = when (selectedDiv) {
-            "D9" -> kundali?.d9Houses ?: emptyMap()
-            "D10" -> kundali?.d10Houses ?: emptyMap()
-            else -> kundali?.d1Houses ?: emptyMap()
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (1..6).forEach { h ->
-                    HouseChip(h, houses[h.toString()] ?: emptyList(), modifier = Modifier.weight(1f))
+        if (kundali == null) {
+            EmptySection("No house data available.")
+        } else {
+            val houses = housesFor(kundali, selectedDiv)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                houses.sortedBy { it.number }.forEach { h ->
+                    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "House ${h.number} · ${h.rashi}${if (h.rashiHi.isNotBlank()) " (${h.rashiHi})" else ""}",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    "Lord: ${h.lord}${if (h.sav > 0) "  ·  ${h.sav} bindus" else ""}",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            h.bhavBala?.takeIf { it.label.isNotBlank() }?.let { bala ->
+                                Surface(
+                                    color = SacredGold.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        bala.label,
+                                        color = SacredGold,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (7..12).forEach { h ->
-                    HouseChip(h, houses[h.toString()] ?: emptyList(), modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+/** Houses list for the selected divisional. */
+private fun housesFor(kundali: KundaliResponse, div: String): List<HouseInfo> = when (div) {
+    "D9" -> kundali.d9Houses
+    "D10" -> kundali.divisionalCharts["Dashamsha"]?.houses ?: emptyList()
+    else -> kundali.houses
+}
+
+/** (lagnaSign, houseNumber -> planet marks) for the North-Indian diamond. */
+private fun northMarksFor(kundali: KundaliResponse, div: String): Pair<Int, Map<Int, List<PlanetMark>>> {
+    return when (div) {
+        "D9" -> kundali.navamshaLagnaIndex() to kundali.d9PlanetsByHouse()
+            .mapValues { (_, names) -> names.map { PlanetMark(it, kundali.symbolFor(it)) } }
+        "D10" -> {
+            val dc = kundali.divisionalCharts["Dashamsha"]
+            val lagna = dc?.let { rashiNameToIndex(it.lagnaRashi) } ?: 1
+            val byHouse = dc?.houses?.associate { h ->
+                h.number to h.planets.map { PlanetMark(it.name, kundali.symbolFor(it.name)) }
+            } ?: emptyMap()
+            lagna to byHouse
+        }
+        else -> kundali.lagnaSignIndex() to kundali.d1PlanetsByHouse()
+            .mapValues { (_, names) -> names.map { PlanetMark(it, kundali.symbolFor(it)) } }
+    }
+}
+
+/** Planet list with varga-relative rashiIndex for the South-Indian grid. */
+private fun southPlanetsFor(kundali: KundaliResponse, div: String): List<ApiPlanet> {
+    return when (div) {
+        "D9" -> kundali.planets.map { it.copy(rashiIndex = rashiNameToIndex(it.d9Rashi.ifBlank { it.rashi })) }
+        "D10" -> {
+            val dc = kundali.divisionalCharts["Dashamsha"] ?: return emptyList()
+            val rashiByPlanet = mutableMapOf<String, Int>()
+            dc.houses.forEach { h ->
+                h.planets.forEach { p -> rashiByPlanet[p.name.lowercase()] = rashiNameToIndex(h.rashi) }
+            }
+            kundali.planets.mapNotNull { p ->
+                val idx = rashiByPlanet[p.name.lowercase()] ?: return@mapNotNull null
+                p.copy(rashiIndex = idx)
+            }
+        }
+        else -> kundali.planets
+    }
+}
+
+private fun southLagnaFor(kundali: KundaliResponse, div: String): Int = when (div) {
+    "D9" -> kundali.navamshaLagnaIndex()
+    "D10" -> kundali.divisionalCharts["Dashamsha"]?.let { rashiNameToIndex(it.lagnaRashi) } ?: 1
+    else -> kundali.lagnaSignIndex()
+}
+
+// ---------------------------------------------------------------------------
+// Grahas tab — detailed planet table
+// ---------------------------------------------------------------------------
+
+private fun LazyListScope.grahasTab(kundali: KundaliResponse?) {
+    item {
+        SectionTitle("Graha Details — Sign, House, Degree, Nakshatra, Dignity")
+    }
+    val planets = kundali?.planets
+        ?.filter { it.name.isNotBlank() }
+        ?.sortedBy { it.house } ?: emptyList()
+    if (planets.isEmpty()) {
+        item { EmptySection("No planetary data returned for this chart.") }
+        return
+    }
+    item {
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            Column {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .background(CosmicCharcoal, RoundedCornerShape(10.dp))
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TableCell("GRAHA", 150, isHeader = true)
+                    TableCell("RASHI", 118, isHeader = true)
+                    TableCell("HOUSE", 62, isHeader = true)
+                    TableCell("DEGREE", 84, isHeader = true)
+                    TableCell("NAKSHATRA", 150, isHeader = true)
+                    TableCell("DIGNITY / STATUS", 190, isHeader = true)
+                }
+                planets.forEachIndexed { index, planet ->
+                    val bg = if (index % 2 == 0) Color.Transparent else CosmicCharcoal.copy(alpha = 0.45f)
+                    Row(
+                        modifier = Modifier
+                            .background(bg, RoundedCornerShape(8.dp))
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Graha
+                        Column(modifier = Modifier.width(150.dp).padding(horizontal = 4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = planet.symbol.ifBlank { planetGlyphFallback(planet.name) },
+                                    color = SacredGold,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Column {
+                                    Text(
+                                        planet.name,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                    val hi = planet.nameHi.ifBlank { planetHindiFallback(planet.name) }
+                                    if (hi.isNotBlank()) {
+                                        Text(hi, color = TextSecondary, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                        // Rashi
+                        Column(modifier = Modifier.width(118.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.rashi, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            if (planet.rashiHi.isNotBlank()) {
+                                Text(planet.rashiHi, color = TextSecondary, fontSize = 11.sp)
+                            }
+                        }
+                        // House
+                        Box(modifier = Modifier.width(62.dp), contentAlignment = Alignment.Center) {
+                            Text("${planet.house}", color = RadiantAmber, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        // Degree
+                        Column(modifier = Modifier.width(84.dp).padding(horizontal = 4.dp)) {
+                            Text(planet.degreeFormatted(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            if (planet.baladiAvastha.isNotBlank()) {
+                                Text(planet.baladiAvastha.substringBefore(" ("), color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                        // Nakshatra
+                        Column(modifier = Modifier.width(150.dp).padding(horizontal = 4.dp)) {
+                            Text(
+                                "${planet.nakshatra}${if (planet.pada > 0) " (P${planet.pada})" else ""}",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            val sub = buildString {
+                                if (planet.nakshatraLord.isNotBlank()) append("Lord: ${planet.nakshatraLord}")
+                                if (planet.d9Rashi.isNotBlank()) {
+                                    if (isNotEmpty()) append("  ·  ")
+                                    append("D9: ${planet.d9Rashi}")
+                                }
+                            }
+                            if (sub.isNotBlank()) {
+                                Text(sub, color = TextSecondary, fontSize = 10.sp)
+                            }
+                        }
+                        // Dignity / status chips
+                        Column(
+                            modifier = Modifier.width(190.dp).padding(horizontal = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            val chips = planet.dignityChips()
+                            if (chips.isEmpty() && planet.status.isBlank()) {
+                                Text("—", color = TextSecondary, fontSize = 12.sp)
+                            } else {
+                                Row(
+                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    chips.forEach { chip -> DignityChip(chip) }
+                                }
+                                if (planet.status.isNotBlank()) {
+                                    Text(planet.status, color = TextSecondary, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Scroll horizontally to see all columns.",
+            color = TextSecondary,
+            fontSize = 11.sp
+        )
     }
 }
 
 @Composable
-private fun HouseChip(houseNumber: Int, planets: List<String>, modifier: Modifier = Modifier) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = CosmicCharcoal,
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 6.dp, horizontal = 2.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("H$houseNumber", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-            Text(
-                planets.joinToString(",").ifBlank { "—" },
-                color = StarlightWhite.copy(alpha = 0.7f),
-                fontSize = 9.sp,
-                textAlign = TextAlign.Center
-            )
-        }
+private fun TableCell(text: String, widthDp: Int, isHeader: Boolean = false) {
+    Box(modifier = Modifier.width(widthDp.dp).padding(horizontal = 4.dp)) {
+        Text(
+            text = text,
+            color = if (isHeader) SacredGold else Color.White,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
-private fun LazyListScope.grahasTab(kundali: KundaliResponse?) {
-    item {
-        SectionTitle("Planetary Longitudes, Dignities and Strengths")
+@Composable
+private fun DignityChip(label: String) {
+    val color = when (label.lowercase()) {
+        "exalted" -> Color(0xFF10B981)
+        "debilitated", "combust" -> Color(0xFFEF4444)
+        "own sign", "yogakaraka", "vargottama" -> SacredGold
+        "retrograde" -> Color(0xFF38BDF8)
+        else -> TextSecondary
     }
-    val planets = kundali?.planets ?: emptyList()
-    if (planets.isEmpty()) {
-        item { EmptySection("No planetary data returned for this chart.") }
-    }
-    items(planets) { planet ->
-        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(planet.name, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        if (planet.isRetrograde) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(color = Color(0xFFFF5252), shape = RoundedCornerShape(6.dp)) {
-                                Text("R", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
-                            }
-                        }
-                    }
-                    Text("Rashi: ${planet.sign} (House ${planet.house})", color = Color.White, fontSize = 12.sp)
-                    Text("${planet.dignity}", color = TextSecondary, fontSize = 11.sp)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("${String.format("%.2f", planet.degree)}°", color = RadiantAmber, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("${planet.nakshatra} (Pada ${planet.pada})", color = MysticPurple, fontSize = 11.sp)
-                }
-            }
-        }
+    Surface(
+        color = color.copy(alpha = 0.16f),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            label,
+            color = color,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+        )
     }
 }
+
+// ---------------------------------------------------------------------------
+// Dasha tab — current chain + expandable timeline
+// ---------------------------------------------------------------------------
 
 private fun LazyListScope.dashaTab(kundali: KundaliResponse?) {
     item {
-        SectionTitle("Vimshottari Dasha Timeline")
+        SectionTitle("Vimshottari Dasha")
     }
-    val dashaList = kundali?.dashaTimeline ?: emptyList()
-    if (dashaList.isEmpty()) {
+    val dasha = kundali?.vimshottariDasha
+    if (dasha == null || (dasha.currentMahadasha == null && dasha.allMahadashas.isEmpty())) {
         item { EmptySection("No dasha data returned for this chart.") }
+        return
     }
-    items(dashaList) { dasha ->
-        CosmicCard(
-            modifier = Modifier.fillMaxWidth(),
-            borderColor = if (dasha.isCurrent) SacredGold else Color.White.copy(alpha = 0.1f)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(dasha.lord, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        if (dasha.isCurrent) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
-                                Text("ACTIVE", color = CosmicDeepBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
-                            }
-                        }
+
+    // Current period hero chain: MD → AD → PD
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Current Period", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
+                        Text(
+                            "ACTIVE",
+                            color = CosmicDeepBlue,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
                     }
-                    Text("${dasha.durationYears} Years Period", color = StarlightWhite.copy(alpha = 0.6f), fontSize = 11.sp)
                 }
-                Text("${dasha.startDate} - ${dasha.endDate}", color = SacredGold, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                dasha.currentMahadasha?.let { md ->
+                    DashaChainRow("Mahadasha", md.planet, "${md.start} → ${md.end}", "${md.years} years")
+                }
+                dasha.currentAntardasha?.let { ad ->
+                    DashaChainRow("Antardasha", ad.planet, "${ad.start} → ${ad.end}", null)
+                }
+                dasha.currentPratyantar?.let { pd ->
+                    DashaChainRow("Pratyantardasha", pd.planet, "${pd.start} → ${pd.end}", null)
+                }
+            }
+        }
+    }
+
+    item {
+        Text(
+            "Mahadasha Timeline — tap to expand antardashas",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+    }
+
+    val currentMdPlanet = dasha.currentMahadasha?.planet
+    items(dasha.allMahadashas) { md ->
+        ExpandableDashaNode(
+            node = md,
+            level = 0,
+            isCurrent = currentMdPlanet != null && md.planet.equals(currentMdPlanet, ignoreCase = true),
+            currentAntardasha = dasha.currentAntardasha?.planet
+        )
+    }
+}
+
+@Composable
+private fun DashaChainRow(level: String, planet: String, dates: String, duration: String?) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(level, color = TextSecondary, fontSize = 10.sp)
+            Text(
+                "${planetGlyph(planet)} $planet",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(dates, color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            if (duration != null) {
+                Text(duration, color = TextSecondary, fontSize = 10.sp)
             }
         }
     }
 }
 
+/** Planet glyph by English name (for dasha rows). */
+private fun planetGlyph(name: String): String = planetGlyphFallback(name)
+
+@Composable
+private fun ExpandableDashaNode(
+    node: DashaNode,
+    level: Int,
+    isCurrent: Boolean,
+    currentAntardasha: String? = null
+) {
+    var expanded by remember { mutableStateOf(isCurrent) }
+    val children = when (level) {
+        0 -> node.antardasha
+        1 -> node.pratyantar
+        else -> node.sookshma
+    }
+    val levelLabel = when (level) {
+        0 -> "Mahadasha"
+        1 -> "Antardasha"
+        else -> "Pratyantar"
+    }
+
+    Column {
+        CosmicCard(
+            modifier = Modifier.fillMaxWidth(),
+            borderColor = if (isCurrent) SacredGold else Color.White.copy(alpha = 0.08f)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = children.isNotEmpty()) { expanded = !expanded },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            planetGlyph(node.planet),
+                            color = SacredGold,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    node.planet,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                if (isCurrent) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
+                                        Text(
+                                            "ACTIVE",
+                                            color = CosmicDeepBlue,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                "$levelLabel · ${node.start} → ${node.end}",
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (node.years > 0) {
+                            Text("${node.years}y", color = RadiantAmber, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                        if (children.isNotEmpty()) {
+                            Icon(
+                                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = null,
+                                tint = SacredGold,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+                if (expanded && children.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    children.forEach { child ->
+                        val childCurrent = currentAntardasha != null &&
+                            level == 0 &&
+                            child.planet.equals(currentAntardasha, ignoreCase = true)
+                        Box(modifier = Modifier.padding(start = (12 + level * 8).dp)) {
+                            ExpandableDashaNode(
+                                node = child,
+                                level = level + 1,
+                                isCurrent = childCurrent
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Yogas tab (auspicious combinations — separate from doshas)
+// ---------------------------------------------------------------------------
+
 private fun LazyListScope.yogasTab(kundali: KundaliResponse?) {
     item {
-        SectionTitle("Vedic Yogas and Doshas")
+        SectionTitle("Yogas — Auspicious Combinations")
     }
     val yogas = kundali?.yogas ?: emptyList()
     if (yogas.isEmpty()) {
-        item { EmptySection("No yoga/dosha data returned for this chart.") }
+        item { EmptySection("No yoga data returned for this chart.") }
+        return
     }
     items(yogas) { yoga ->
+        val auspicious = yoga.isAuspicious()
         CosmicCard(
             modifier = Modifier.fillMaxWidth(),
-            borderColor = if (yoga.isAuspicious) SacredGold.copy(alpha = 0.5f) else Color(0xFFFF5252).copy(alpha = 0.5f)
+            borderColor = if (auspicious) SacredGold.copy(alpha = 0.45f) else InauspiciousRed.copy(alpha = 0.45f)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(
@@ -625,38 +1050,185 @@ private fun LazyListScope.yogasTab(kundali: KundaliResponse?) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(yoga.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
                     Surface(
-                        color = if (yoga.isAuspicious) Color(0xFF4CAF50).copy(alpha = 0.2f) else Color(0xFFFF5252).copy(alpha = 0.2f),
+                        color = if (auspicious) SacredGold.copy(alpha = 0.16f) else InauspiciousRed.copy(alpha = 0.16f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            yoga.type,
-                            color = if (yoga.isAuspicious) Color(0xFF4CAF50) else Color(0xFFFF5252),
+                            yoga.typeLabel(),
+                            color = if (auspicious) SacredGold else InauspiciousRed,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                 }
-                Text(yoga.description, color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp, lineHeight = 18.sp)
-                if (yoga.remedy != null) {
-                    Text("Remedy: ${yoga.remedy}", color = RadiantAmber, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(yoga.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp)
+                yoga.description.split("|").forEach { part ->
+                    val p = part.trim()
+                    if (p.isNotEmpty()) {
+                        Text(p, color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp, lineHeight = 18.sp)
+                    }
+                }
+                if (yoga.prediction.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        "Phal: ${yoga.prediction.substringBefore("|").trim()}",
+                        color = RadiantAmber,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 18.sp
+                    )
                 }
             }
         }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Doshas tab (afflictions — separate from yogas)
+// ---------------------------------------------------------------------------
+
+private fun LazyListScope.doshasTab(kundali: KundaliResponse?) {
+    item {
+        SectionTitle("Doshas — Afflictions & Remedies")
+    }
+    val doshas = kundali?.doshas ?: emptyList()
+    if (doshas.isEmpty()) {
+        item {
+            CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = AuspiciousGreen.copy(alpha = 0.4f)) {
+                Text(
+                    "No major doshas detected in this chart.",
+                    color = AuspiciousGreen,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        return
+    }
+    items(doshas) { dosha ->
+        val sevColor = when (dosha.severity.lowercase()) {
+            "critical", "high" -> InauspiciousRed
+            "warning", "medium" -> Color(0xFFFF9933)
+            else -> SacredGold
+        }
+        CosmicCard(
+            modifier = Modifier.fillMaxWidth(),
+            borderColor = sevColor.copy(alpha = 0.45f)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        dosha.name,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f),
+                        lineHeight = 20.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (dosha.severity.isNotBlank()) {
+                            Surface(color = sevColor.copy(alpha = 0.16f), shape = RoundedCornerShape(8.dp)) {
+                                Text(
+                                    dosha.severity.replaceFirstChar { it.uppercase() },
+                                    color = sevColor,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                        Surface(
+                            color = if (dosha.active) InauspiciousRed.copy(alpha = 0.16f) else AuspiciousGreen.copy(alpha = 0.16f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                if (dosha.active) "Active" else "Not Active",
+                                color = if (dosha.active) InauspiciousRed else AuspiciousGreen,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+                if (dosha.detail.isNotBlank()) {
+                    Text(dosha.detail, color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 18.sp)
+                }
+                if (dosha.analysis.isNotBlank()) {
+                    Text(dosha.analysis, color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp)
+                }
+                if (dosha.prediction.isNotBlank()) {
+                    Text(
+                        "Phal: ${dosha.prediction}",
+                        color = RadiantAmber,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 18.sp
+                    )
+                }
+                if (dosha.remedies.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Upay (Remedies)", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    dosha.remedies.forEachIndexed { index, remedy ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            Text("${index + 1}. ", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(remedy, color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 18.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Ashtakavarga tab — Sarvashtakavarga bindus
+// ---------------------------------------------------------------------------
+
 private fun LazyListScope.ashtakavargaTab(kundali: KundaliResponse?) {
     item {
-        SectionTitle("Sarvashtakavarga Bindu Grid")
+        SectionTitle("Sarvashtakavarga — Bindu Strength")
     }
-    val ashtakaList = kundali?.ashtakavarga ?: emptyList()
-    if (ashtakaList.isEmpty()) {
+    val av = kundali?.ashtakavarga
+    val rows = av?.savByHouse ?: emptyList()
+    if (rows.isEmpty()) {
         item { EmptySection("No ashtakavarga data returned for this chart.") }
+        return
     }
-    items(ashtakaList) { item ->
+    item {
+        CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Total Bindus", color = TextSecondary, fontSize = 12.sp)
+                    Text("${av?.savTotal ?: 0}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                }
+                Text(
+                    "Average ${(av?.savTotal ?: 0) / 12} per house",
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+    items(rows.sortedBy { it.house }) { row ->
+        val strength = when {
+            row.points >= 30 -> "Strong" to Color(0xFF10B981)
+            row.points >= 25 -> "Average" to Color(0xFFFF9933)
+            else -> "Weak" to InauspiciousRed
+        }
         CosmicCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -664,105 +1236,57 @@ private fun LazyListScope.ashtakavargaTab(kundali: KundaliResponse?) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("House ${item.house} (${item.sign})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("Strength: ${item.strength}", color = StarlightWhite.copy(alpha = 0.6f), fontSize = 11.sp)
+                    Text(
+                        "House ${row.house} · ${row.rashi}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                    Text(strength.first, color = strength.second, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Text("${item.totalBindus} Bindus", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("${row.points}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Lal Kitab tab
+// ---------------------------------------------------------------------------
 
 private fun LazyListScope.lalKitabTab(kundali: KundaliResponse?) {
     item {
-        SectionTitle("Lal Kitab Remedies")
+        SectionTitle("Lal Kitab")
     }
-    val remedies = kundali?.lalKitabRemedies ?: emptyList()
-    if (remedies.isEmpty()) {
+    val lk = kundali?.lalKitab
+    if (lk == null || (lk.note.isBlank() && lk.yogas.isEmpty())) {
         item { EmptySection("No Lal Kitab data returned for this chart.") }
+        return
     }
-    items(remedies) { item ->
-        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("${item.planet} in House ${item.house}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(item.indication, color = SacredGold, fontSize = 11.sp)
-                }
-                Text("Remedy: ${item.remedy}", color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp)
+    if (lk.lagnaRashi.isNotBlank()) {
+        item {
+            CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
+                Text("Lal Kitab Lagna: ${lk.lagnaRashi}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
     }
-    item {
-        SectionTitle("Bhrigu Nandi Nadi Combinations")
-    }
-    val bnnList = kundali?.bnnCombinations ?: emptyList()
-    if (bnnList.isEmpty()) {
-        item { EmptySection("No BNN data returned for this chart.") }
-    }
-    items(bnnList) { bnn ->
-        CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = MysticPurple.copy(alpha = 0.5f)) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(bnn.title, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Text(bnn.lifeSignificance, color = StarlightWhite.copy(alpha = 0.8f), fontSize = 12.sp)
+    if (lk.note.isNotBlank()) {
+        item {
+            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                Text(lk.note, color = StarlightWhite.copy(alpha = 0.85f), fontSize = 13.sp, lineHeight = 20.sp)
             }
+        }
+    }
+    items(lk.yogas) { yoga ->
+        CosmicCard(modifier = Modifier.fillMaxWidth()) {
+            Text(yoga, color = Color.White, fontSize = 13.sp, lineHeight = 20.sp)
         }
     }
 }
 
-private fun LazyListScope.jaiminiHealthTab(kundali: KundaliResponse?) {
-    item {
-        SectionTitle("Jaimini Karakas")
-    }
-    val jaiminiList = kundali?.jaiminiKarakas ?: emptyList()
-    if (jaiminiList.isEmpty()) {
-        item { EmptySection("No Jaimini data returned for this chart.") }
-    }
-    items(jaiminiList) { k ->
-        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(k.role, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(k.signification, color = StarlightWhite.copy(alpha = 0.6f), fontSize = 11.sp)
-                }
-                Text(k.planet, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
-        }
-    }
-    item {
-        SectionTitle("Health Indicators")
-    }
-    val healthList = kundali?.healthIndicators ?: emptyList()
-    if (healthList.isEmpty()) {
-        item { EmptySection("No health data returned for this chart.") }
-    }
-    items(healthList) { h ->
-        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(h.bodySystem, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Text(h.astrologicalFactor, color = StarlightWhite.copy(alpha = 0.6f), fontSize = 11.sp)
-                }
-                Text(
-                    h.status,
-                    color = if (h.status == "Strong") Color(0xFF4CAF50) else Color(0xFFFF9933),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
-            }
-        }
-    }
-}
+// ---------------------------------------------------------------------------
+// Shared bits
+// ---------------------------------------------------------------------------
 
 @Composable
 private fun SectionTitle(text: String) {
