@@ -337,6 +337,20 @@ data class PalmMount(
     val note: String = ""
 )
 
+/** parsed_facts keys rendered in dedicated palmistry sections (never as extras). */
+val PALM_COVERED_KEYS = setOf(
+    "hand", "hand_type", "lines", "mounts",
+    "key_observations", "guidance", "uncertainties",
+    "is_palm", "refusal"
+)
+
+/** Public: renders a parsed-facts map as "key: value" display lines. */
+fun renderFactLines(map: Map<String, Any?>): String {
+    val sb = StringBuilder()
+    renderGeneric(sb, "", map)
+    return sb.toString().trim()
+}
+
 /** Result of POST /palmistry/analyze. */
 data class PalmistryReading(
     val reading: String = "",
@@ -348,6 +362,10 @@ data class PalmistryReading(
     val guidance: List<String> = emptyList(),
     val uncertainties: List<String> = emptyList(),
     val disclaimer: String = "",
+    /** False when the server saw no palm in the photo (explicit flag). */
+    val isPalm: Boolean = true,
+    /** The server's honest refusal message, verbatim — never paraphrased. */
+    val refusal: String = "",
     val parsedFactsRaw: Map<String, Any?> = emptyMap()
 ) {
     companion object {
@@ -355,6 +373,7 @@ data class PalmistryReading(
         fun fromMap(data: Map<String, Any?>?): PalmistryReading {
             if (data == null) return PalmistryReading()
             val pf = (data["parsed_facts"] as? Map<String, Any?>).orEmpty()
+            fun str(v: Any?): String = (v as? String).orEmpty()
             fun strList(v: Any?): List<String> =
                 (v as? List<*>)?.mapNotNull { it as? String }.orEmpty()
             return PalmistryReading(
@@ -379,10 +398,35 @@ data class PalmistryReading(
                 guidance = strList(pf["guidance"]),
                 uncertainties = strList(pf["uncertainties"]),
                 disclaimer = (data["disclaimer"] as? String).orEmpty(),
+                isPalm = (pf["is_palm"] as? Boolean)
+                    ?: (data["is_palm"] as? Boolean)
+                    ?: true,
+                refusal = str(data["refusal"]).ifBlank { str(pf["refusal"]) },
                 parsedFactsRaw = pf
             )
         }
     }
+
+    /**
+     * True when the server declined to produce a reading from this photo.
+     * Detection covers two server shapes:
+     *  1. explicit flag (`parsed_facts.is_palm: false` / `data.is_palm: false`);
+     *  2. the verified live refusal shape (Cycle-1, 2026-10-10): HTTP 200 with
+     *     the refusal text in `reading` and every structured list empty
+     *     (0 lines / 0 mounts / no observations / no guidance).
+     * Never fabricates: it only re-labels a server response that already
+     * carries the refusal.
+     */
+    val isRefusal: Boolean
+        get() = !isPalm || (reading.isNotBlank()
+            && lines.isEmpty() && mounts.isEmpty()
+            && keyObservations.isEmpty() && guidance.isEmpty())
+
+    /** parsed_facts keys not shown in dedicated sections — shown as extras. */
+    val extras: Map<String, Any?>
+        get() = parsedFactsRaw.filterKeys {
+            it !is String || (it as String) !in PALM_COVERED_KEYS
+        }
 
     /**
      * FULL palmistry reading rendered as chat context for follow-up AI questions.
@@ -391,9 +435,22 @@ data class PalmistryReading(
      * mount, all key observations, all guidance, uncertainties, the disclaimer,
      * and any extra parsed_facts — so the AI can explain or expand on anything
      * in the report ("meri health line kya kehti hai?").
+     *
+     * When the server refused the photo, only the refusal is included — the
+     * AI must ask for a clear palm photo, never describe lines or mounts.
      */
     fun toContextBlock(): String {
         val sb = StringBuilder("=== PALMISTRY READING (from palm photo) ===\n")
+        if (isRefusal) {
+            sb.append("No palm was detected in the photo — the server declined to produce a reading.\n")
+            val msg = refusal.ifBlank { reading.trim() }
+            if (msg.isNotBlank()) {
+                sb.append("Server refusal (verbatim): ").append(msg).append('\n')
+            }
+            sb.append("Do not describe any palm lines or mounts. ")
+            sb.append("Ask the user for a clear, well-lit photo of their open palm.")
+            return sb.toString().trim()
+        }
         if (hand.isNotBlank()) {
             sb.append("Hand: ").append(hand)
             if (handType.isNotBlank()) sb.append(" (").append(handType).append(')')
@@ -433,11 +490,6 @@ data class PalmistryReading(
             uncertainties.forEach { sb.append("- ").append(it).append('\n') }
         }
         // Any extra parsed_facts not covered above (raw key: value).
-        val covered = setOf(
-            "hand", "hand_type", "lines", "mounts",
-            "key_observations", "guidance", "uncertainties"
-        )
-        val extras = parsedFactsRaw.filterKeys { it !is String || (it as String) !in covered }
         if (extras.isNotEmpty()) {
             sb.append("\n--- Additional parsed facts ---\n")
             renderGeneric(sb, "", extras)

@@ -9,6 +9,7 @@ import com.omastro.app.data.model.VastuPadaInfo
 import com.omastro.app.data.model.VisionAnalysis
 import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.data.remote.OmAstroApiService
+import com.omastro.app.ui.i18n.W
 import java.io.File
 import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -186,7 +187,7 @@ class VisionRepository(
             // "not available yet" instead of a raw HTTP 404.
             if (res.code() == 404) {
                 return Result.failure(
-                    IOException(com.omastro.app.ui.i18n.W.t("face_err_unavailable"))
+                    IOException(W.t("face_err_unavailable"))
                 )
             }
             if (!res.isSuccessful || body == null) {
@@ -220,11 +221,13 @@ class VisionRepository(
         val data = body?.get("data") as? Map<String, Any?>
         val msg = (data?.get("message") as? String)
             ?: (body?.get("message") as? String)
+        // Bilingual user-facing errors (auto-switch with Settings language);
+        // a server-provided message still takes precedence when present.
         return when (code) {
-            401 -> "Please sign in to use this feature."
-            429 -> "Too many photo analyses. Please wait a minute and try again."
-            422 -> msg ?: "The photo could not be understood. Try a clearer photo."
-            else -> msg ?: "Request failed (HTTP $code)."
+            401 -> W.t("vision_err_auth")
+            429 -> W.t("vision_err_rate")
+            422 -> msg ?: W.t("vision_err_photo")
+            else -> msg ?: "${W.t("vision_err_http")} (HTTP $code)."
         }
     }
 }

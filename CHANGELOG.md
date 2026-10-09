@@ -4,6 +4,35 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Palmistry Depth Audit: honest refusal path, deeper result, bilingual errors
+
+Audited the full Palmistry flow end-to-end from repo code (server down, no live probe): photo capture → upload → result → "Ask AI". The flow is real and deep; one honesty gap found and fixed (the server's verified refusal shape had no dedicated render path), one depth gap closed (extra parsed facts were context-block-only), and shared vision error strings made bilingual. No emojis anywhere in the module (verified by scan). Nothing fabricated: every new UI state renders server-returned content only.
+
+**Flow verdict**: photo capture works — camera (`TakePicturePreview`) + gallery (`GetContent`), permissions via `rememberPermissionRequest` (CAMERA; READ_MEDIA_IMAGES on 33+, READ_EXTERNAL_STORAGE ≤32), all three declared in `AndroidManifest.xml`. Upload is multipart `image` + `hand` to `POST palmistry/analyze` (`VisionRepository.analyzePalmistry`), matching the backend API doc. "Ask AI about this" is wired end-to-end: `PendingPhotoContextHolder` → AI Chat route → `AiChatScreen` consumes on open → attaches as a photo-context chip → `buildContext()` includes it in the next message.
+**Depth verdict**: result display is deep — hand-summary hero, full reading text, every line (name + quality badge + note), every mount (name + state badge + note), key observations, guidance, "unclear in photo" honesty section, disclaimer — all rendered present-fields-only. Now also renders any extra `parsed_facts` keys as an "Additional details" section (previously only in the AI context block).
+
+### Fixed (real gaps)
+1. **Server refusal had no honest render path** (`VisionModels.kt :: PalmistryReading`, `PalmistryScreen.kt :: PalmistryResultCard`):
+   - **Before**: the verified server refusal shape (Cycle-1 honesty check, 2026-10-10: `/palmistry/analyze` + landscape → HTTP 200, refusal text in `reading`, 0 lines/0 mounts) rendered as an empty "Your Palm" hero box plus the refusal prose under the "Detailed Reading" heading — never fabricated, but framed as a reading and easy to misread. The model had no `is_palm`/`refusal` fields at all (Face Reading had them; Palmistry did not).
+   - **After**: `PalmistryReading` gained `isPalm` (parsed defensively from `parsed_facts.is_palm` / `data.is_palm`) + `refusal` (`data.refusal` / `parsed_facts.refusal`), and a derived `isRefusal` that also detects the verified 200-with-refusal-text shape (prose present, all structured lists empty). Refusals now render a dedicated honesty card — warning icon, bilingual "No palm detected in this photo" title, the server's refusal **verbatim**, retake hint — mirroring `FaceReadingScreen`'s `!isFace` card. "Ask AI" on a refusal attaches a refusal-only context block instructing the AI to ask for a clear palm photo instead of describing lines/mounts.
+2. **Hand hero rendered empty** (`PalmistryResultCard`):
+   - **Before**: the gradient "Your Palm" hero always rendered, even when the server returned no hand/hand-type info — an empty box on refusal/blank responses.
+   - **After**: hero renders only when `hand` or `handType` is present.
+3. **Vision error strings were English-only** (`VisionRepository.parseError`):
+   - **Before**: 401/429/422/HTTP errors hardcoded in English while the rest of the screen is bilingual.
+   - **After**: new `vision_err_auth / vision_err_rate / vision_err_photo / vision_err_http` keys in `FeatureStrings.kt` (EN/हिन्दी, auto-switch via the `W` system); server-provided messages still take precedence when present. This improves Vastu, Face Reading and generic vision screens too since they share `parseError`.
+
+### Deepened
+4. **"Additional details" section** (`PalmistryResultCard` + new `renderFactLines` in `VisionModels.kt`): server `parsed_facts` keys outside the covered sections (hand/hand_type/lines/mounts/observations/guidance/uncertainties) now display as key: value rows — previously visible only inside the AI context block.
+
+### Honesty
+- Refusal detection never invents: explicit server flag wins; the heuristic only re-labels the documented live refusal shape (prose + 0 lines/0 mounts). The refusal text is shown verbatim, never paraphrased. Empty/error states unchanged and honest (loading card, red error text, disabled Analyze until a photo is chosen).
+
+### Bilingual
+- New keys `palm_no_palm_title`, `palm_no_palm_hint`, `palm_extra_details`, `vision_err_*` added to both EN and HI maps in `FeatureStrings.kt`; the whole screen (including the new refusal card) auto-switches with Settings language. Emoji scan of all `palm_*`/`face_*` keys: none found.
+
+---
+
 ## [2026-10-10] — Numerology Depth Audit: all 12 tools verified real, deep, honest, bilingual
 
 Audited every numerology tool end-to-end (input → computation → output) in `ui/screens/numerology/`. Two real math/logic bugs found and fixed, three dead-when-offline tools rebuilt on real on-device math, all 12 tools deepened with genuine interpretations, the whole module made bilingual (EN/हिन्दी, auto-switch with Settings), and honest server-unavailable states added throughout. No emojis anywhere in the module (verified by scan). No fabricated readings: every interpretation is either deterministic math from the user's own DOB/name or a standard published numerology meaning; server data is preferred where it maps 1:1 and clearly labeled when it is.

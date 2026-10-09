@@ -117,6 +117,14 @@ object W {
         "palm_lib_rationale" to "गैलरी से हथेली की फोटो चुनने के लिए फोटो लाइब्रेरी एक्सेस आवश्यक है।",
         "palm_cam_title" to "कैमरा एक्सेस",
         "palm_lib_title" to "फोटो एक्सेस",
+        "palm_no_palm_title" to "इस फोटो में हथेली नहीं दिखी",
+        "palm_no_palm_hint" to "कृपया अपनी खुली हथेली की स्पष्ट फोटो अपलोड करें — तेज़, एकसमान रोशनी; फ्रेम में पूरी हथेली आए।",
+        "palm_extra_details" to "अतिरिक्त विवरण",
+        // ---- Vision/photo shared errors (VisionRepository.parseError) ----
+        "vision_err_auth" to "इस सुविधा के उपयोग के लिए कृपया साइन इन करें।",
+        "vision_err_rate" to "बहुत अधिक फोटो विश्लेषण। कृपया एक मिनट रुककर पुनः प्रयास करें।",
+        "vision_err_photo" to "फोटो समझी नहीं जा सकी। स्पष्ट फोटो से प्रयास करें।",
+        "vision_err_http" to "अनुरोध विफल रहा",
 
         // ---- Face reading ----
         "face_title" to "चेहरा विश्लेषण",
@@ -676,6 +684,14 @@ object W {
         "palm_lib_rationale" to "Choosing a palm photo from your gallery needs photo-library access.",
         "palm_cam_title" to "Camera access",
         "palm_lib_title" to "Photo access",
+        "palm_no_palm_title" to "No palm detected in this photo",
+        "palm_no_palm_hint" to "Please upload a clear photo of your open palm — bright, even light, palm filling the frame.",
+        "palm_extra_details" to "Additional details",
+        // ---- Vision/photo shared errors (VisionRepository.parseError) ----
+        "vision_err_auth" to "Please sign in to use this feature.",
+        "vision_err_rate" to "Too many photo analyses. Please wait a minute and try again.",
+        "vision_err_photo" to "The photo could not be understood. Try a clearer photo.",
+        "vision_err_http" to "Request failed",
         "face_title" to "Face Reading",
         "face_sub" to "Samudrika Shastra face reading from your photo",
         "face_capture_title" to "Photograph your face",

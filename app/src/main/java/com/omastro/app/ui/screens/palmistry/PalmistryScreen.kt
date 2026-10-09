@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -67,6 +68,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.PalmistryReading
 import com.omastro.app.data.model.PendingPhotoContextHolder
 import com.omastro.app.data.model.PhotoContextAttachment
+import com.omastro.app.data.model.renderFactLines
 import com.omastro.app.data.repository.VisionRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
 import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
@@ -466,102 +468,132 @@ private fun PalmistryResultCard(
     onRetake: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Hand summary
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    androidx.compose.ui.graphics.Brush.linearGradient(
-                        colors = listOf(Color(0xFF8B5E2E), Color(0xFF5C3A17))
-                    )
-                )
-                .padding(18.dp)
-        ) {
-            Column {
-                Text(
-                    W.t("palm_your_palm"),
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp
-                )
-                if (reading.hand.isNotBlank()) {
-                    val handLabel = when (reading.hand.lowercase()) {
-                        "right" -> W.t("palm_hand_word_right")
-                        "left" -> W.t("palm_hand_word_left")
-                        else -> reading.hand.replaceFirstChar { it.uppercase() } + W.t("palm_hand_word")
+        if (reading.isRefusal) {
+            // Honesty refusal: the server saw no palm — the refusal is shown
+            // verbatim, never relabeled as a reading, never invented around.
+            PalmistryRefusalCard(reading = reading)
+        } else {
+            // Hand summary hero — only when the server actually gave hand info.
+            if (reading.hand.isNotBlank() || reading.handType.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            androidx.compose.ui.graphics.Brush.linearGradient(
+                                colors = listOf(Color(0xFF8B5E2E), Color(0xFF5C3A17))
+                            )
+                        )
+                        .padding(18.dp)
+                ) {
+                    Column {
+                        Text(
+                            W.t("palm_your_palm"),
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
+                        if (reading.hand.isNotBlank()) {
+                            val handLabel = when (reading.hand.lowercase()) {
+                                "right" -> W.t("palm_hand_word_right")
+                                "left" -> W.t("palm_hand_word_left")
+                                else -> reading.hand.replaceFirstChar { it.uppercase() } + W.t("palm_hand_word")
+                            }
+                            Text(
+                                handLabel +
+                                    (if (reading.handType.isNotBlank()) " · ${reading.handType}" else ""),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp
+                            )
+                        } else {
+                            Text(
+                                reading.handType,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp
+                            )
+                        }
                     }
+                }
+            }
+
+            // Full reading text
+            if (reading.reading.isNotBlank()) {
+                ResultSectionCard(title = W.t("palm_detailed")) {
                     Text(
-                        handLabel +
-                            (if (reading.handType.isNotBlank()) " · ${reading.handType}" else ""),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
+                        reading.reading,
+                        color = StarlightWhite.copy(alpha = 0.9f),
+                        fontSize = 13.5.sp,
+                        lineHeight = 20.sp
                     )
                 }
             }
-        }
 
-        // Full reading text
-        if (reading.reading.isNotBlank()) {
-            ResultSectionCard(title = W.t("palm_detailed")) {
-                Text(
-                    reading.reading,
-                    color = StarlightWhite.copy(alpha = 0.9f),
-                    fontSize = 13.5.sp,
-                    lineHeight = 20.sp
-                )
-            }
-        }
-
-        // Lines
-        if (reading.lines.isNotEmpty()) {
-            ResultSectionCard(title = W.t("palm_lines")) {
-                reading.lines.forEach { line ->
-                    PalmDetailRow(
-                        name = line.name,
-                        badge = line.quality,
-                        note = line.note
-                    )
+            // Lines
+            if (reading.lines.isNotEmpty()) {
+                ResultSectionCard(title = W.t("palm_lines")) {
+                    reading.lines.forEach { line ->
+                        PalmDetailRow(
+                            name = line.name,
+                            badge = line.quality,
+                            note = line.note
+                        )
+                    }
                 }
             }
-        }
 
-        // Mounts
-        if (reading.mounts.isNotEmpty()) {
-            ResultSectionCard(title = W.t("palm_mounts")) {
-                reading.mounts.forEach { mount ->
-                    PalmDetailRow(
-                        name = mount.name,
-                        badge = mount.state,
-                        note = mount.note
-                    )
+            // Mounts
+            if (reading.mounts.isNotEmpty()) {
+                ResultSectionCard(title = W.t("palm_mounts")) {
+                    reading.mounts.forEach { mount ->
+                        PalmDetailRow(
+                            name = mount.name,
+                            badge = mount.state,
+                            note = mount.note
+                        )
+                    }
                 }
             }
-        }
 
-        // Key observations
-        if (reading.keyObservations.isNotEmpty()) {
-            ResultSectionCard(title = W.t("palm_obs")) {
-                reading.keyObservations.forEach { obs ->
-                    BulletText(obs)
+            // Key observations
+            if (reading.keyObservations.isNotEmpty()) {
+                ResultSectionCard(title = W.t("palm_obs")) {
+                    reading.keyObservations.forEach { obs ->
+                        BulletText(obs)
+                    }
                 }
             }
-        }
 
-        // Guidance
-        if (reading.guidance.isNotEmpty()) {
-            ResultSectionCard(title = W.t("palm_guidance")) {
-                reading.guidance.forEach { g ->
-                    BulletText(g)
+            // Guidance
+            if (reading.guidance.isNotEmpty()) {
+                ResultSectionCard(title = W.t("palm_guidance")) {
+                    reading.guidance.forEach { g ->
+                        BulletText(g)
+                    }
                 }
             }
-        }
 
-        // Uncertainties (honesty)
-        if (reading.uncertainties.isNotEmpty()) {
-            ResultSectionCard(title = W.t("palm_unclear")) {
-                reading.uncertainties.forEach { u ->
-                    BulletText(u)
+            // Uncertainties (honesty)
+            if (reading.uncertainties.isNotEmpty()) {
+                ResultSectionCard(title = W.t("palm_unclear")) {
+                    reading.uncertainties.forEach { u ->
+                        BulletText(u)
+                    }
+                }
+            }
+
+            // Extra server-returned facts not covered by the sections above.
+            val extrasText = renderFactLines(reading.extras)
+            if (extrasText.isNotBlank()) {
+                ResultSectionCard(title = W.t("palm_extra_details")) {
+                    extrasText.split("\n").forEach { line ->
+                        Text(
+                            line,
+                            color = StarlightWhite.copy(alpha = 0.75f),
+                            fontSize = 12.5.sp,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
                 }
             }
         }
@@ -600,6 +632,53 @@ private fun PalmistryResultCard(
                 Text(W.t("palm_ask"), fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+/**
+ * Honest refusal card: the server declined to read this photo (no palm
+ * visible). The server's refusal is shown verbatim; "Ask AI" attaches the
+ * refusal only, so the AI asks for a clear palm photo instead of inventing.
+ */
+@Composable
+private fun PalmistryRefusalCard(reading: PalmistryReading) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(CosmicNavy)
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Default.WarningAmber,
+            contentDescription = null,
+            tint = Color(0xFFFFB74D),
+            modifier = Modifier.size(40.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            W.t("palm_no_palm_title"),
+            color = StarlightWhite,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        val msg = reading.refusal.ifBlank { reading.reading }
+        if (msg.isNotBlank()) {
+            Text(
+                msg,
+                color = StarlightWhite.copy(alpha = 0.75f),
+                fontSize = 13.5.sp,
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        Text(
+            W.t("palm_no_palm_hint"),
+            color = StarlightWhite.copy(alpha = 0.55f),
+            fontSize = 12.5.sp
+        )
     }
 }
 
