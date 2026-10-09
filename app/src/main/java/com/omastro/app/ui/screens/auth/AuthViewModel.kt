@@ -3,7 +3,6 @@ package com.omastro.app.ui.screens.auth
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.omastro.app.data.model.AuthToken
 import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.di.AppContainer
 import kotlinx.coroutines.Job
@@ -23,9 +22,9 @@ import kotlinx.coroutines.launch
  *  - POST /auth/forgot-password {email} -> reset instructions sent
  *
  * Repository signatures consumed here (implemented on the data branch):
- *  - AuthRepository.login(email, password): Result<AuthToken>
+ *  - AuthRepository.login(email, password): Result<LoginResponse> / Result<VerifySignupOtpResponse>
  *  - AuthRepository.register(name, email, password, mobile: String?): Result<Unit>
- *  - AuthRepository.verifySignupOtp(email, otp): Result<AuthToken>
+ *  - AuthRepository.verifySignupOtp(email, otp): Result<LoginResponse> / Result<VerifySignupOtpResponse>
  *  - AuthRepository.forgotPassword(email): Result<Unit>
  * where AuthToken exposes the bearer token string via `token`.
  */
@@ -135,9 +134,14 @@ class AuthViewModel : ViewModel() {
             _isLoading.value = true
             _errorMessage.value = null
             authRepository.login(email, password)
-                .onSuccess { authToken: AuthToken ->
-                    ApiClient.setAuthToken(authToken.token)
-                    _loginSuccess.value = true
+                .onSuccess { response: com.omastro.app.data.model.LoginResponse ->
+                    val token = response.token
+                    if (!token.isNullOrBlank()) {
+                        ApiClient.setAuthToken(token)
+                        _loginSuccess.value = true
+                    } else {
+                        _errorMessage.value = "Login failed: no session token received."
+                    }
                 }
                 .onFailure { err ->
                     _errorMessage.value = err.message ?: "Login failed. Please check your credentials and try again."
@@ -205,9 +209,14 @@ class AuthViewModel : ViewModel() {
             _isLoading.value = true
             _errorMessage.value = null
             authRepository.verifySignupOtp(email, code)
-                .onSuccess { authToken: AuthToken ->
-                    ApiClient.setAuthToken(authToken.token)
-                    _loginSuccess.value = true
+                .onSuccess { response: com.omastro.app.data.model.VerifySignupOtpResponse ->
+                    val token = response.token
+                    if (!token.isNullOrBlank()) {
+                        ApiClient.setAuthToken(token)
+                        _loginSuccess.value = true
+                    } else {
+                        _errorMessage.value = "Login failed: no session token received."
+                    }
                 }
                 .onFailure { err ->
                     _errorMessage.value = err.message ?: "Invalid or expired code. Please try again."

@@ -2,7 +2,7 @@ package com.omastro.app.ui.screens.wallet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.omastro.app.data.model.RazorpayOrderResponse
+import com.omastro.app.data.model.TopupOrderResponse
 import com.omastro.app.data.model.RechargePack
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.di.AppContainer
@@ -42,7 +42,7 @@ class WalletViewModel : ViewModel() {
      * purchased. The UI observes this and launches RazorpayPaymentActivity once.
      */
     data class PendingOrder(
-        val order: RazorpayOrderResponse,
+        val order: TopupOrderResponse,
         val pack: RechargePack
     )
 
@@ -85,10 +85,9 @@ class WalletViewModel : ViewModel() {
             rechargeCoinsUseCase.verifyPayment(
                 orderId = orderId,
                 paymentId = paymentId,
-                signature = signature,
-                pack = pack
+                signature = signature
             ).onSuccess { res ->
-                _message.value = res.message.ifBlank { "Recharge successful." }
+                _message.value = (res.message ?: "").ifBlank { "Recharge successful." }
             }.onFailure { err ->
                 _message.value = err.message ?: "Payment verification failed. If money was debited it will be refunded."
             }

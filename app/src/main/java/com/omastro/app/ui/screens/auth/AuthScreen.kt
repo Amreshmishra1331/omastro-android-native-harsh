@@ -194,7 +194,7 @@ private fun AuthPrimaryButton(
 }
 
 @Composable
-private fun LoginForm(viewModel: AuthViewModel, isLoading: Boolean) {
+private fun ColumnScope.LoginForm(viewModel: AuthViewModel, isLoading: Boolean) {
     val email by viewModel.loginEmail.collectAsState()
     val password by viewModel.loginPassword.collectAsState()
 
@@ -211,7 +211,7 @@ private fun LoginForm(viewModel: AuthViewModel, isLoading: Boolean) {
 }
 
 @Composable
-private fun SignupForm(viewModel: AuthViewModel, isLoading: Boolean) {
+private fun ColumnScope.SignupForm(viewModel: AuthViewModel, isLoading: Boolean) {
     val name by viewModel.signupName.collectAsState()
     val email by viewModel.signupEmail.collectAsState()
     val mobile by viewModel.signupMobile.collectAsState()
@@ -237,7 +237,7 @@ private fun SignupForm(viewModel: AuthViewModel, isLoading: Boolean) {
 }
 
 @Composable
-private fun VerifyOtpForm(viewModel: AuthViewModel, isLoading: Boolean) {
+private fun ColumnScope.VerifyOtpForm(viewModel: AuthViewModel, isLoading: Boolean) {
     val email by viewModel.otpEmail.collectAsState()
     val code by viewModel.otpCode.collectAsState()
     val cooldown by viewModel.resendCooldown.collectAsState()
@@ -264,7 +264,7 @@ private fun VerifyOtpForm(viewModel: AuthViewModel, isLoading: Boolean) {
 }
 
 @Composable
-private fun ForgotPasswordForm(viewModel: AuthViewModel, isLoading: Boolean) {
+private fun ColumnScope.ForgotPasswordForm(viewModel: AuthViewModel, isLoading: Boolean) {
     val email by viewModel.forgotEmail.collectAsState()
 
     Text("Reset Password", style = MaterialTheme.typography.titleLarge, color = SacredGoldLight, fontWeight = FontWeight.Bold)

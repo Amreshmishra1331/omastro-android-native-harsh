@@ -90,21 +90,7 @@ class RazorpayPaymentActivity : ComponentActivity(), PaymentResultWithDataListen
         finish()
     }
 
-    override fun onPaymentSuccess(razorpayPaymentId: String?) {
-        // Fallback for the single-arg callback; signature may be absent.
-        val result = Intent().apply {
-            putExtra(RESULT_PAYMENT_ID, razorpayPaymentId)
-            putExtra(RESULT_ORDER_ID, intent.getStringExtra(EXTRA_ORDER_ID))
-        }
-        setResult(Activity.RESULT_OK, result)
-        finish()
-    }
-
     override fun onPaymentError(code: Int, response: String?, data: PaymentData?) {
-        finishWithError(response ?: "Payment failed (code $code).")
-    }
-
-    override fun onPaymentError(code: Int, response: String?) {
         finishWithError(response ?: "Payment failed (code $code).")
     }
 
