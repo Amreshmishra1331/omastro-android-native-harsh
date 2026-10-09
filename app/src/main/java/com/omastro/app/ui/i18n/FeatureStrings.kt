@@ -204,6 +204,16 @@ object W {
         "vastu_compass_cam_rationale" to "प्रवेश द्वार की दिशा देखते समय लाइव कैमरा प्रीव्यू के लिए कैमरा एक्सेस आवश्यक है।",
         "vastu_compass_unavailable_title" to "कम्पास उपलब्ध नहीं",
         "vastu_compass_unavailable_msg" to "इस डिवाइस में कम्पास सेंसर नहीं है, इसलिए लाइव दिशा नहीं दिखाई जा सकती। कृपया दिशा मैन्युअल रूप से चुनें।",
+        "vastu_compass_style_classic" to "क्लासिक",
+        "vastu_compass_style_minimal" to "मिनिमल",
+        "vastu_compass_style_mandala" to "वास्तु मंडल",
+        "vastu_compass_style_digital" to "डिजिटल",
+        "vastu_compass_capture_cd" to "दिशा फोटो लें",
+        "vastu_compass_photo_title" to "दिशा फोटो",
+        "vastu_compass_saved" to "फोटो गैलरी में सहेजी गई।",
+        "vastu_compass_save_failed" to "गैलरी में नहीं सहेजी जा सकी, लेकिन फोटो तैयार है।",
+        "vastu_compass_capture_failed" to "फोटो नहीं ली जा सकी। कृपया पुनः प्रयास करें।",
+        "vastu_compass_use_photo" to "नक्शा विश्लेषण में उपयोग करें",
         "vastu_sev_high" to "गंभीर",
         "vastu_sev_medium" to "मध्यम",
         "vastu_sev_low" to "हल्का",
@@ -391,6 +401,16 @@ object W {
         "vastu_compass_cam_rationale" to "Camera access is needed for the live preview while you check your entrance direction.",
         "vastu_compass_unavailable_title" to "Compass not available",
         "vastu_compass_unavailable_msg" to "This device has no compass sensor, so live direction cannot be shown. Please choose the direction manually.",
+        "vastu_compass_style_classic" to "Classic",
+        "vastu_compass_style_minimal" to "Minimal",
+        "vastu_compass_style_mandala" to "Vastu Mandala",
+        "vastu_compass_style_digital" to "Digital",
+        "vastu_compass_capture_cd" to "Capture direction photo",
+        "vastu_compass_photo_title" to "Direction photo",
+        "vastu_compass_saved" to "Photo saved to gallery.",
+        "vastu_compass_save_failed" to "Could not save to gallery, but the photo is ready.",
+        "vastu_compass_capture_failed" to "Could not capture photo. Please try again.",
+        "vastu_compass_use_photo" to "Use for house-map analysis",
         "vastu_sev_high" to "High",
         "vastu_sev_medium" to "Medium",
         "vastu_sev_low" to "Low",
@@ -453,6 +473,21 @@ object W {
     /** Direction display name in the active language. */
     fun dirName(code: String): String {
         val map = if (LangPrefs.language.value == "hi") DIR_HI else DIR_EN
+        return map[code] ?: code
+    }
+
+    private val DEITY_HI = mapOf(
+        "N" to "कुबेर", "NE" to "ईशान", "E" to "इंद्र", "SE" to "अग्नि",
+        "S" to "यम", "SW" to "निरृति", "W" to "वरुण", "NW" to "वायु"
+    )
+    private val DEITY_EN = mapOf(
+        "N" to "Kubera", "NE" to "Ishana", "E" to "Indra", "SE" to "Agni",
+        "S" to "Yama", "SW" to "Nirriti", "W" to "Varuna", "NW" to "Vayu"
+    )
+
+    /** Dikpala (guardian deity) of a direction, in the active language. */
+    fun vastuDeityName(code: String): String {
+        val map = if (LangPrefs.language.value == "hi") DEITY_HI else DEITY_EN
         return map[code] ?: code
     }
 

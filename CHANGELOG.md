@@ -9,16 +9,23 @@ All notable changes to the native Android app. Each entry lists what was broken 
 ### Added
 1. **Compass Mode in the Vastu screen** (`ui/screens/vastu/CompassModeScreen.kt`, `CompassSensor.kt`):
    - **Before**: facing direction could only be picked from a dropdown — users had to guess their entrance direction.
-   - **After**: "Find direction with compass" button in the Facing & Entrance card opens a full-screen live compass: real-time heading from the device magnetometer + accelerometer (tilt-compensated via `SensorManager.getRotationMatrix`/`getOrientation`), rotating compass dial (Canvas: tick marks, N/NE/E/SE/S/SW/W/NW ring, fixed gold marker at top), live degrees readout + localized 8-sector direction label.
-   - **CameraX live preview** behind the dial — point the top of the phone at the main entrance and see the direction in real time. Bound once via `ProcessCameraProvider`, unbound on dispose; if the camera is busy the compass still works (preview stays dark, no crash).
-   - **"Use this direction"** captures the live direction code and auto-fills the form's facing-direction field.
-   - **Permissions**: CAMERA via the existing `rememberPermissionRequest` rationale/denial dialogs; sensor access needs no runtime permission.
-   - **Honest states**: devices without magnetometer/accelerometer get a clear "Compass not available" screen (never fake headings); low-accuracy readings show a figure-8 calibration hint.
-   - Fully bilingual (EN/हिन्दी), auto-switches with Settings language — 10 new keys in `FeatureStrings.kt` (`vastu_compass_*`).
+   - **After**: "Find direction with compass" button in the Facing & Entrance card opens a full-screen live compass: real-time heading from the device magnetometer + accelerometer (tilt-compensated via `SensorManager.getRotationMatrix`/`getOrientation`), CameraX live preview behind the dial — point the top of the phone at the main entrance and see the direction in real time.
+   - **4 switchable compass styles** (style chips above the dial, all overlay the camera preview):
+     - *Classic dial*: rotating ring with ticks; all 8 directions shown simultaneously; the live facing sector glows with a gold wedge and the live direction label is enlarged gold.
+     - *Minimal*: thin ring with heading progress arc, 8 minimal ticks, large digital degrees + direction name in the center.
+     - *Vastu Mandala*: 8 direction sectors with their dikpala guardian deities (Kubera/कुबेर N, Ishana/ईशान NE, Indra/इंद्र E, Agni/अग्नि SE, Yama/यम S, Nirriti/निरृति SW, Varuna/वरुण W, Vayu/वायु NW); the live sector glows gold; ॐ Brahmasthan center.
+     - *Digital*: instrument panel with rotating arrow, big digital degrees readout, direction name.
+   - **Photo capture**: shutter button → CameraX `ImageCapture` still → the live direction name + code, degrees, and timestamp are stamped onto the image in a bottom banner (the photo itself proves which direction was faced) → saved to the device gallery (`Pictures/OmAstro`) → result dialog with stamped preview.
+   - **Attach to analysis**: "Use for house-map analysis" hands the stamped photo to the Vastu Photo tab (`VastuPhotoForm` prefill), which opens with the photo loaded and ready to analyze.
+   - **"Use this direction"** captures the live 8-sector direction code and auto-fills the form's facing-direction field.
+   - **Permissions**: CAMERA via the existing `rememberPermissionRequest` rationale/denial dialogs; sensor access needs no runtime permission. Gallery save uses MediaStore (WRITE_EXTERNAL_STORAGE declared maxSdk 28 for Android 9 and below).
+   - **Honest states**: devices without magnetometer/accelerometer get a clear "Compass not available" screen (never fake headings); low-accuracy readings show a figure-8 calibration hint; capture failures show an honest error (no silent loss).
+   - Fully bilingual (EN/हिन्दी), auto-switches with Settings language — 22 new keys in `FeatureStrings.kt` (`vastu_compass_*`) + `W.vastuDeityName()` for dikpala names.
 
 ### Changed
 - `app/build.gradle.kts`: added CameraX 1.3.4 (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-view`).
-- `VastuScreen.kt`: compass entry button in the facing card; full-screen `CompassModeScreen` overlay wired to the `facing` form state.
+- `AndroidManifest.xml`: added WRITE_EXTERNAL_STORAGE (maxSdk 28) for gallery saves on Android 9 and below.
+- `VastuScreen.kt`: compass entry button in the facing card; full-screen `CompassModeScreen` overlay wired to the `facing` form state; compass-captured photo hands off to the Photo tab via `prefillPhoto`.
 
 ### Removed
 - Nothing.

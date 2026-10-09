@@ -2,6 +2,7 @@ package com.omastro.app.ui.screens.vastu
 
 import android.Manifest
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -101,9 +102,11 @@ import com.omastro.app.ui.theme.CosmicNavy
 import com.omastro.app.ui.theme.SacredGold
 import com.omastro.app.ui.theme.StarlightWhite
 import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // ------------------------------------------------------------------
 // ViewModel
@@ -212,6 +215,8 @@ fun VastuScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var tab by remember { mutableStateOf(0) } // 0 = Manual, 1 = Photo
+    // Photo captured in Compass Mode, handed to the house-map photo tab.
+    var compassPhotoFile by remember { mutableStateOf<File?>(null) }
     // Collect global language so the whole screen auto-switches EN/हिन्दी.
     val lang by LangPrefs.language.collectAsState()
 
@@ -287,11 +292,17 @@ fun VastuScreen(
                 VastuManualForm(
                     padaReference = uiState.padaReference,
                     isLoading = uiState.isLoading,
-                    onAnalyze = { viewModel.analyze(it) }
+                    onAnalyze = { viewModel.analyze(it) },
+                    onCompassPhoto = { file ->
+                        compassPhotoFile = file
+                        tab = 1
+                    }
                 )
             } else {
                 VastuPhotoForm(
                     isLoading = uiState.isLoading,
+                    prefillPhoto = compassPhotoFile,
+                    onPhotoConsumed = { compassPhotoFile = null },
                     onAnalyze = { file, notes -> viewModel.analyzePhoto(file, notes) }
                 )
             }
@@ -360,7 +371,8 @@ fun VastuScreen(
 private fun VastuManualForm(
     padaReference: List<VastuPadaInfo>,
     isLoading: Boolean,
-    onAnalyze: (VastuAnalyzeRequest) -> Unit
+    onAnalyze: (VastuAnalyzeRequest) -> Unit,
+    onCompassPhoto: (File) -> Unit
 ) {
     var facing by remember { mutableStateOf("E") }
     var padaText by remember { mutableStateOf("") }
@@ -561,6 +573,10 @@ private fun VastuManualForm(
                     facing = dir
                     showCompass = false
                 },
+                onUsePhoto = { file ->
+                    showCompass = false
+                    onCompassPhoto(file)
+                },
                 onBack = { showCompass = false }
             )
         }
@@ -751,6 +767,8 @@ private fun VastuRoomRow(
 @Composable
 private fun VastuPhotoForm(
     isLoading: Boolean,
+    prefillPhoto: File? = null,
+    onPhotoConsumed: () -> Unit = {},
     onAnalyze: (File, String?) -> Unit
 ) {
     val context = LocalContext.current
@@ -759,6 +777,21 @@ private fun VastuPhotoForm(
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var imageFile by remember { mutableStateOf<File?>(null) }
     var notes by remember { mutableStateOf("") }
+
+    // Photo handed over from Compass Mode (direction stamped on it).
+    LaunchedEffect(prefillPhoto) {
+        if (prefillPhoto != null && prefillPhoto.exists()) {
+            imageFile = prefillPhoto
+            previewBitmap = withContext(Dispatchers.IO) {
+                try {
+                    BitmapFactory.decodeFile(prefillPhoto.absolutePath)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            onPhotoConsumed()
+        }
+    }
 
     val cameraPermission = rememberPermissionRequest(
         permission = Manifest.permission.CAMERA,
