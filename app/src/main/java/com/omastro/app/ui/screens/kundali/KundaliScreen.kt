@@ -34,6 +34,7 @@ import com.omastro.app.ui.components.TimePickerField
 import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.components.PlanetMark
 import com.omastro.app.ui.components.VedicDiamondChart
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -427,7 +428,7 @@ private fun KundaliResults(
     val lalKitabState by viewModel.lalKitabState.collectAsState()
     val jaiminiState by viewModel.jaiminiState.collectAsState()
 
-    val tabTitles = KUNDALI_TABS
+    val tabTitles = KUNDALI_TAB_KEYS.map { W.t(it) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScrollableTabRow(
@@ -468,15 +469,15 @@ private fun KundaliResults(
                 2 -> navamshaTab(kundali, chartStyle, onNavigateToAiChat)
                 3 -> karakamshaTab(jaiminiState, { viewModel.retryReport(3) }, chartStyle, kundali, onNavigateToAiChat)
                 4 -> lagnaChartTab(
-                    "Chandra Lagna — Moon Chart", "The chart cast from the Moon as ascendant: mind, emotions and perception.",
+                    W.t("kundali_lagna_chandra_t"), W.t("kundali_lagna_chandra_s"),
                     kundali?.chandraChart, kundali, chartStyle, onNavigateToAiChat
                 )
                 5 -> lagnaChartTab(
-                    "Surya Lagna — Sun Chart", "The chart cast from the Sun as ascendant: soul, vitality and authority.",
+                    W.t("kundali_lagna_surya_t"), W.t("kundali_lagna_surya_s"),
                     kundali?.suryaChart, kundali, chartStyle, onNavigateToAiChat
                 )
                 6 -> lagnaChartTab(
-                    "Chalit — Bhava Chalit", "House cusps shift planets by their exact degrees; a planet near a cusp may move houses.",
+                    W.t("kundali_lagna_chalit_t"), W.t("kundali_lagna_chalit_s"),
                     kundali?.chalitChart, kundali, chartStyle, onNavigateToAiChat
                 )
                 7 -> divisionalTab(kundali, viewModel, selectedDiv, chartStyle, onNavigateToAiChat)
@@ -513,7 +514,7 @@ private fun SubjectHeader(kundali: KundaliResponse?, subjectName: String) {
                 Text(subjectName, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
             Text(
-                text = "Lagna: ${lagna.rashi.ifBlank { meta.lagnaEn }}${if (lagna.rashiHi.isNotBlank()) " (${lagna.rashiHi})" else ""}  ${lagna.deg}°${lagna.min}'",
+                text = "${W.t("kundali_hdr_lagna")} ${lagna.rashi.ifBlank { meta.lagnaEn }}${if (lagna.rashiHi.isNotBlank()) " (${lagna.rashiHi})" else ""}  ${lagna.deg}°${lagna.min}'",
                 color = SacredGold,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
@@ -533,10 +534,10 @@ private fun SubjectHeader(kundali: KundaliResponse?, subjectName: String) {
             }
             val curDasha = kundali.vimshottariDasha?.currentDasha?.ifBlank { meta.curDasha } ?: meta.curDasha
             if (curDasha.isNotBlank()) {
-                Text("Current Dasha: $curDasha", color = TextSecondary, fontSize = 12.sp)
+                Text("${W.t("kundali_hdr_dasha")} $curDasha", color = TextSecondary, fontSize = 12.sp)
             }
             if (meta.ayanamsa.isNotBlank()) {
-                Text("Ayanamsa: ${meta.ayanamsa.replaceFirstChar { it.uppercase() }}", color = TextSecondary, fontSize = 11.sp)
+                Text("${W.t("kundali_hdr_ayanamsa")} ${meta.ayanamsa.replaceFirstChar { it.uppercase() }}", color = TextSecondary, fontSize = 11.sp)
             }
         }
     }
@@ -552,6 +553,10 @@ internal fun LazyListScope.chartsTab(
     selectedDiv: String,
     chartStyle: String
 ) {
+    // The Birth Chart tab only offers D1/D9/D10 pills, but selectedDiv is
+    // shared with the Divisional tab (D1..D60) — normalize anything else to D1
+    // so the chart, houses and pill highlight always agree.
+    val div = if (selectedDiv == "D9" || selectedDiv == "D10") selectedDiv else "D1"
     item {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -582,7 +587,7 @@ internal fun LazyListScope.chartsTab(
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             val divs = listOf("D1" to "D1 · Lagna", "D9" to "D9 · Navamsha", "D10" to "D10 · Dashamsha")
             items(divs) { (code, label) ->
-                val isSelected = selectedDiv == code
+                val isSelected = div == code
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = if (isSelected) SacredGold else CosmicCharcoal,
@@ -602,31 +607,31 @@ internal fun LazyListScope.chartsTab(
 
     item {
         if (kundali == null) {
-            EmptySection("No chart data available.")
+            EmptySection(W.t("kundali_empty_chart"))
         } else if (chartStyle == "South Indian") {
             SouthIndianChart(
-                planets = southPlanetsFor(kundali, selectedDiv),
-                ascendantSign = southLagnaFor(kundali, selectedDiv),
-                chartTitle = "South Indian — $selectedDiv Chart"
+                planets = southPlanetsFor(kundali, div),
+                ascendantSign = southLagnaFor(kundali, div),
+                chartTitle = "South Indian — $div Chart"
             )
         } else {
-            val (lagnaSign, marks) = northMarksFor(kundali, selectedDiv)
+            val (lagnaSign, marks) = northMarksFor(kundali, div)
             VedicDiamondChart(
                 lagnaSign = lagnaSign,
                 housePlanets = marks,
-                chartTitle = "North Indian Diamond — $selectedDiv Chart"
+                chartTitle = "North Indian Diamond — $div Chart"
             )
         }
     }
 
     item {
-        SectionTitle("12 Bhavas (Houses)")
+        SectionTitle(W.t("kundali_sec_bhavas"))
     }
     item {
         if (kundali == null) {
-            EmptySection("No house data available.")
+            EmptySection(W.t("kundali_empty_chart"))
         } else {
-            val houses = housesFor(kundali, selectedDiv)
+            val houses = housesFor(kundali, div)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 houses.sortedBy { it.number }.forEach { h ->
                     CosmicCard(modifier = Modifier.fillMaxWidth()) {
@@ -670,10 +675,29 @@ internal fun LazyListScope.chartsTab(
     }
 }
 
+/**
+ * Dashamsha (D10) chart, matched across both server maps and both key
+ * styles ("D10" / "Dashamsha", any case). The Divisional tab lists vargas
+ * from [KundaliResponse.allDivisionalCharts] while the Birth Chart tab's D10
+ * pill previously only looked at divisionalCharts["Dashamsha"] — a key-style
+ * mismatch left the D10 chart empty even when the server returned it.
+ */
+private fun dashamshaChart(kundali: KundaliResponse): DivisionalChart? {
+    val maps = listOf(kundali.allDivisionalCharts, kundali.divisionalCharts)
+    for (m in maps) {
+        m["D10"]?.let { return it }
+        m["Dashamsha"]?.let { return it }
+        m.entries.firstOrNull {
+            it.key.equals("d10", ignoreCase = true) || it.key.equals("dashamsha", ignoreCase = true)
+        }?.let { return it.value }
+    }
+    return null
+}
+
 /** Houses list for the selected divisional. */
 private fun housesFor(kundali: KundaliResponse, div: String): List<HouseInfo> = when (div) {
     "D9" -> kundali.d9Houses
-    "D10" -> kundali.divisionalCharts["Dashamsha"]?.houses ?: emptyList()
+    "D10" -> dashamshaChart(kundali)?.houses ?: emptyList()
     else -> kundali.houses
 }
 
@@ -683,7 +707,7 @@ private fun northMarksFor(kundali: KundaliResponse, div: String): Pair<Int, Map<
         "D9" -> kundali.navamshaLagnaIndex() to kundali.d9PlanetsByHouse()
             .mapValues { (_, names) -> names.map { PlanetMark(it, kundali.symbolFor(it)) } }
         "D10" -> {
-            val dc = kundali.divisionalCharts["Dashamsha"]
+            val dc = dashamshaChart(kundali)
             val lagna = dc?.let { rashiNameToIndex(it.lagnaRashi) } ?: 1
             val byHouse = dc?.houses?.associate { h ->
                 h.number to h.planets.map { PlanetMark(it.name, kundali.symbolFor(it.name)) }
@@ -700,7 +724,7 @@ private fun southPlanetsFor(kundali: KundaliResponse, div: String): List<ApiPlan
     return when (div) {
         "D9" -> kundali.planets.map { it.copy(rashiIndex = rashiNameToIndex(it.d9Rashi.ifBlank { it.rashi })) }
         "D10" -> {
-            val dc = kundali.divisionalCharts["Dashamsha"] ?: return emptyList()
+            val dc = dashamshaChart(kundali) ?: return emptyList()
             val rashiByPlanet = mutableMapOf<String, Int>()
             dc.houses.forEach { h ->
                 h.planets.forEach { p -> rashiByPlanet[p.name.lowercase()] = rashiNameToIndex(h.rashi) }
@@ -716,7 +740,7 @@ private fun southPlanetsFor(kundali: KundaliResponse, div: String): List<ApiPlan
 
 private fun southLagnaFor(kundali: KundaliResponse, div: String): Int = when (div) {
     "D9" -> kundali.navamshaLagnaIndex()
-    "D10" -> kundali.divisionalCharts["Dashamsha"]?.let { rashiNameToIndex(it.lagnaRashi) } ?: 1
+    "D10" -> dashamshaChart(kundali)?.let { rashiNameToIndex(it.lagnaRashi) } ?: 1
     else -> kundali.lagnaSignIndex()
 }
 
@@ -729,11 +753,11 @@ private fun LazyListScope.dashaTab(
     onOpenAiChat: () -> Unit
 ) {
     item {
-        SectionTitle("Vimshottari Dasha — All 7 Levels")
+        SectionTitle(W.t("kundali_sec_dasha"))
     }
     val dasha = kundali?.vimshottariDasha
     if (dasha == null || (dasha.currentMahadasha == null && dasha.allMahadashas.isEmpty())) {
-        item { EmptySection("No dasha data returned for this chart.") }
+        item { EmptySection(W.t("kundali_empty_dasha")) }
         return
     }
 
@@ -742,7 +766,7 @@ private fun LazyListScope.dashaTab(
         CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Current Period", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(W.t("kundali_sec_current_period"), color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
                         Text(
@@ -781,7 +805,7 @@ private fun LazyListScope.dashaTab(
 
     item {
         Text(
-            "Mahadasha Timeline — tap to expand each level",
+            W.t("kundali_sec_dasha_timeline"),
             color = TextSecondary,
             fontSize = 12.sp
         )
@@ -805,7 +829,7 @@ private fun LazyListScope.dashaTab(
     }
 
     kundali?.analysisTabs?.dasha?.takeIf { it.isNotBlank() }?.let { text ->
-        item { SectionTitle("Dasha Analysis") }
+        item { SectionTitle(W.t("kundali_sec_dasha_analysis")) }
         item { KxAnalysisTextBlock(text) }
     }
 
@@ -993,11 +1017,11 @@ private fun LazyListScope.yogasTab(
     onOpenAiChat: () -> Unit
 ) {
     item {
-        SectionTitle("Yogas — Auspicious Combinations")
+        SectionTitle(W.t("kundali_sec_yogas"))
     }
     val yogas = kundali?.yogas ?: emptyList()
     if (yogas.isEmpty()) {
-        item { EmptySection("No yoga data returned for this chart.") }
+        item { EmptySection(W.t("kundali_empty_yogas")) }
         return
     }
     items(yogas) { yoga ->
@@ -1075,14 +1099,14 @@ private fun LazyListScope.doshasTab(
     onOpenAiChat: () -> Unit
 ) {
     item {
-        SectionTitle("Doshas — Afflictions & Remedies")
+        SectionTitle(W.t("kundali_sec_doshas"))
     }
     val doshas = kundali?.doshas ?: emptyList()
     if (doshas.isEmpty()) {
         item {
             CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = AuspiciousGreen.copy(alpha = 0.4f)) {
                 Text(
-                    "No major doshas detected in this chart.",
+                    W.t("kundali_no_doshas"),
                     color = AuspiciousGreen,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -1211,12 +1235,12 @@ private fun LazyListScope.ashtakavargaTab(
     onOpenAiChat: () -> Unit
 ) {
     item {
-        SectionTitle("Sarvashtakavarga — Bindu Strength")
+        SectionTitle(W.t("kundali_sec_ashtaka"))
     }
     val av = kundali?.ashtakavarga
     val rows = av?.savByHouse ?: emptyList()
     if (rows.isEmpty()) {
-        item { EmptySection("No ashtakavarga data returned for this chart.") }
+        item { EmptySection(W.t("kundali_empty_ashtaka")) }
         return
     }
     item {
@@ -1227,7 +1251,7 @@ private fun LazyListScope.ashtakavargaTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Total Bindus", color = TextSecondary, fontSize = 12.sp)
+                    Text(W.t("kundali_lb_total_bindus"), color = TextSecondary, fontSize = 12.sp)
                     Text(
                         av?.savTotal?.toString() ?: "—",
                         color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 22.sp

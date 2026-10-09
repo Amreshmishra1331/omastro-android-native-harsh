@@ -15,13 +15,11 @@ import kotlinx.coroutines.launch
 
 /**
  * The 23 website-parity Kundali tabs, in website order.
+ * Titles are bilingual via [KUNDALI_TAB_KEYS] (`kundali_tab_0..22` in FeatureStrings).
  */
-val KUNDALI_TABS = listOf(
-    "Birth Info", "Birth Chart", "Navamsha", "Karakamsha", "Chandra Lagna",
-    "Surya Lagna", "Chalit", "Divisional", "Dasha", "Ashtaka", "Sodasvarga",
-    "Yogas", "Doshas", "Personality", "Planets", "Panchang", "Shadbal",
-    "Bhrigu Nadi", "Lal Kitab", "Numerology", "Char Dasha", "Faladesh", "Remedies"
-)
+
+/** Bilingual key per tab (FeatureStrings `kundali_tab_0..22`); titles resolve via W.t. */
+val KUNDALI_TAB_KEYS = List(23) { i -> "kundali_tab_$i" }
 
 /** Lazy-load state for a server-generated report (Personality / BNN / Lal Kitab). */
 data class ReportUiState(
@@ -91,7 +89,7 @@ class KundaliViewModel : ViewModel() {
     fun setBirthLon(v: String) { _birthLon.value = v.filter { it.isDigit() || it == '.' || it == '-' }; _formError.value = null }
     fun setBirthGender(v: String) { _birthGender.value = v; _formError.value = null }
 
-    // Tab state: index into KUNDALI_TABS (23 website-parity tabs)
+    // Tab state: index into KUNDALI_TAB_KEYS (23 website-parity tabs)
     private val _selectedTab = MutableStateFlow(0)
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 

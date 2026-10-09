@@ -4,6 +4,35 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Kundali 23-tab depth audit: real-data fixes + full bilingual UI
+
+Audited all 23 Kundali tabs (`KundaliScreen.kt` / `KundaliExtendedTabs.kt`) against the server response shapes in `KundaliModels.kt` — every tab renders real server data (no placeholders, no "coming soon", no emojis; only professional jyotish glyphs ♈☉ etc.). Four tabs were rendering a fraction of available data and are now fixed; all 23 tabs are now bilingual (EN/हिन्दी via `W`/`FeatureStrings`, auto-following the Settings language).
+
+### Before
+- **Birth Info tab**: the "Lucky Gemstone" card showed the label but never rendered the gemstone value (`lucky.gemstone` was computed and sent to AI context, but the UI column contained only the title `Text`). All labels hardcoded English.
+- **Karakamsha tab**: showed the Karakamsha chart and house analysis but never displayed the 7 Chara Karakas (planet + degree + rashi) that `POST /kundali/jaimini` returns — the data was only inside the "Ask AI" context block.
+- **Lal Kitab tab**: the server summary (`lalKitab.note`, `lalKitab.yogas`) was fetched and gated on (`note.isNotBlank() || yogas.isNotEmpty()`) but only `lagnaRashi` was ever rendered — note and yogas never reached the screen.
+- **Planets tab**: the 12-column table never showed `ruledHouses`/`ruledHousesFmt`, `aspects`, `baladiAvastha`, `charaKaraka`, or the `vargottama` flag — all present in `ApiPlanet` and already sent to AI context, but invisible in the UI.
+- **Birth Chart tab (D10)**: the D10 pill only looked up `divisionalCharts["Dashamsha"]`, while the Divisional tab lists vargas from `allDivisionalCharts` (keyed `"D10"`) — a key-style mismatch could leave the D10 chart empty even when the server returned it. `selectedDiv` is shared with the Divisional tab, so picking e.g. D12 there left the Birth Chart tab with no highlighted pill while silently rendering D1.
+- **Bilingual**: all 23 tab titles, every section header, every empty/loading/error/retry string, the chart legend, and the Remedies sub-tab copy were hardcoded English.
+
+### After
+- **Birth Info** (`KundaliExtendedTabs.kt:450`): gemstone value now renders (`lucky.gemstone`); all labels bilingual — Seeker Profile fields, Lagna & Moon, Lucky Elements (`kundali_lb_*`, `kundali_sec_*` keys).
+- **Karakamsha** (`KundaliExtendedTabs.kt:822`): new "Chara Karakas — Seven Soul Significators" section rendering each karaka's planet glyph + name, rashi glyph + name, and degree (from `JaiminiData.karakas.details.ordered()`); intro card and lagna badge bilingual.
+- **Lal Kitab** (`KundaliExtendedTabs.kt:lalKitabFullTab`): server `note` now renders as a "Lal Kitab Note" analysis block and `yogas` render as a "Lal Kitab Yogas" card list; lagna label bilingual.
+- **Planets** (`KundaliExtendedTabs.kt:planetsFullTab`): every planet row is now tappable — expands a "Chart Details" section showing Rules Houses, Aspects, Baladi Avastha, Chara Karaka, and Vargottama (Yes/No), all from `ApiPlanet`, bilingual labels; chevron affordance + header cell added; scroll hint updated.
+- **Birth Chart D10** (`KundaliScreen.kt:dashamshaChart`): new key-agnostic lookup tries `allDivisionalCharts`/`divisionalCharts` with `"D10"`/`"Dashamsha"` (any case) in `housesFor`, `northMarksFor`, `southPlanetsFor`, `southLagnaFor`. `chartsTab` normalizes `selectedDiv` to D1/D9/D10 so pill highlight, chart, and houses always agree.
+- **Bilingual**: 23 `kundali_tab_0..22` titles (tab bar now renders `KUNDALI_TAB_KEYS.map { W.t(it) }`; dead hardcoded `KUNDALI_TABS` list removed); ~150 new `kundali_*` keys in `FeatureStrings.kt` (EN + हिन्दी) covering every tab's section headers, all 18 empty states, lazy-report loading/error/retry, chart legend, lagna-chart titles/subtitles, SubjectHeader labels, Faladesh/Numerology intros, and the full Remedies sub-tab copy (Ratna/Rudraksh/Dhatu/Jad/Vedic Upay). Duplicate "Chart Legend" header removed (the legend card renders its own bilingual title now).
+- **Untouched (verified deep already)**: Navamsha, Chandra/Surya/Chalit lagna charts, Divisional (all vargas D1–D60 with significance), Dasha (7-level current chain + expandable timeline), Ashtakavarga (SAV + honest null total), Sodasvarga (16-varga × planets), Yogas, Doshas (honest "no major doshas" state), Personality, Panchang, Shadbal (Shadbala/Bhavabala/Vimshopaka + honest N/A), Bhrigu Nadi, Char Dasha, Faladesh, Remedies engine — all render full server payloads with honest loading/error/empty states and "Ask AI about this" context on every tab.
+
+### Honesty notes
+- Nothing is fabricated: Lucky Elements are standard Vedic lagna correspondences derived only from the server's lagna rashi + lord; remedy correspondences (gem/rudraksha/metal/root/mantra/daan/day) are static reference data applied to chart-detected weak/afflicted planets; Vimshopaka rows with no server `total` still show the honest "not returned" state instead of a fake 0/20 bar; SAV total still renders "—" when the server omits it.
+- No live chart generations were run (rate limits) — verified from code + the verified-live response-shape comments in `KundaliModels.kt`.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox intercepts Java localhost TCP, breaking the Gradle daemon — same as the previous entry). Substitute verification: brace/paren/bracket balance = 0 on all 4 touched files; per-function balance check clean; all 146 `W.t("kundali_*")` keys used resolve in both EN and HI maps (each exactly twice); `W` imported where used; no unresolved `KUNDALI_TABS` references remain. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) the Birth Info gemstone value shows, (2) Karakamsha lists 7 chara karakas, (3) Lal Kitab note/yogas render, (4) planet rows expand with chart details, (5) D10 renders in the Birth Chart tab, (6) switching Settings language to हिन्दी re-labels all 23 tabs and their sections.
+
 ## [2026-10-10] — Vision Reading History: local Room history for Vastu / Palmistry / Face Reading
 
 Completed Vastu, Palmistry and Face Reading analyses used to vanish the moment the user left the screen — there was no persistence anywhere for vision results (before: result lived only in the screen's `ViewModel` state; leaving the screen discarded it). Now every successful analysis auto-saves to a local Room database, and a bilingual "Reading History" screen (reachable in 1 tap from each vision feature's top bar) lists saved readings as cards with thumbnail, feature icon, date and an editable label. Tapping a card re-renders the full saved result from the stored server JSON — no re-analysis, no network. Long-press deletes (with confirmation); a rename action edits the label. A "Saved on <date>" banner on the detail screen makes clear it is a past reading, not a fresh analysis.
