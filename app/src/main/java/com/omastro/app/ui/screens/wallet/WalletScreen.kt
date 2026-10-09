@@ -72,7 +72,7 @@ fun WalletScreen(
     LaunchedEffect(pendingOrder) {
         val po = pendingOrder ?: return@LaunchedEffect
         val intent = Intent(context, RazorpayPaymentActivity::class.java).apply {
-            putExtra(RazorpayPaymentActivity.EXTRA_KEY_ID, po.order.keyId)
+            putExtra(RazorpayPaymentActivity.EXTRA_KEY_ID, po.order.rzpKeyId)
             putExtra(RazorpayPaymentActivity.EXTRA_ORDER_ID, po.order.orderId)
             putExtra(RazorpayPaymentActivity.EXTRA_AMOUNT_PAISE, po.order.amount)
             putExtra(RazorpayPaymentActivity.EXTRA_CURRENCY, po.order.currency)
