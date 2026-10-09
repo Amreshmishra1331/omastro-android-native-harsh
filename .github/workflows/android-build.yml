@@ -1,0 +1,49 @@
+name: Android Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android App
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+        env:
+          # google-services.json is gitignored; CI builds without Firebase
+          # FCM features degrade gracefully at runtime if absent.
+          CI: true
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmAstroApp-Debug-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "## Android Build" >> $GITHUB_STEP_SUMMARY
+          echo "Run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
