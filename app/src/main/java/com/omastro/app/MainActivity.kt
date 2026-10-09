@@ -24,6 +24,7 @@ import com.omastro.app.ui.screens.matching.MatchmakingScreen
 import com.omastro.app.ui.screens.panchang.PanchangScreen
 import com.omastro.app.ui.screens.settings.SettingsScreen
 import com.omastro.app.ui.screens.wallet.WalletScreen
+import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.ui.theme.OmAstroTheme
 
 class MainActivity : ComponentActivity() {
@@ -34,6 +35,29 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
+
+                // Auth gate: check login state on startup
+                var isLoggedIn by remember { mutableStateOf<Boolean?>(null) }
+                LaunchedEffect(Unit) {
+                    isLoggedIn = ApiClient.isLoggedIn()
+                }
+
+                // Show splash/loading while checking auth
+                if (isLoggedIn == null) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                    }
+                    return@OmAstroTheme
+                }
+
+                val startDestination = if (isLoggedIn == true) {
+                    Screen.Home.route
+                } else {
+                    Screen.Auth.route
+                }
 
                 val showBottomBar = currentRoute in listOf(
                     Screen.Home.route,
@@ -53,7 +77,7 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.Home.route,
+                        startDestination = startDestination,
                         modifier = Modifier.padding(innerPadding)
                     ) {
                         composable(Screen.Home.route) {
@@ -114,7 +138,11 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.Auth.route) {
                             AuthScreen(
-                                onLoginSuccess = { navController.popBackStack() }
+                                onLoginSuccess = {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Auth.route) { inclusive = true }
+                                    }
+                                }
                             )
                         }
                     }
