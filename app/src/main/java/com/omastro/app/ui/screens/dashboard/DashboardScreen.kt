@@ -662,7 +662,7 @@ private fun ActivityTabContent(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
-                                onClick = onKundaliClick,
+                                onClick = { onKundaliClick("") },
                                 colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                             ) {
                                 Text("Make Kundali", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)

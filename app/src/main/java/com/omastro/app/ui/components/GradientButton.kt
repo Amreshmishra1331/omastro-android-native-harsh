@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.omastro.app.ui.theme.CosmicBackground
 import com.omastro.app.ui.theme.SacredGold
 import com.omastro.app.ui.theme.SacredGoldDark
+import com.omastro.app.ui.theme.StarlightWhite
 
 @Composable
 fun GradientButton(

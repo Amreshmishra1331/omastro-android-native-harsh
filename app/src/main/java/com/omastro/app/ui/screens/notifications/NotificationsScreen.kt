@@ -41,20 +41,20 @@ class NotificationsViewModel : ViewModel() {
 
     fun refresh() {
         viewModelScope.launch {
-            repo.refresh().onFailure { _error.value = it.message }
+            repo.refresh().onFailure { e -> _error.value = e.message }
         }
     }
 
     fun markRead(n: AppNotification) {
         if (n.isRead) return
         viewModelScope.launch {
-            repo.markRead(listOf(n.id)).onFailure { _error.value = it.message }
+            repo.markRead(listOf(n.id)).onFailure { e -> _error.value = e.message }
         }
     }
 
     fun markAllRead() {
         viewModelScope.launch {
-            repo.markRead(null).onFailure { _error.value = it.message }
+            repo.markRead(null).onFailure { e -> _error.value = e.message }
         }
     }
 
@@ -62,7 +62,7 @@ class NotificationsViewModel : ViewModel() {
         viewModelScope.launch {
             repo.clearAll()
                 .onSuccess { onDone() }
-                .onFailure { _error.value = it.message }
+                .onFailure { e -> _error.value = e.message }
         }
     }
 }
@@ -73,9 +73,9 @@ fun NotificationsScreen(
     onBack: () -> Unit,
     viewModel: NotificationsViewModel = viewModel()
 ) {
-    val notifications by viewModel.notifications.collectAsState(initial = emptyList())
-    val unreadCount by viewModel.unreadCount.collectAsState(initial = 0)
-    val isLoading by viewModel.isLoading.collectAsState(initial = false)
+    val notifications by viewModel.notifications.collectAsState()
+    val unreadCount by viewModel.unreadCount.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error
     var showClearConfirm by remember { mutableStateOf(false) }
 

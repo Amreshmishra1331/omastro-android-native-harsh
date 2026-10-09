@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omastro.app.ui.theme.SacredGold
 import com.omastro.app.ui.theme.TextSecondary
+import com.omastro.app.ui.theme.StarlightWhite
 import java.util.Calendar
 
 /**

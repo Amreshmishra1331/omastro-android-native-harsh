@@ -6,6 +6,7 @@ import com.omastro.app.data.repository.AstroRepository
 import com.omastro.app.data.repository.AuthRepository
 import com.omastro.app.data.repository.ChatRepository
 import com.omastro.app.data.repository.ConsultationRepository
+import com.omastro.app.data.repository.NotificationRepository
 import com.omastro.app.data.repository.SavedChartsRepository
 import com.omastro.app.data.repository.WalletRepository
 import com.omastro.app.domain.usecase.*
