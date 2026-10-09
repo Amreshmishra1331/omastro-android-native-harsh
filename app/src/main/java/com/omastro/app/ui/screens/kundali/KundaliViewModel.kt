@@ -126,7 +126,7 @@ class KundaliViewModel : ViewModel() {
             return
         }
         if (!TOB_REGEX.matches(tob)) {
-            _formError.value = "Time of birth must be HH:MM in 24-hour format (e.g. 08:30)."
+            _formError.value = "Time of birth must be HH:MM AM/PM (e.g. 08:30 AM)."
             return
         }
         if (pob.isBlank()) {
@@ -192,6 +192,7 @@ class KundaliViewModel : ViewModel() {
 
     companion object {
         private val DOB_REGEX = Regex("""\d{4}-\d{2}-\d{2}""")
-        private val TOB_REGEX = Regex("""([01]\d|2[0-3]):[0-5]\d""")
+        // Accepts "HH:MM" 24h or "HH:MM AM/PM" 12h (e.g. "08:30", "08:30 AM")
+        private val TOB_REGEX = Regex("""((([01]\d|2[0-3]):[0-5]\d)|(0\d|1[0-2]):[0-5]\d\s?(AM|PM))""", RegexOption.IGNORE_CASE)
     }
 }

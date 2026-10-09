@@ -4,6 +4,28 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — FIX: Kundali input — place search, date/time pickers
+
+### Broken / missing
+- **Birth place search not working**: `OmAstroApiService.searchPlaces()` used `@POST("geocode/search")` with a JSON body, but the backend only exposes `GET /geocode/search?q=`. Every search returned 404, so the dropdown never showed results.
+- **Geocode response parsing wrong**: models expected flat `places`/`results` keys, but the real API returns `{"success":true,"data":{"results":[...]}}` with per-place `display` and `tz` fields.
+- **No date picker**: date fields were plain text inputs expecting YYYY-MM-DD typed manually.
+- **No time picker**: time fields were plain text inputs expecting 24-hour HH:MM typed manually.
+- **Kundali time validation rejected AM/PM**: `TOB_REGEX` only accepted 24-hour format.
+
+### Removed
+- Manual YYYY-MM-DD / HH:MM text entry for birth date/time across Kundali, Matchmaking, Astro Health, Gochar.
+- `GeocodeSearchRequest` (POST body) — replaced by GET query param.
+- Old flat geocode response parsing.
+
+### Added
+- **Working place search**: `searchPlaces` is now `@GET("geocode/search")` with `@Query("q")`; `GeocodeSearchResponse` unwraps `data.results`; `GeocodePlace` gains `display` and `tz` fields; `PlaceSearchField` calls the GET endpoint. Verified live against production.
+- **New `DateTimePickerFields.kt`**: reusable `DatePickerField` (native Calendar picker, displays DD-MM-YYYY, reports YYYY-MM-DD to the API) and `TimePickerField` (native Clock picker in 12-hour mode with AM/PM, displays and reports "HH:MM AM/PM" which the backend accepts).
+- **Applied to all birth-input screens**: Kundali, Matchmaking (groom + bride), Astro Health, Gochar (birth + transit date).
+- **AM/PM validation**: `KundaliViewModel.TOB_REGEX` now accepts both 24-hour and 12-hour AM/PM formats.
+
+---
+
 ## [2026-10-09] — FIX: Astrologers blank + Divine Chat separated
 
 ### Broken / missing
