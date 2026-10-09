@@ -55,6 +55,7 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ### CI
 **Added:** `.github/workflows/android-build.yml` (JDK 17, assembleDebug, APK artifact); google-services plugin applies only when `google-services.json` exists.
+**Fixed:** Removed `android-actions/setup-android` step (was failing) — `ubuntu-latest` runners ship the Android SDK preinstalled.
 
 ### Not removed (verified present)
 - In-app review: `RequestInAppReviewUseCase` (Google Play `review-ktx`) — intact, never removed.
