@@ -222,13 +222,7 @@ class AuthViewModel : ViewModel() {
         if (email.isBlank()) return
         viewModelScope.launch {
             _isLoading.value = true
-            // Re-registration re-issues the signup OTP on the backend.
-            authRepository.register(
-                name = _signupName.value.trim(),
-                email = email,
-                password = _signupPassword.value,
-                mobile = _signupMobile.value.trim().ifBlank { null }
-            ).onSuccess {
+            authRepository.resendSignupOtp(email).onSuccess {
                 _infoMessage.value = "A new verification code was sent to $email."
                 startResendCooldown()
             }.onFailure { err ->

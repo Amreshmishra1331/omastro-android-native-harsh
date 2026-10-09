@@ -65,6 +65,32 @@ class AuthRepository(
         }
     }
 
+    suspend fun forgotPassword(email: String): Result<Unit> {
+        return try {
+            val response = api.forgotPassword(mapOf("email" to email))
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IOException("Request failed: HTTP ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resendSignupOtp(email: String): Result<Unit> {
+        return try {
+            val response = api.resendOtp(mapOf("email" to email))
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IOException("Request failed: HTTP ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun updateCoinBalance(newBalance: Int) {
         _currentUser.value = _currentUser.value?.copy(coinBalance = newBalance)
     }

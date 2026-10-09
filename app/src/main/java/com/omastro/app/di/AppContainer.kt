@@ -17,9 +17,11 @@ object AppContainer {
     val walletRepository: WalletRepository by lazy { WalletRepository(apiService) }
 
     // UseCases
-    val getAuthConfigUseCase by lazy { GetAuthConfigUseCase(authRepository) }
-    val sendOtpUseCase by lazy { SendOtpUseCase(authRepository) }
-    val verifyOtpUseCase by lazy { VerifyOtpUseCase(authRepository) }
+    val loginUseCase by lazy { LoginUseCase(authRepository) }
+    val registerUseCase by lazy { RegisterUseCase(authRepository) }
+    val verifySignupOtpUseCase by lazy { VerifySignupOtpUseCase(authRepository) }
+    val forgotPasswordUseCase by lazy { ForgotPasswordUseCase(authRepository) }
+    val resendSignupOtpUseCase by lazy { ResendSignupOtpUseCase(authRepository) }
 
     val getKundaliUseCase by lazy { GetKundaliUseCase(astroRepository) }
     val getDailyHoroscopeUseCase by lazy { GetDailyHoroscopeUseCase(astroRepository) }
@@ -27,7 +29,11 @@ object AppContainer {
     val calculateMatchmakingUseCase by lazy { CalculateMatchmakingUseCase(astroRepository) }
 
     val getAstrologersUseCase by lazy { GetAstrologersUseCase(consultationRepository) }
-    val sendChatMessageUseCase by lazy { SendChatMessageUseCase(consultationRepository) }
+    val openChatSessionUseCase by lazy { OpenChatSessionUseCase(consultationRepository) }
+    val closeChatSessionUseCase by lazy { CloseChatSessionUseCase(consultationRepository) }
+    val startBillingSessionUseCase by lazy { StartBillingSessionUseCase(consultationRepository) }
+    val tickBillingSessionUseCase by lazy { TickBillingSessionUseCase(consultationRepository) }
+    val endBillingSessionUseCase by lazy { EndBillingSessionUseCase(consultationRepository) }
 
     val getWalletBalanceUseCase by lazy { GetWalletBalanceUseCase(walletRepository) }
     val rechargeCoinsUseCase by lazy { RechargeCoinsUseCase(walletRepository) }

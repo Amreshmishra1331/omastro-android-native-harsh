@@ -20,16 +20,12 @@ sealed interface NumerologyUiState {
 
 /**
  * Computes the numerology profile from the user's own name and date of birth
- * via POST /numerology. Nothing is hardcoded: the numbers shown come from the
- * backend response (data.analysis_text).
- *
- * NOTE: calls AppContainer.apiService.getNumerology directly because
- * AstroRepository has no numerology wrapper on this branch. If the data branch
- * adds AstroRepository.getNumerology(...), switch this call to the repository.
+ * via POST /numerology through AstroRepository. Nothing is hardcoded: the
+ * numbers shown come from the backend response (data.analysis_text).
  */
 class NumerologyViewModel : ViewModel() {
 
-    private val api = AppContainer.apiService
+    private val astroRepository = AppContainer.astroRepository
 
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name.asStateFlow()
@@ -59,10 +55,9 @@ class NumerologyViewModel : ViewModel() {
         }
         viewModelScope.launch {
             _uiState.value = NumerologyUiState.Loading
-            try {
-                val response = api.getNumerology(mapOf("name" to name, "dob" to dob))
-                if (response.isSuccessful) {
-                    val analysisText = extractAnalysisText(response.body())
+            astroRepository.getNumerology(mapOf("name" to name, "dob" to dob))
+                .onSuccess { body ->
+                    val analysisText = extractAnalysisText(body)
                     if (!analysisText.isNullOrBlank()) {
                         _uiState.value = NumerologyUiState.Success(analysisText)
                     } else {
@@ -70,16 +65,12 @@ class NumerologyViewModel : ViewModel() {
                             "The server returned an empty numerology profile. Please try again."
                         )
                     }
-                } else {
+                }
+                .onFailure { e ->
                     _uiState.value = NumerologyUiState.Error(
-                        "Could not compute the numerology profile (server error ${response.code()}). Please try again."
+                        e.message ?: "Network error. Please check your connection and try again."
                     )
                 }
-            } catch (e: Exception) {
-                _uiState.value = NumerologyUiState.Error(
-                    e.message ?: "Network error. Please check your connection and try again."
-                )
-            }
         }
     }
 

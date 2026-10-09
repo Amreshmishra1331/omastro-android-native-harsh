@@ -106,6 +106,9 @@ dependencies {
     // Razorpay Standard SDK
     implementation("com.razorpay:checkout:1.6.33")
 
+    // Encrypted shared preferences for secure token storage
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

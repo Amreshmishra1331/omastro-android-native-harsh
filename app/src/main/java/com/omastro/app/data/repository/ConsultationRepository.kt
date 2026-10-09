@@ -75,4 +75,36 @@ class ConsultationRepository(
             Result.failure(e)
         }
     }
+
+    suspend fun startBillingSession(astrologerId: String): Result<String?> {
+        return try {
+            val res = api.startAstroSession(mapOf("slug" to astrologerId))
+            if (res.isSuccessful) {
+                val uuid = res.body()?.get("session_uuid") as? String
+                Result.success(uuid)
+            } else {
+                Result.failure(IOException("Failed to start billing session: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun tickBillingSession(sessionUuid: String): Result<Boolean> {
+        return try {
+            val res = api.tickAstroSession(mapOf("session_uuid" to sessionUuid))
+            Result.success(res.isSuccessful)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun endBillingSession(sessionUuid: String): Result<Boolean> {
+        return try {
+            val res = api.endAstroSession(mapOf("session_uuid" to sessionUuid))
+            Result.success(res.isSuccessful)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

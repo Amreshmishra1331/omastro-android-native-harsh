@@ -12,7 +12,11 @@ import kotlinx.coroutines.launch
 
 class ConsultationViewModel : ViewModel() {
     private val getAstrologersUseCase = AppContainer.getAstrologersUseCase
-    private val sendChatMessageUseCase = AppContainer.sendChatMessageUseCase
+    private val openChatSessionUseCase = AppContainer.openChatSessionUseCase
+    private val closeChatSessionUseCase = AppContainer.closeChatSessionUseCase
+    private val startBillingSessionUseCase = AppContainer.startBillingSessionUseCase
+    private val tickBillingSessionUseCase = AppContainer.tickBillingSessionUseCase
+    private val endBillingSessionUseCase = AppContainer.endBillingSessionUseCase
     private val consultationRepo = AppContainer.consultationRepository
 
     private val _astrologers = MutableStateFlow<List<Astrologer>>(emptyList())
@@ -23,18 +27,19 @@ class ConsultationViewModel : ViewModel() {
 
     val chatMessages: StateFlow<Map<String, List<ChatMessage>>> = consultationRepo.messages
 
-    private val authRepo = AppContainer.authRepository
-
     private val _sessionActive = MutableStateFlow(false)
     val sessionActive: StateFlow<Boolean> = _sessionActive.asStateFlow()
 
     private val _sessionDurationSeconds = MutableStateFlow(0)
     val sessionDurationSeconds: StateFlow<Int> = _sessionDurationSeconds.asStateFlow()
 
-    private val _remainingCoins = MutableStateFlow(authRepo.currentUser.value?.coinBalance ?: 500)
-    val remainingCoins: StateFlow<Int> = _remainingCoins.asStateFlow()
+    private val _sessionError = MutableStateFlow<String?>(null)
+    val sessionError: StateFlow<String?> = _sessionError.asStateFlow()
 
     private var timerJob: kotlinx.coroutines.Job? = null
+    private var billingSessionUuid: String? = null
+    private var chatSessionId: String? = null
+    private var activeAstrologerId: String? = null
 
     init {
         loadAstrologers()
@@ -55,51 +60,84 @@ class ConsultationViewModel : ViewModel() {
     }
 
     fun initChat(astrologerId: String) {
+        activeAstrologerId = astrologerId
         viewModelScope.launch {
-            consultationRepo.loadChatHistory(astrologerId)
-            startConsultationTimer(astrologerId)
+            _isLoading.value = true
+            _sessionError.value = null
+            openChatSessionUseCase(astrologerId)
+                .onSuccess { response ->
+                    chatSessionId = response.sessionId
+                    consultationRepo.loadChatHistory(astrologerId)
+                    startBillingSession(astrologerId)
+                }
+                .onFailure { err ->
+                    _sessionError.value = err.message ?: "Could not open chat session."
+                }
+            _isLoading.value = false
         }
     }
 
-    private fun startConsultationTimer(astrologerId: String) {
-        if (_sessionActive.value) return
-        _sessionActive.value = true
-        _sessionDurationSeconds.value = 0
+    private fun startBillingSession(astrologerId: String) {
+        viewModelScope.launch {
+            startBillingSessionUseCase(astrologerId)
+                .onSuccess { uuid ->
+                    billingSessionUuid = uuid
+                    _sessionActive.value = true
+                    _sessionDurationSeconds.value = 0
+                    startTickTimer()
+                }
+                .onFailure { err ->
+                    _sessionError.value = err.message ?: "Could not start billing session."
+                }
+        }
+    }
 
-        val astro = _astrologers.value.find { it.id == astrologerId }
-        val ratePerMin = astro?.pricePerMin ?: 20
-
+    private fun startTickTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (_sessionActive.value) {
-                kotlinx.coroutines.delay(1000)
-                _sessionDurationSeconds.value += 1
-
-                // Every 60 seconds, auto-deduct coins for the consultation minute
-                if (_sessionDurationSeconds.value % 60 == 0) {
-                    val currentBal = authRepo.currentUser.value?.coinBalance ?: 500
-                    val updatedBal = (currentBal - ratePerMin).coerceAtLeast(0)
-                    authRepo.updateCoinBalance(updatedBal)
-                    _remainingCoins.value = updatedBal
+                kotlinx.coroutines.delay(60_000)
+                if (!_sessionActive.value) break
+                _sessionDurationSeconds.value += 60
+                val uuid = billingSessionUuid
+                if (uuid != null) {
+                    tickBillingSessionUseCase(uuid).onFailure {
+                        _sessionError.value = "Billing update failed. Session paused."
+                        pauseSession()
+                    }
                 }
             }
         }
     }
 
-    fun endConsultation() {
+    private fun pauseSession() {
         _sessionActive.value = false
         timerJob?.cancel()
+    }
+
+    fun endConsultation() {
+        val astroId = activeAstrologerId
+        val billingUuid = billingSessionUuid
+        pauseSession()
+        viewModelScope.launch {
+            if (billingUuid != null) {
+                endBillingSessionUseCase(billingUuid)
+            }
+            if (astroId != null) {
+                closeChatSessionUseCase(astroId, chatSessionId)
+            }
+            billingSessionUuid = null
+            chatSessionId = null
+            activeAstrologerId = null
+        }
+    }
+
+    fun clearSessionError() {
+        _sessionError.value = null
     }
 
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
-    }
-
-    fun sendMessage(astrologerId: String, text: String) {
-        if (text.isBlank()) return
-        viewModelScope.launch {
-            sendChatMessageUseCase(astrologerId, text)
-        }
     }
 }

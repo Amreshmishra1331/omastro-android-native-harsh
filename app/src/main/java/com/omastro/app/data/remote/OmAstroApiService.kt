@@ -23,6 +23,16 @@ interface OmAstroApiService {
         @Body request: VerifySignupOtpRequest
     ): Response<VerifySignupOtpResponse>
 
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    @POST("auth/resend-otp")
+    suspend fun resendOtp(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
+
     // Kundali
     @POST("kundali")
     suspend fun calculateKundali(
@@ -66,6 +76,22 @@ interface OmAstroApiService {
     @POST("astrologers/chat/close")
     suspend fun closeChat(
         @Body request: CloseChatRequest
+    ): Response<Map<String, Any>>
+
+    // Astrologer consultation billing session (real per-minute billing)
+    @POST("astrologers/session/start")
+    suspend fun startAstroSession(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    @POST("astrologers/session/tick")
+    suspend fun tickAstroSession(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
+
+    @POST("astrologers/session/end")
+    suspend fun endAstroSession(
+        @Body request: Map<String, String>
     ): Response<Map<String, Any>>
 
     // Wallet (real INR wallet)

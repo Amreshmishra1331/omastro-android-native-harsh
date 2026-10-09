@@ -20,17 +20,13 @@ sealed interface AstroHealthUiState {
 }
 
 /**
- * Calls POST /astro-health with the user's own birth data. Nothing is
- * hardcoded: no organ lists, no vitality percentages — only what the backend
- * returns is shown.
- *
- * NOTE: calls AppContainer.apiService.getAstroHealth directly because
- * AstroRepository has no astro-health wrapper on this branch. If the data
- * branch adds AstroRepository.getAstroHealth(...), switch this call over.
+ * Calls POST /astro-health with the user's own birth data through
+ * AstroRepository. Nothing is hardcoded: no organ lists, no vitality
+ * percentages — only what the backend returns is shown.
  */
 class AstroHealthViewModel : ViewModel() {
 
-    private val api = AppContainer.apiService
+    private val astroRepository = AppContainer.astroRepository
 
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name.asStateFlow()
@@ -75,19 +71,20 @@ class AstroHealthViewModel : ViewModel() {
 
         viewModelScope.launch {
             _uiState.value = AstroHealthUiState.Loading
-            try {
-                val response = api.getAstroHealth(
-                    mapOf(
-                        "name" to name,
-                        "dob" to dob,
-                        "tob" to tob,
-                        "lat" to lat,
-                        "lon" to lon,
-                        "tz" to "Asia/Kolkata"
-                    )
-                )
-                if (response.isSuccessful) {
-                    val data = extractData(response.body())
+            val tobParts = tob.split(":")
+            val request = com.omastro.app.data.model.KundaliRequest(
+                name = name,
+                dob = dob,
+                tobHr = tobParts.getOrNull(0)?.toIntOrNull() ?: 0,
+                tobMn = tobParts.getOrNull(1)?.toIntOrNull() ?: 0,
+                tob = tob,
+                pob = place,
+                lat = lat,
+                lon = lon
+            )
+            astroRepository.getAstroHealth(request)
+                .onSuccess { body ->
+                    val data = extractData(body)
                     if (data != null && data.isNotEmpty()) {
                         _uiState.value = AstroHealthUiState.Success(data)
                     } else {
@@ -95,16 +92,12 @@ class AstroHealthViewModel : ViewModel() {
                             "The server returned an empty health analysis. Please try again."
                         )
                     }
-                } else {
+                }
+                .onFailure { e ->
                     _uiState.value = AstroHealthUiState.Error(
-                        "Could not compute the health analysis (server error ${response.code()}). Please try again."
+                        e.message ?: "Network error. Please check your connection and try again."
                     )
                 }
-            } catch (e: Exception) {
-                _uiState.value = AstroHealthUiState.Error(
-                    e.message ?: "Network error. Please check your connection and try again."
-                )
-            }
         }
     }
 

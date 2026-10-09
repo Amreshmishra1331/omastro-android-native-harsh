@@ -4,6 +4,7 @@ import android.app.Activity
 import com.google.android.play.core.review.ReviewManager
 import com.google.android.play.core.review.ReviewManagerFactory
 import com.omastro.app.data.model.*
+import com.omastro.app.data.remote.OpenChatResponse
 import com.omastro.app.data.repository.ConsultationRepository
 import com.omastro.app.data.repository.WalletRepository
 import kotlinx.coroutines.flow.StateFlow
@@ -15,9 +16,29 @@ class GetAstrologersUseCase(private val repository: ConsultationRepository) {
         repository.getAstrologers(category)
 }
 
-class SendChatMessageUseCase(private val repository: ConsultationRepository) {
-    suspend operator fun invoke(astrologerId: String, text: String): ChatMessage =
-        repository.sendChatMessage(astrologerId, text)
+class OpenChatSessionUseCase(private val repository: ConsultationRepository) {
+    suspend operator fun invoke(astrologerId: String): Result<OpenChatResponse> =
+        repository.openChat(astrologerId)
+}
+
+class CloseChatSessionUseCase(private val repository: ConsultationRepository) {
+    suspend operator fun invoke(astrologerId: String, sessionId: String? = null): Result<Boolean> =
+        repository.closeChat(astrologerId, sessionId)
+}
+
+class StartBillingSessionUseCase(private val repository: ConsultationRepository) {
+    suspend operator fun invoke(astrologerId: String): Result<String?> =
+        repository.startBillingSession(astrologerId)
+}
+
+class TickBillingSessionUseCase(private val repository: ConsultationRepository) {
+    suspend operator fun invoke(sessionUuid: String): Result<Boolean> =
+        repository.tickBillingSession(sessionUuid)
+}
+
+class EndBillingSessionUseCase(private val repository: ConsultationRepository) {
+    suspend operator fun invoke(sessionUuid: String): Result<Boolean> =
+        repository.endBillingSession(sessionUuid)
 }
 
 class GetWalletBalanceUseCase(private val repository: WalletRepository) {
@@ -26,16 +47,15 @@ class GetWalletBalanceUseCase(private val repository: WalletRepository) {
 }
 
 class RechargeCoinsUseCase(private val repository: WalletRepository) {
-    suspend fun createOrder(pack: RechargePack): Result<RazorpayOrderResponse> =
+    suspend fun createOrder(pack: RechargePack): Result<TopupOrderResponse> =
         repository.createOrder(pack)
 
     suspend fun verifyPayment(
         orderId: String,
         paymentId: String,
-        signature: String,
-        pack: RechargePack
-    ): Result<PaymentVerifyResponse> =
-        repository.verifyPayment(orderId, paymentId, signature, pack)
+        signature: String
+    ): Result<TopupVerifyResponse> =
+        repository.verifyPayment(orderId, paymentId, signature)
 }
 
 class RequestInAppReviewUseCase {

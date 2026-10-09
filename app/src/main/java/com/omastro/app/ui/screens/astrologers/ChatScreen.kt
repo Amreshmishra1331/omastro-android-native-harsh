@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,10 +28,9 @@ fun ChatScreen(
     onBack: () -> Unit,
     viewModel: ConsultationViewModel = viewModel()
 ) {
-    var inputText by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
     val allMessages by viewModel.chatMessages.collectAsState()
     val messages = allMessages[astrologerId] ?: emptyList()
-    val listState = rememberLazyListState()
 
     LaunchedEffect(astrologerId) {
         viewModel.initChat(astrologerId)
@@ -45,7 +43,7 @@ fun ChatScreen(
     }
 
     val sessionDuration by viewModel.sessionDurationSeconds.collectAsState()
-    val remainingCoins by viewModel.remainingCoins.collectAsState()
+    val sessionError by viewModel.sessionError.collectAsState()
 
     val formattedTimer = remember(sessionDuration) {
         val minutes = sessionDuration / 60
@@ -85,9 +83,7 @@ fun ChatScreen(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("🪙", fontSize = 11.sp)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("$remainingCoins", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Billed per minute", color = StarlightWhite.copy(alpha = 0.8f), fontSize = 11.sp)
                             }
                         }
                     }
@@ -107,48 +103,28 @@ fun ChatScreen(
         bottomBar = {
             Surface(
                 color = CosmicCharcoal,
-                modifier = Modifier.fillMaxWidth().imePadding()
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    TextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = { Text("Ask your astrological query...", color = StarlightWhite.copy(alpha = 0.5f)) },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = CosmicNavy,
-                            unfocusedContainerColor = CosmicNavy,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = SacredGold,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier.weight(1f)
+                    Text(
+                        text = "Live messaging with astrologers is available on omastroai.com. Your consultation session and per-minute billing are active here.",
+                        color = StarlightWhite.copy(alpha = 0.7f),
+                        fontSize = 12.sp
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
                         onClick = {
-                            if (inputText.isNotBlank()) {
-                                viewModel.sendMessage(astrologerId, inputText)
-                                inputText = ""
-                            }
+                            viewModel.endConsultation()
+                            onBack()
                         },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(SacredGold)
+                        colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Send",
-                            tint = CosmicDeepBlue
-                        )
+                        Text("End Consultation", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -164,8 +140,36 @@ fun ChatScreen(
         ) {
             item { Spacer(modifier = Modifier.height(10.dp)) }
 
+            if (sessionError != null) {
+                item {
+                    Surface(
+                        color = Color(0xFF5C1A1A),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = sessionError ?: "",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+                }
+            }
+
             items(messages) { msg ->
                 ChatBubble(msg)
+            }
+
+            if (messages.isEmpty()) {
+                item {
+                    Text(
+                        text = "No messages in this session yet.",
+                        color = StarlightWhite.copy(alpha = 0.5f),
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(vertical = 24.dp)
+                    )
+                }
             }
 
             item { Spacer(modifier = Modifier.height(10.dp)) }
