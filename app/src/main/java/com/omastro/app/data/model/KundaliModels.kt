@@ -297,10 +297,12 @@ data class DivisionalChart(
 // Jyotish glyph helpers (professional glyphs only, no emojis)
 // ---------------------------------------------------------------------------
 
+private val RASHI_GLYPHS = listOf("♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓")
+
 /** Rashi glyphs ♈..♓ for sign index 1..12. */
-fun rashiGlyph(index: Int): String = when ((index - 1).mod(12) + 1) {
-    1 -> "♈"; 2 -> "♉"; 3 -> "♊"; 4 -> "♋"; 5 -> "♌"; 6 -> "♍"
-    7 -> "♎"; 8 -> "♏"; 9 -> "♐"; 10 -> "♑"; 11 -> "♒"; else -> "♓"
+fun rashiGlyph(index: Int): String {
+    val i = ((index - 1) % 12 + 12) % 12
+    return RASHI_GLYPHS[i]
 }
 
 fun rashiNameToIndex(name: String): Int = when (name.lowercase().trim()) {
@@ -322,33 +324,29 @@ fun rashiNameToIndex(name: String): Int = when (name.lowercase().trim()) {
 /** Fallback planet glyphs ☉ ☽ ♂ ☿ ♃ ♀ ♄ ☊ ☋ when the server omits `symbol`. */
 fun planetGlyphFallback(name: String): String {
     val n = name.lowercase().trim()
-    return when {
-        n.startsWith("sun") || n == "surya" || n == "सूर्य" -> "☉"
-        n.startsWith("moon") || n == "chandra" || n == "moon" || n == "चन्द्र" || n == "चंद्र" -> "☽"
-        n.startsWith("mars") || n == "mangal" || n == "मंगल" -> "♂"
-        n.startsWith("mercury") || n == "budh" || n == "बुध" -> "☿"
-        n.startsWith("jupiter") || n == "guru" || n == "गुरु" -> "♃"
-        n.startsWith("venus") || n == "shukra" || n == "शुक्र" -> "♀"
-        n.startsWith("saturn") || n == "shani" || n == "शनि" -> "♄"
-        n.startsWith("rahu") || n == "राहु" -> "☊"
-        n.startsWith("ketu") || n == "केतु" -> "☋"
-        else -> name.take(2)
-    }
+    if (n.startsWith("sun") || n == "surya") return "☉"
+    if (n.startsWith("moon") || n == "chandra") return "☽"
+    if (n.startsWith("mars") || n == "mangal") return "♂"
+    if (n.startsWith("mercury") || n == "budh") return "☿"
+    if (n.startsWith("jupiter") || n == "guru") return "♃"
+    if (n.startsWith("venus") || n == "shukra") return "♀"
+    if (n.startsWith("saturn") || n == "shani") return "♄"
+    if (n.startsWith("rahu")) return "☊"
+    if (n.startsWith("ketu")) return "☋"
+    return name.take(2)
 }
 
 /** Hindi name for a planet (used when the server omits nameHi). */
 fun planetHindiFallback(name: String): String {
     val n = name.lowercase().trim()
-    return when {
-        n.startsWith("sun") -> "सूर्य"
-        n.startsWith("moon") -> "चन्द्र"
-        n.startsWith("mars") -> "मंगल"
-        n.startsWith("mercury") -> "बुध"
-        n.startsWith("jupiter") -> "गुरु"
-        n.startsWith("venus") -> "शुक्र"
-        n.startsWith("saturn") -> "शनि"
-        n.startsWith("rahu") -> "राहु"
-        n.startsWith("ketu") -> "केतु"
-        else -> ""
-    }
+    if (n.startsWith("sun")) return "सूर्य"
+    if (n.startsWith("moon")) return "चन्द्र"
+    if (n.startsWith("mars")) return "मंगल"
+    if (n.startsWith("mercury")) return "बुध"
+    if (n.startsWith("jupiter")) return "गुरु"
+    if (n.startsWith("venus")) return "शुक्र"
+    if (n.startsWith("saturn")) return "शनि"
+    if (n.startsWith("rahu")) return "राहु"
+    if (n.startsWith("ketu")) return "केतु"
+    return ""
 }
