@@ -310,9 +310,9 @@ private fun ChatEmptyState(
         ) {
             Text(
                 text = when (mode) {
-                    AiChatMode.GENERAL -> "♃",
-                    AiChatMode.DIVINE -> "ॐ",
-                    AiChatMode.MUNDANE -> "♁"
+                    AiChatMode.GENERAL -> "G",
+                    AiChatMode.DIVINE -> "Om",
+                    AiChatMode.MUNDANE -> "M"
                 },
                 color = SacredGold,
                 fontSize = 32.sp,
