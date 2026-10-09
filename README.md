@@ -4,7 +4,7 @@
 
 ---
 
-## 🌟 Architectural Highlights
+## Architectural Highlights
 
 - **Pure Native Kotlin**: 0% hybrid or cross-platform overhead. 100% standard Android toolchain.
 - **Modern Jetpack Compose UI**: Declarative UI powered by Material 3 with a bespoke Cosmic Gold & Midnight Blue Vedic theme (`CosmicDeepBlue`, `SacredGold`, `RadiantAmber`).
@@ -95,9 +95,21 @@ echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
 For local development, place your own `google-services.json` from the Firebase console into
 `app/` — it will never be committed.
 
+### Required Gradle dependency (encrypted token storage)
+
+`SecureTokenStore` (in `data/remote/ApiClient.kt`) persists the auth token with
+`EncryptedSharedPreferences`. Add this to `app/build.gradle.kts`:
+
+```kotlin
+implementation("androidx.security:security-crypto:1.1.0-alpha06")
+```
+
+Without it, token persistence silently falls back to in-memory only (the session
+will not survive process death).
+
 ---
 
-## 🔗 WordPress Backend Integration
+## WordPress Backend Integration
 
 This app connects directly to the OmAstro AI WordPress backend engine:
 - Domain: `https://www.omastroai.com`

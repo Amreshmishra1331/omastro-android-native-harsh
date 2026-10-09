@@ -7,4 +7,71 @@
     <string name="channel_horoscope_desc">Daily Rashifal and transit notifications</string>
     <string name="channel_chat_name">Astrologer Consultation</string>
     <string name="channel_chat_desc">Messages from your personal Vedic astrologer</string>
+
+    <!-- Authentication -->
+    <string name="auth_app_title">OmAstro AI</string>
+    <string name="auth_app_subtitle">Vedic Astrology Guidance</string>
+    <string name="auth_login_title">Welcome Back</string>
+    <string name="auth_login_subtitle">Sign in with your email and password.</string>
+    <string name="auth_signup_title">Create Account</string>
+    <string name="auth_signup_subtitle">A verification code will be sent to your email.</string>
+    <string name="auth_verify_title">Verify Your Email</string>
+    <string name="auth_forgot_title">Reset Password</string>
+    <string name="auth_forgot_subtitle">Enter your account email to receive reset instructions.</string>
+    <string name="auth_field_email">Email</string>
+    <string name="auth_field_password">Password</string>
+    <string name="auth_field_name">Full Name</string>
+    <string name="auth_field_mobile">Mobile Number (optional)</string>
+    <string name="auth_field_confirm_password">Confirm Password</string>
+    <string name="auth_field_verification_code">Verification Code</string>
+    <string name="auth_btn_sign_in">Sign In</string>
+    <string name="auth_btn_create_account">Create Account</string>
+    <string name="auth_btn_verify">Verify and Continue</string>
+    <string name="auth_btn_resend_code">Resend Code</string>
+    <string name="auth_btn_send_reset">Send Reset Instructions</string>
+    <string name="auth_link_forgot">Forgot password?</string>
+    <string name="auth_link_new_account">New here? Create an account</string>
+    <string name="auth_link_have_account">Already registered? Sign in</string>
+    <string name="auth_link_back_login">Back to sign in</string>
+
+    <!-- Wallet -->
+    <string name="wallet_title">Wallet</string>
+    <string name="wallet_balance_label">AVAILABLE BALANCE</string>
+    <string name="wallet_coins_suffix">Coins</string>
+    <string name="wallet_balance_hint">Use coins for Kundali, Horoscope and astrologer consultations</string>
+    <string name="wallet_packs_title">Recharge Packs</string>
+    <string name="wallet_transactions_title">Recent Transactions</string>
+    <string name="wallet_no_transactions">No transactions yet. Your recharge and usage history will appear here.</string>
+    <string name="wallet_bonus_prefix">+ bonus</string>
+
+    <!-- Kundali -->
+    <string name="kundali_title">Janam Kundali</string>
+    <string name="kundali_birth_title">Enter Birth Details</string>
+    <string name="kundali_birth_subtitle">Your Kundali is computed from these details using the Lahiri ayanamsa.</string>
+    <string name="kundali_btn_generate">Generate Kundali</string>
+    <string name="kundali_computing">Computing your Kundali…</string>
+    <string name="kundali_field_lat_tip">Tip: find coordinates for any city in a maps app and enter them here.</string>
+    <string name="kundali_style_north">North Indian Diamond</string>
+    <string name="kundali_style_south">South Indian Grid</string>
+
+    <!-- Numerology -->
+    <string name="numerology_title">Numerology Profile</string>
+    <string name="numerology_heading">Vedic Numerology</string>
+    <string name="numerology_subtitle">Your Mulank, Bhagyank and name vibrations are computed from your details.</string>
+    <string name="numerology_btn_calculate">Calculate Profile</string>
+    <string name="numerology_computing">Computing your numerology profile…</string>
+
+    <!-- Astro Health -->
+    <string name="astrohealth_title">Astro Health Analysis</string>
+    <string name="astrohealth_heading">Vedic Health Analysis</string>
+    <string name="astrohealth_subtitle">Planetary influences on health, computed from your birth chart.</string>
+    <string name="astrohealth_btn_analyze">Analyze Health Indicators</string>
+    <string name="astrohealth_computing">Analyzing planetary health indicators…</string>
+    <string name="astrohealth_disclaimer">For guidance only — not a medical diagnosis. Consult a qualified doctor for health concerns.</string>
+
+    <!-- Common -->
+    <string name="common_try_again">Try Again</string>
+    <string name="common_back">Back</string>
+    <string name="common_edit">Edit birth details</string>
+    <string name="common_new_calculation">New calculation</string>
 </resources>

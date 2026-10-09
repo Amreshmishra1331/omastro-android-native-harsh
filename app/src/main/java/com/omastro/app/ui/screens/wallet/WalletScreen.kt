@@ -1,7 +1,9 @@
 package com.omastro.app.ui.screens.wallet
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import android.app.Activity
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,6 +35,7 @@ fun WalletScreen(
     val transactions by viewModel.transactions.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val message by viewModel.message.collectAsState()
+    val pendingOrder by viewModel.pendingOrder.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -42,10 +46,46 @@ fun WalletScreen(
         }
     }
 
+    // Launches the REAL Razorpay checkout sheet for a freshly issued order.
+    val paymentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val order = pendingOrder
+        viewModel.clearPendingOrder()
+        if (result.resultCode == Activity.RESULT_OK && order != null) {
+            val data: Intent? = result.data
+            viewModel.verifyPayment(
+                orderId = order.order.orderId,
+                paymentId = data?.getStringExtra(RazorpayPaymentActivity.RESULT_PAYMENT_ID),
+                signature = data?.getStringExtra(RazorpayPaymentActivity.RESULT_SIGNATURE),
+                pack = order.pack
+            )
+        } else {
+            val reason = result.data?.getStringExtra(RazorpayPaymentActivity.RESULT_ERROR)
+            viewModel.onPaymentAborted(reason)
+        }
+    }
+
+    val context = LocalContext.current
+
+    // When an order is issued, hand it to the payment activity exactly once.
+    LaunchedEffect(pendingOrder) {
+        val po = pendingOrder ?: return@LaunchedEffect
+        val intent = Intent(context, RazorpayPaymentActivity::class.java).apply {
+            putExtra(RazorpayPaymentActivity.EXTRA_KEY_ID, po.order.keyId)
+            putExtra(RazorpayPaymentActivity.EXTRA_ORDER_ID, po.order.orderId)
+            putExtra(RazorpayPaymentActivity.EXTRA_AMOUNT_PAISE, po.order.amount)
+            putExtra(RazorpayPaymentActivity.EXTRA_CURRENCY, po.order.currency)
+            putExtra(RazorpayPaymentActivity.EXTRA_TITLE, "OmAstro AI")
+            putExtra(RazorpayPaymentActivity.EXTRA_DESCRIPTION, "Wallet Recharge — ${po.pack.coins} Coins")
+        }
+        paymentLauncher.launch(intent)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Cosmic Coins & Wallet", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Wallet", color = Color.White, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -76,28 +116,43 @@ fun WalletScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "AVAILABLE BALANCE", color = RadiantAmber, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        Text(
+                            text = "AVAILABLE BALANCE",
+                            color = RadiantAmber,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "🪙", fontSize = 28.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "$coinBalance", color = SacredGold, fontSize = 42.sp, fontWeight = FontWeight.Bold)
+                        if (isProcessing) {
+                            CircularProgressIndicator(color = SacredGold, modifier = Modifier.size(36.dp))
+                        } else {
+                            Text(
+                                text = "$coinBalance Coins",
+                                color = SacredGold,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        Text(text = "Use coins for Kundali, Horoscope & Live Astrologer consultations", color = StarlightWhite.copy(alpha = 0.6f), fontSize = 12.sp)
+                        Text(
+                            text = "Use coins for Kundali, Horoscope and astrologer consultations",
+                            color = StarlightWhite.copy(alpha = 0.6f),
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
 
             // Recharge Packs Section
             item {
-                Text(text = "Select Recharge Pack", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Recharge Packs", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             items(viewModel.rechargePacks) { pack ->
                 RechargePackCard(
                     pack = pack,
                     isProcessing = isProcessing,
-                    onBuyClick = { viewModel.rechargePack(pack) }
+                    onBuyClick = { viewModel.createOrder(pack) }
                 )
             }
 
@@ -106,8 +161,24 @@ fun WalletScreen(
                 Text(text = "Recent Transactions", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
-            items(transactions) { tx ->
-                TransactionRow(tx)
+            if (transactions.isEmpty()) {
+                item {
+                    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "No transactions yet. Your recharge and usage history will appear here.",
+                            color = StarlightWhite.copy(alpha = 0.6f),
+                            fontSize = 13.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                items(transactions) { tx ->
+                    TransactionRow(tx)
+                }
             }
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
@@ -129,7 +200,12 @@ private fun RechargePackCard(
         ) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "${pack.coins} Coins", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        text = "${pack.coins} Coins",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                     if (pack.bonusCoins > 0) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
@@ -137,7 +213,7 @@ private fun RechargePackCard(
                             color = RadiantAmber
                         ) {
                             Text(
-                                text = "+${pack.bonusCoins} FREE",
+                                text = "+${pack.bonusCoins} bonus",
                                 color = CosmicDeepBlue,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 10.sp,
@@ -157,7 +233,16 @@ private fun RechargePackCard(
                 colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
                 shape = RoundedCornerShape(18.dp)
             ) {
-                Text(text = "₹${pack.priceInr.toInt()}", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                if (isProcessing) {
+                    CircularProgressIndicator(color = CosmicDeepBlue, modifier = Modifier.size(18.dp))
+                } else {
+                    Text(
+                        text = "Rs. ${pack.priceInr.toInt()}",
+                        color = CosmicDeepBlue,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
             }
         }
     }
@@ -171,13 +256,13 @@ private fun TransactionRow(tx: WalletTransaction) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(text = tx.description, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Text(text = tx.date, color = StarlightWhite.copy(alpha = 0.5f), fontSize = 11.sp)
             }
             val isCredit = tx.type == "credit"
             Text(
-                text = "${if (isCredit) "+" else "-"}${tx.amount} Coins",
+                text = "${if (isCredit) "+" else "-"}${tx.amount}",
                 color = if (isCredit) Color(0xFF4CAF50) else Color(0xFFFF5252),
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp
