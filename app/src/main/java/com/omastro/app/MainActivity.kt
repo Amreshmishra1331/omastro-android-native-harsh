@@ -119,6 +119,11 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Panchang.route) {
                             PanchangScreen(onBack = { navController.popBackStack() })
                         }
+                        composable(Screen.Muhurat.route) {
+                            com.omastro.app.ui.screens.muhurat.MuhuratScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
                         composable(Screen.Matchmaking.route) {
                             MatchmakingScreen(onBack = { navController.popBackStack() })
                         }

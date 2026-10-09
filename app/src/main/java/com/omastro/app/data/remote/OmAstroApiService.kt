@@ -159,6 +159,12 @@ interface OmAstroApiService {
         @Body request: GeocodeSearchRequest
     ): Response<GeocodeSearchResponse>
 
+    // Muhurat (auspicious dates for life events)
+    @POST("muhurat")
+    suspend fun getMuhurat(
+        @Body request: com.omastro.app.data.model.MuhuratRequest
+    ): Response<com.omastro.app.data.model.MuhuratResponse>
+
     // Saved Charts (user's saved kundalis)
     @GET("me/charts")
     suspend fun getSavedCharts(): Response<SavedChartsResponse>

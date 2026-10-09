@@ -4,6 +4,30 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Panchang Screen Redesign to Match omastroai.com/panchang/
+
+### Panchang models rebuilt to match the REAL POST /panchang response
+**What was broken:** `PanchangResponse` expected flat fields (`date`, `day`, `sunrise`, `sunset`, `moonrise`, `tithi`, `nakshatra`, `yoga`, `karana`, `rahu_kaal`, `yamaganda`, `gulika_kaal`, `abhijit_muhurat`, `amrit_kaal`) that the production API does NOT return — the real API returns `{"success": true, "data": {"core_data": {...}, "analysis_text": "..."}}` with nested `tithi{num,start_jd,end_jd}`, `nakshatra{idx,data{n,hi,lord,pada}}`, `yoga{idx}`, `karana1/karana2{name_idx}`, `paksha`, `vara_idx`, `sun_rashi/moon_rashi`, `amanta_month`, `purnimanta_month`, samvats. Verified live against production on 2026-10-09. The old shape could never parse, so the screen was permanently stuck on its error state (P0 fabricated fallbacks were removed earlier).
+**Removed:** Old flat `PanchangResponse` fields (`moonrise`, `rahu_kaal`, `yamaganda`, `gulika_kaal`, `abhijit_muhurat`, `amrit_kaal`, `is_auspicious`) — none of them exist in the real contract; the "Auspicious & Inauspicious Muhurat" section that rendered them is gone (no client-side muhurat computation — calculation stays server-side per standing rule).
+**Added:**
+- `PanchangEnvelope` / `PanchangDataPayload` / `PanchangCoreData` (+ `TithiInfo`, `NakshatraInfo`, `YogaInfo`, `KaranaInfo`, `RashiInfo`, `RashiPosition`) matching the live contract; `AstroRepository.getPanchang` unwraps the envelope honestly and fails loudly on empty data
+- `PanchangLookups`: verified name tables (30 tithis, 27 yogas, 11 karanas, 7 varas), Julian-date → IST time conversion (`jdToIstTime` "6:18 AM", `jdToIstDateTime` "8 Oct, 10:16 PM" — both verified against the live `analysis_text`), `toUiData()` mapper producing the display-ready `PanchangResponse` UI model (kept `tithi`/`nakshatra`/`yoga`/`karana`/`day`/`sunrise`/`sunset` field names so the Dashboard's panchang bindings keep working)
+- Real `POST /hora` wiring: `HoraEnvelope` / `HoraData` (day + night planetary hours with lord/start/end) / `HoraHour`; `AstroRepository.getHora()`; `GetHoraUseCase` registered in `AppContainer` as `getHoraUseCase`
+
+### Screen redesigned to website structure (banner → controls → details → hora)
+**What was missing:** No date picker (always today), no timezone display, no tithi start/end times, no karana split, no paksha/months/samvat, no Hora section.
+**Added:**
+- Maroon gradient banner: "PANCHANG" gold letter-spaced title + "Tithi · Vara · Nakshatra · Yoga · Karana" subtitle (matches website)
+- Controls card: DATE label + date button opening a Material3 `DatePickerDialog` (IST), TIMEZONE label + "IST +5:30 (India)", full-width gold "Get Panchang" button
+- Date banner card (pale cream like website): "Friday, October 9, 2026" + "Sunrise · 6:18 AM / Sunset · 5:58 PM"
+- "Panchang Details" card: rows with caps-gray label (left) and bold value (right) — Tithi with green "Starts:" / red "Ends:" times, Nakshatra with pada/lord/upto detail, Yoga with upto, Karana ×2, Paksha, Weekday, Amanta/Purnimanta Month, Moonsign, Sunsign
+- "Hora — Planetary Hours" card (real `/hora` data): Day/Night tab toggle, per-hour rows (lord in gold + start–end times), current hora auto-highlighted with gold border and "NOW" badge (only for today's date)
+- "Calendar" card: Vikram/Shaka samvat line + Pravishte
+- Honest loading spinner, "Panchang Unavailable" error card with Retry; hora loads best-effort and never blocks the panchang
+- No emojis anywhere; no fabricated values — every string comes from the live API or verified lookup tables
+
+---
+
 ## [2026-10-09] — NEW: Gochar (Planetary Transits) Screen
 
 ### Entire feature was missing from the app

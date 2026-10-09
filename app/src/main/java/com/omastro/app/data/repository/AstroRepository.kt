@@ -44,13 +44,48 @@ class AstroRepository(
     suspend fun getPanchang(date: String? = null): Result<PanchangResponse> {
         return try {
             val params = mutableMapOf<String, String>()
-            date?.let { params["date"] = it }
+            val dateApi = date ?: PanchangLookups.todayApiDate()
+            params["date"] = dateApi
             val res = api.getPanchang(params)
             val body = res.body()
-            if (res.isSuccessful && body != null) {
-                Result.success(body)
+            val uiData = if (res.isSuccessful && body != null && body.success) {
+                PanchangLookups.toUiData(body.data, dateApi)
+            } else null
+            if (uiData != null) {
+                Result.success(uiData)
             } else {
                 Result.failure(IOException("Panchang request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMuhurat(request: MuhuratRequest): Result<MuhuratData> {
+        return try {
+            val res = api.getMuhurat(request)
+            val body = res.body()
+            val data = body?.data
+            if (res.isSuccessful && body != null && body.success && data != null) {
+                Result.success(data)
+            } else {
+                Result.failure(IOException("Muhurat request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getHora(date: String? = null): Result<HoraData> {
+        return try {
+            val params = mutableMapOf<String, String>()
+            params["date"] = date ?: PanchangLookups.todayApiDate()
+            val res = api.getHora(params)
+            val body = res.body()
+            if (res.isSuccessful && body != null && body.success && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(IOException("Hora request failed: HTTP ${res.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

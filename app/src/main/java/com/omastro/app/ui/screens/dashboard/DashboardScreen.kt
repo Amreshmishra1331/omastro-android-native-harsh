@@ -446,7 +446,7 @@ private fun ServiceGrid(navController: NavController) {
         ServiceItem("Yoga / Dosh", "Combinations", Icons.Default.Hub, "♂", Screen.Kundali),
         ServiceItem("Transits", "Gochar", Icons.Default.Public, "♄", Screen.Gochar),
         ServiceItem("Panchang", "Daily Almanac", Icons.Default.CalendarToday, "☀", Screen.Panchang),
-        ServiceItem("Muhurat", "Auspicious Time", Icons.Default.Schedule, "♃", Screen.Panchang)
+        ServiceItem("Muhurat", "Auspicious Time", Icons.Default.Schedule, "♃", Screen.Muhurat)
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

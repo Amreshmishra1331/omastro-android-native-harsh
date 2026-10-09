@@ -20,6 +20,11 @@ class GetPanchangUseCase(private val repository: AstroRepository) {
         repository.getPanchang(date)
 }
 
+class GetHoraUseCase(private val repository: AstroRepository) {
+    suspend operator fun invoke(date: String? = null): Result<HoraData> =
+        repository.getHora(date)
+}
+
 class CalculateMatchmakingUseCase(private val repository: AstroRepository) {
     suspend operator fun invoke(request: MatchmakingRequest): Result<MatchmakingResponse> =
         repository.calculateMatchmaking(request)
@@ -28,4 +33,9 @@ class CalculateMatchmakingUseCase(private val repository: AstroRepository) {
 class GetGocharUseCase(private val repository: AstroRepository) {
     suspend operator fun invoke(request: GocharRequest): Result<GocharResponse> =
         repository.getGochar(request)
+}
+
+class GetMuhuratUseCase(private val repository: AstroRepository) {
+    suspend operator fun invoke(request: MuhuratRequest): Result<MuhuratData> =
+        repository.getMuhurat(request)
 }

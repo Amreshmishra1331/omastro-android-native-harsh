@@ -21,6 +21,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Numerology : Screen("numerology", "Numerology", Icons.Default.Calculate)
     object SavedCharts : Screen("saved_charts", "Saved Charts", Icons.Default.Bookmarks)
     object Gochar : Screen("gochar", "Gochar", Icons.Default.Public)
+    object Muhurat : Screen("muhurat", "Muhurat", Icons.Default.Schedule)
     object Auth : Screen("auth", "Sign In")
 }
 
