@@ -60,7 +60,9 @@ object LangPrefs {
         "Palmistry" to "हस्तरेखा",
         "Face Reading" to "चेहरा विश्लेषण",
         "Vastu Shastra" to "वास्तु शास्त्र",
+        "Astro Health" to "ज्योतिषीय स्वास्थ्य",
         // Drawer — Account
+        "Wallet" to "वॉलेट",
         "Add Money" to "पैसे जोड़ें",
         "Saved Kundalis" to "सहेजी कुंडलियां",
         "AI Chat History" to "AI चैट इतिहास",
@@ -72,7 +74,26 @@ object LangPrefs {
         "Privacy Policy" to "गोपनीयता नीति",
         "Terms of Service" to "सेवा की शर्तें",
         "Report a Bug" to "बग रिपोर्ट करें",
-        "Log Out" to "लॉग आउट"
+        "Log Out" to "लॉग आउट",
+        // Dashboard quick actions (2026-10-10 navigation audit: bilingual quick-action cards)
+        "Activity" to "गतिविधि",
+        "Edit Profile" to "प्रोफ़ाइल संपादित करें",
+        "Change Password" to "पासवर्ड बदलें",
+        // Drawer subtitles (Menu)
+        "General · Mundane" to "सामान्य · मुंडेन",
+        "Spiritual guidance" to "आध्यात्मिक मार्गदर्शन",
+        "AI palm reading" to "AI हस्तरेखा विश्लेषण",
+        "AI face reading" to "AI चेहरा विश्लेषण",
+        "Home-energy analysis" to "गृह-ऊर्जा विश्लेषण",
+        "Health astrology" to "ज्योतिषीय स्वास्थ्य विश्लेषण",
+        "Planetary transits" to "ग्रह गोचर",
+        "Auspicious timings" to "शुभ समय",
+        // Drawer subtitles (Account)
+        "Balance · Add money · Transactions" to "बैलेंस · पैसे जोड़ें · लेन-देन",
+        "Saved conversations" to "सहेजी बातचीत",
+        "Coming soon" to "जल्द आ रहा है",
+        "English · हिन्दी" to "English · हिन्दी",
+        "Email support" to "ईमेल सहायता"
     )
 
     /** Returns the display label for a navigation/menu title in the active language. */

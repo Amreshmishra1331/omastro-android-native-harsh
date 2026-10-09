@@ -4,6 +4,35 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Navigation Audit: every feature reachable in ≤2 taps
+
+Mapped all 22 top-level routes (NavHost `Screen` sealed class) plus Kundali's 23 tabs and the 12 Numerology tools, counting taps from the dashboard home. Two gaps found and fixed; drawer audited for dead/duplicate entries.
+
+### Fixed
+1. **Astro Health was completely unreachable** (`ui/navigation/Screen.kt` route `astro_health` + `ui/screens/astrohealth/AstroHealthScreen.kt` existed; `MainActivity.kt` registered the composable — but no drawer entry, dashboard card, or bottom-nav item pointed at it, so zero taps could ever reach it):
+   - **Before**: feature existed only as a route; not reachable from anywhere.
+   - **After**: new "Astro Health" entry in the nav drawer Menu section (subtitle "Health astrology", bilingual) + new "Astro Health" quick-action card on the dashboard home tab. Now 1–2 taps from home.
+2. **All 12 Numerology tools needed 3 taps** (Home → drawer → Numerology hub → tool):
+   - **Before**: Numerology hub only reachable via drawer; each tool a 3rd tap.
+   - **After**: new "Numerology" quick-action card on the dashboard home tab opens the hub in 1 tap → every tool (Moolank, Lo Shu, Name Numerology, Time Cycles, Karmic Debt, Compatibility, Gems & Remedies, Lucky Calendar, Mobile/Lucky Number, Name Correction, Kua, Planetary Numbers) is now ≤2 taps.
+3. **Duplicate drawer entries pointed at the same destination** (`ui/components/NavigationDrawer.kt`):
+   - **Before**: "Add Money" and "Activity History" both navigated to `Screen.Wallet.route` — two entries, one screen.
+   - **After**: merged into a single bilingual "Wallet" entry with subtitle "Balance · Add money · Transactions" (wallet balance, add money, and transaction history all live on the Wallet screen).
+4. **Drawer subtitles were English-only**:
+   - **Before**: drawer entry titles switched via `LangPrefs.label`, but subtitles rendered raw English.
+   - **After**: subtitles also pass through `LangPrefs.label` with new Hindi mappings in `LangPrefs.kt` ("Health astrology", "Planetary transits", "Auspicious timings", etc.).
+5. **Dashboard quick-action cards were English-only**:
+   - **Before**: "Activity", "Wallet", "Edit Profile", "Change Password" hardcoded in English.
+   - **After**: titles go through the `LangPrefs` menu-label system (same as the drawer) with new Hindi mappings ("गतिविधि", "वॉलेट", "प्रोफ़ाइल संपादित करें", "पासवर्ड बदलें", "अंक ज्योतिष", "ज्योतिषीय स्वास्थ्य") — auto-switch with the Settings language, no per-screen toggle. No emojis.
+
+### Verified as already fine (≤2 taps from dashboard home)
+- **1 tap**: Home, Kundali (bottom nav), AI Chat (bottom nav; history dialog inside), Rashifal (bottom nav), Astrologers (bottom nav; per-astrologer chat = 2), Settings (bottom nav), Vastu / Palmistry / Face Reading (dashboard "AI-Powered Readings" cards), Wallet (dashboard Add Money), Notifications (dashboard bell), Recent Kundalis → Kundali form/chart.
+- **2 taps**: all 23 Kundali tabs (incl. Remedies at tab 22 — inside Kundali, which is 1 tap), Divine Chat, Kundali Milan, Panchang, Gochar, Muhurat, Numerology hub (via drawer), Saved Charts, AI Chat History, Compass Mode (inside Vastu), password-change reset-link flow (inside dashboard Account → Password).
+- **Not dead/duplicates**: "Refer & Earn" → honest Coming-Soon dialog (not a fake feature); "Report a Bug" → opens email intent; "Activity History" removed as a duplicate (see fix 3).
+- **Bilingual**: drawer titles, bottom-nav labels, drawer subtitles (new), dashboard quick actions (new), Vastu/Palmistry/Face-Reading content via the `W` (FeatureStrings) system.
+
+---
+
 ## [2026-10-10] — Deep Honesty Audit: remaining fabricated/mock/fallback data eliminated
 
 Full-codebase grep audit (93 Kotlin files) for `lorem` / `TODO` / `FIXME` (none found), mock/dummy/fake/sample (only code comments describing honesty decisions), hardcoded scores, `?: 0` fallbacks on scores, silent coordinate defaults, and AI context builders. Five real issues found and fixed; everything else documented as a verified non-issue (see "Verified non-issues" below).

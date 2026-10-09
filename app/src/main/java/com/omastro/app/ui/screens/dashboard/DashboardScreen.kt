@@ -264,7 +264,9 @@ fun DashboardScreen(
                         },
                         onVastuClick = { navController.navigate(Screen.Vastu.route) },
                         onPalmistryClick = { navController.navigate(Screen.Palmistry.route) },
-                        onFaceReadingClick = { navController.navigate(Screen.FaceReading.route) }
+                        onFaceReadingClick = { navController.navigate(Screen.FaceReading.route) },
+                        onNumerologyClick = { navController.navigate(Screen.Numerology.route) },
+                        onAstroHealthClick = { navController.navigate(Screen.AstroHealth.route) }
                     )
                 }
             }
@@ -406,7 +408,12 @@ private fun HomeTabContent(
     onAddMoney: () -> Unit,
     onVastuClick: () -> Unit,
     onPalmistryClick: () -> Unit,
-    onFaceReadingClick: () -> Unit
+    onFaceReadingClick: () -> Unit,
+    // 2026-10-10 navigation audit: Numerology hub + Astro Health were reachable
+    // only via the drawer (Numerology tools needed 3 taps; Astro Health had no
+    // entry point at all). Prominent dashboard cards make every feature ≤2 taps.
+    onNumerologyClick: () -> Unit,
+    onAstroHealthClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Wallet hero card (orange gradient like website)
@@ -517,6 +524,24 @@ private fun HomeTabContent(
                 onClick = { onTabSelect(DashTab.PASSWORD) }
             )
         }
+        // Navigation audit 2026-10-10: feature shortcuts so nothing is buried.
+        // Numerology hub here (1 tap) puts all 12 tools at 2 taps; Astro Health
+        // had no entry point before — now 1 tap from the dashboard.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            QuickActionButton(
+                title = "Numerology",
+                modifier = Modifier.weight(1f),
+                onClick = onNumerologyClick
+            )
+            QuickActionButton(
+                title = "Astro Health",
+                modifier = Modifier.weight(1f),
+                onClick = onAstroHealthClick
+            )
+        }
 
         // ============ NEW: AI-POWERED READINGS ============
         // World-class photo/home readings (Vastu, Palmistry, Face Reading) —
@@ -617,7 +642,10 @@ private fun QuickActionButton(
         modifier = modifier.clickable { onClick() }
     ) {
         Text(
-            text = title,
+            // 2026-10-10 navigation audit: quick-action titles are bilingual via
+            // the same LangPrefs menu-label system (auto-switches with Settings
+            // language; DashboardScreen already recomposes on language change).
+            text = com.omastro.app.data.local.LangPrefs.label(title),
             color = StarlightWhite,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,

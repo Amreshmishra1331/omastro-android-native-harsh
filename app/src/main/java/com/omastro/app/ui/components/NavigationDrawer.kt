@@ -389,7 +389,8 @@ private fun DrawerRow(entry: DrawerEntry, selected: Boolean) {
                     fontSize = 14.sp
                 )
                 entry.subtitle?.let {
-                    Text(it, color = StarlightWhite.copy(alpha = 0.55f), fontSize = 11.sp)
+                    // 2026-10-10 navigation audit: subtitles also bilingual (titles already were).
+                    Text(com.omastro.app.data.local.LangPrefs.label(it), color = StarlightWhite.copy(alpha = 0.55f), fontSize = 11.sp)
                 }
             }
         },
@@ -443,10 +444,16 @@ private fun drawerMenuEntries(
             nav("Face Reading", Icons.Default.Face, Screen.FaceReading.route, "AI face reading"),
             nav("Vastu Shastra", Icons.Default.HomeWork, Screen.Vastu.route, "Home-energy analysis"),
             nav("Gochar", Icons.Default.Public, Screen.Gochar.route, "Planetary transits"),
-            nav("Muhurat", Icons.Default.Schedule, Screen.Muhurat.route, "Auspicious timings")
+            nav("Muhurat", Icons.Default.Schedule, Screen.Muhurat.route, "Auspicious timings"),
+            // 2026-10-10 navigation audit: Astro Health had a route + screen but
+            // zero entry points — it was unreachable from anywhere. Now 2 taps via drawer.
+            nav("Astro Health", Icons.Default.HealthAndSafety, Screen.AstroHealth.route, "Health astrology")
         ),
         "Account" to listOf(
-            nav("Add Money", Icons.Default.AccountBalanceWallet, Screen.Wallet.route),
+            // 2026-10-10 navigation audit: "Add Money" and "Activity History" both
+            // pointed at Screen.Wallet.route — duplicate destination. Merged into one
+            // Wallet entry (balance + add money + transaction history live on one screen).
+            nav("Wallet", Icons.Default.AccountBalanceWallet, Screen.Wallet.route, "Balance · Add money · Transactions"),
             nav("Saved Kundalis", Icons.Default.Bookmarks, Screen.SavedCharts.route),
             DrawerEntry(
                 title = "AI Chat History",
@@ -454,7 +461,6 @@ private fun drawerMenuEntries(
                 icon = Icons.Default.History,
                 onClick = { onNavigate(Screen.AiChat.HISTORY_ROUTE) }
             ),
-            nav("Activity History", Icons.Default.ReceiptLong, Screen.Wallet.route, "Transactions"),
             DrawerEntry(
                 title = "Refer & Earn",
                 subtitle = "Coming soon",
