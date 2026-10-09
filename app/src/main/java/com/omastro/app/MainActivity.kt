@@ -13,6 +13,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.omastro.app.ui.navigation.BottomNavBar
+import com.omastro.app.ui.navigation.PendingChartHolder
 import com.omastro.app.ui.navigation.Screen
 import com.omastro.app.ui.screens.astrologers.AstrologersScreen
 import com.omastro.app.ui.screens.astrologers.ChatScreen
