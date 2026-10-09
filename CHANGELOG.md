@@ -4,6 +4,26 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Dashboard UI Overhaul to Match Website
+
+### Dashboard redesigned to match omastroai.com homepage
+**What was broken:** Dashboard had a basic layout (header, panchang card, 8 quick-action rows, mantra, astrologer carousel) that did not match the website's rich homepage structure. Missing: Today's Oracle card, AI chat entry bar, 8-service grid, Divine Connection, Numerology tools grid, Special Methods section.
+**Removed:** Old QuickActionItem rows layout, old AstrologerMiniCard.
+**Added:**
+- Today's Oracle card (greeting "Hey, Seeker", date, daily mantra, panchang tithi/nakshatra)
+- "Ask Om Astro AI" search bar with "Kundali · Career · Marriage · Remedies — anything" placeholder and "Try asking" suggestion chips → navigates to AI Chat
+- 8-service grid matching website: Kundali, Matching, Faladesh, Rashifal, Yoga/Dosh, Transits, Panchang, Muhurat (each with Jyotish glyph: ☉ ♀ ☽ ♈ ♂ ♄ ☀ ♃)
+- "Chat with Astrologers" carousel with photo placeholder, name, rating, experience years, specialties, ₹/min price, online/offline indicator, "Chat Now" button
+- Divine Connection section (6 deity cards: Ganesha, Shiva, Vishnu, Lakshmi, Saraswati, Hanuman) → AI Chat
+- Numerology section (12 tools: Moolank, Lo Shu Grid, Name Numerology, Time Cycles, Karmic Debt, Compatibility, Gems, Lucky Calendar, Mobile Number, Name Correction, Kua Number, Planetary Numbers) → Numerology screen
+- Special Astrology Methods (Bhrigu Nandi Nadi, Astro Health, Saved Charts cards)
+- Today's Panchang quick card at bottom
+- Section headers with proper typography hierarchy, 20dp section spacing
+- All cards tappable with correct navigation; honest loading/empty states
+- NO pictographic emojis; professional Jyotish glyphs only
+
+---
+
 ## [2026-10-09] — P0 Integrity Fix Pass + AI Chat (v2.0.0-hardening)
 
 ### Authentication — rebuilt on the real backend contract
