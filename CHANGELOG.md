@@ -4,6 +4,22 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — NEW: Muhurat Screen (Shubh Muhurat Finder)
+
+### Missing feature added — real POST /muhurat wiring
+**What was missing:** No Muhurat screen existed at all. The Dashboard's "Muhurat" service tile navigated to the Panchang screen as a placeholder — wrong destination, missing feature.
+**API contract (verified live 2026-10-09 against production):** `POST /wp-json/omastro/v1/muhurat` with `{event, date (YYYY-MM-DD), days_ahead (1-365), lat, lon, tz, language}` returns `{"success": true, "data": {"event", "from", "days_ahead", "core_data": [{date, yr, mo, dy, tithi, tithi_full, nakshatra (1-27), vara (0=Sun..6=Sat), yoga (1-27), score, max_score, rating (0-100), verdict (excellent|good|acceptable), checks{tithi,avoid_tithi,nakshatra,vara{ok,value}}}], "analysis_text"}}`. Supported events verified against `KG_Muhurat_Engine::get_event_rules`: `vivah`, `grih_pravesh`, `vahan`, `property` (unknown keys fall back to `vivah` server-side).
+**Removed:** Dashboard Muhurat tile's placeholder navigation to `Screen.Panchang` — now routes to the new `Screen.Muhurat`.
+**Added:**
+- `data/model/MuhuratModels.kt`: `MuhuratRequest`, `MuhuratResponse` (defensive envelope), `MuhuratData`, `MuhuratDay`, `MuhuratChecks`, `MuhuratCheck`; verified lookup tables — `MUHURAT_EVENTS` (4 events), `NAKSHATRA_NAMES` (27, 1-indexed; verified 4=Rohini, 27=Revati against engine comments), `VARA_NAMES`/`VARA_NAMES_SHORT` (0=Sun..6=Sat; verified against engine varas), `YOGA_NAMES` (27), `TITHI_NAMES` (15 + `muhuratDayTithiName()` paksha helper handling Krishna Amavasya)
+- `OmAstroApiService.getMuhurat()` (`POST muhurat`); `AstroRepository.getMuhurat()` with honest envelope unwrap (fails loudly on unsuccessful/empty); `GetMuhuratUseCase` registered in `AppContainer` as `getMuhuratUseCase`
+- `ui/navigation/Screen.Muhurat` route; `MainActivity` composable route; Dashboard tile now navigates correctly
+- `ui/screens/muhurat/MuhuratViewModel.kt`: form state (event, startDate, daysAhead, place/lat/lon), `findMuhurat()`, loading/error/result StateFlows, honest error messages
+- `ui/screens/muhurat/MuhuratScreen.kt`: event selector chips (4 events with subtitles), start-date field opening `DatePickerDialog`, search-window chips (7/15/30/60/90 days), `PlaceSearchField` for location, gold "Find Muhurat" button; results sorted by rating — summary card (days analyzed, excellent/good counts), per-day cards (date + weekday, verdict badge color-coded: Excellent=green / Good=gold / Acceptable=blue, rating progress bar with score/max_score, Tithi/Nakshatra/Yoga/Vara rows with pass/fail check icons from `checks`), `analysis_text` card; honest empty state ("Select an event and tap Find Muhurat"), loading spinner, error card with Retry
+- No emojis anywhere; no fabricated values — every date/score/verdict comes from the live API; calculation stays server-side per standing rule
+
+---
+
 ## [2026-10-09] — Panchang Screen Redesign to Match omastroai.com/panchang/
 
 ### Panchang models rebuilt to match the REAL POST /panchang response
