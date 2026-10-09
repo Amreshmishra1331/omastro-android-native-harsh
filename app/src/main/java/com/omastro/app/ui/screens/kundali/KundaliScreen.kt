@@ -3,7 +3,7 @@ package com.omastro.app.ui.screens.kundali
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyColumnScope
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -294,7 +294,7 @@ private fun KundaliResults(viewModel: KundaliViewModel) {
     }
 }
 
-private fun LazyColumnScope.chartsTab(
+private fun LazyListScope.chartsTab(
     viewModel: KundaliViewModel,
     kundali: KundaliResponse?,
     selectedDiv: String,
@@ -421,7 +421,7 @@ private fun HouseChip(houseNumber: Int, planets: List<String>, modifier: Modifie
     }
 }
 
-private fun LazyColumnScope.grahasTab(kundali: KundaliResponse?) {
+private fun LazyListScope.grahasTab(kundali: KundaliResponse?) {
     item {
         SectionTitle("Planetary Longitudes, Dignities and Strengths")
     }
@@ -458,7 +458,7 @@ private fun LazyColumnScope.grahasTab(kundali: KundaliResponse?) {
     }
 }
 
-private fun LazyColumnScope.dashaTab(kundali: KundaliResponse?) {
+private fun LazyListScope.dashaTab(kundali: KundaliResponse?) {
     item {
         SectionTitle("Vimshottari Dasha Timeline")
     }
@@ -494,7 +494,7 @@ private fun LazyColumnScope.dashaTab(kundali: KundaliResponse?) {
     }
 }
 
-private fun LazyColumnScope.yogasTab(kundali: KundaliResponse?) {
+private fun LazyListScope.yogasTab(kundali: KundaliResponse?) {
     item {
         SectionTitle("Vedic Yogas and Doshas")
     }
@@ -536,7 +536,7 @@ private fun LazyColumnScope.yogasTab(kundali: KundaliResponse?) {
     }
 }
 
-private fun LazyColumnScope.ashtakavargaTab(kundali: KundaliResponse?) {
+private fun LazyListScope.ashtakavargaTab(kundali: KundaliResponse?) {
     item {
         SectionTitle("Sarvashtakavarga Bindu Grid")
     }
@@ -561,7 +561,7 @@ private fun LazyColumnScope.ashtakavargaTab(kundali: KundaliResponse?) {
     }
 }
 
-private fun LazyColumnScope.lalKitabTab(kundali: KundaliResponse?) {
+private fun LazyListScope.lalKitabTab(kundali: KundaliResponse?) {
     item {
         SectionTitle("Lal Kitab Remedies")
     }
@@ -600,7 +600,7 @@ private fun LazyColumnScope.lalKitabTab(kundali: KundaliResponse?) {
     }
 }
 
-private fun LazyColumnScope.jaiminiHealthTab(kundali: KundaliResponse?) {
+private fun LazyListScope.jaiminiHealthTab(kundali: KundaliResponse?) {
     item {
         SectionTitle("Jaimini Karakas")
     }
