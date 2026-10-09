@@ -170,6 +170,36 @@ class VisionRepository(
         }
     }
 
+    /** POST /face-reading/analyze — face photo → Samudrika Shastra reading. */
+    suspend fun analyzeFaceReading(
+        image: File,
+        notes: String? = null
+    ): Result<FaceReading> {
+        return try {
+            val part = filePart("image", image)
+            val notesBody = notes?.takeIf { it.isNotBlank() }
+                ?.toRequestBody("text/plain".toMediaTypeOrNull())
+            val res = api.analyzeFaceReading(part, notesBody)
+            val body = res.body()
+            // The endpoint is still being built server-side: surface an honest
+            // "not available yet" instead of a raw HTTP 404.
+            if (res.code() == 404) {
+                return Result.failure(
+                    IOException(com.omastro.app.ui.i18n.W.t("face_err_unavailable"))
+                )
+            }
+            if (!res.isSuccessful || body == null) {
+                return Result.failure(IOException(parseError(res.code(), body)))
+            }
+            @Suppress("UNCHECKED_CAST")
+            val data = body["data"] as? Map<String, Any?>
+                ?: return Result.failure(IOException("Empty face-reading response."))
+            Result.success(FaceReading.fromMap(data))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------

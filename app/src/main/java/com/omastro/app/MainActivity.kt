@@ -339,6 +339,14 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        composable(Screen.FaceReading.route) {
+                            com.omastro.app.ui.screens.facereading.FaceReadingScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenAiChat = {
+                                    navController.navigate(Screen.AiChat.route)
+                                }
+                            )
+                        }
                         composable(Screen.Vastu.route) {
                             com.omastro.app.ui.screens.vastu.VastuScreen(
                                 onBack = { navController.popBackStack() },

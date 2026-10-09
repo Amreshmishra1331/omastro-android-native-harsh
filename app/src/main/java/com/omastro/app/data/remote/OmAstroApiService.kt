@@ -326,6 +326,19 @@ interface OmAstroApiService {
         @Part("hand") hand: okhttp3.RequestBody? = null,
         @Part("notes") notes: okhttp3.RequestBody? = null
     ): Response<Map<String, Any>>
+
+    /**
+     * POST /face-reading/analyze — face photo → Samudrika Shastra reading
+     * (auth, multipart). Returns per-feature observation + interpretation,
+     * overall_personality, career, relationships, health_indications, guidance,
+     * parsed_facts, and an honesty refusal when no clear face is visible.
+     */
+    @Multipart
+    @POST("face-reading/analyze")
+    suspend fun analyzeFaceReading(
+        @Part image: MultipartBody.Part,
+        @Part("notes") notes: okhttp3.RequestBody? = null
+    ): Response<Map<String, Any>>
 }
 
 // (Astrologer chat session models now live in

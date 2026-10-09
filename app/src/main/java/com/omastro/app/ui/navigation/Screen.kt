@@ -30,6 +30,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Gochar : Screen("gochar", "Gochar", Icons.Default.Public)
     object Muhurat : Screen("muhurat", "Muhurat", Icons.Default.Schedule)
     object Palmistry : Screen("palmistry", "Palmistry", Icons.Default.PanTool)
+    object FaceReading : Screen("face_reading", "Face Reading", Icons.Default.Face)
     object Vastu : Screen("vastu", "Vastu Shastra", Icons.Default.HomeWork)
     object Auth : Screen("auth", "Sign In") {
         /** Opens the auth screen directly in forgot-password mode. */

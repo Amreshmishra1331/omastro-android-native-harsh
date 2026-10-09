@@ -118,6 +118,36 @@ object W {
         "palm_cam_title" to "कैमरा एक्सेस",
         "palm_lib_title" to "फोटो एक्सेस",
 
+        // ---- Face reading ----
+        "face_title" to "चेहरा विश्लेषण",
+        "face_sub" to "आपकी फोटो से सामुद्रिक शास्त्र चेहरा विश्लेषण",
+        "face_capture_title" to "अपने चेहरे की फोटो लें",
+        "face_tip_1" to "कैमरे की ओर सीधे देखें, सिर सीधा रखें",
+        "face_tip_2" to "चेहरे पर तेज़, एकसमान रोशनी रखें — छाया से बचें",
+        "face_tip_3" to "तटस्थ भाव रखें, आंखें खुली",
+        "face_tip_4" to "फ्रेम में पूरा चेहरा आए, चश्मा या टोपी न पहनें",
+        "face_preview_cd" to "चेहरा पूर्वावलोकन",
+        "face_ready" to "विश्लेषण के लिए फोटो तैयार",
+        "face_analyze" to "मेरे चेहरे का विश्लेषण करें",
+        "face_loading" to "आपका चेहरा पढ़ा जा रहा है...",
+        "face_loading_sub" to "AI आपके चेहरे की हर विशेषता का अध्ययन कर रहा है।",
+        "face_your_face" to "आपका चेहरा",
+        "face_features" to "चेहरे की विशेषताएं",
+        "face_observation" to "अवलोकन",
+        "face_interpretation" to "व्याख्या",
+        "face_personality" to "समग्र व्यक्तित्व",
+        "face_career" to "करियर",
+        "face_relationships" to "संबंध",
+        "face_health" to "स्वास्थ्य संकेत",
+        "face_guidance" to "मार्गदर्शन",
+        "face_err_failed" to "चेहरा विश्लेषण विफल रहा। कृपया पुनः प्रयास करें।",
+        "face_err_unavailable" to "चेहरा विश्लेषण अभी उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।",
+        "face_cam_rationale" to "चेहरे की फोटो लेने के लिए कैमरा एक्सेस आवश्यक है।",
+        "face_lib_rationale" to "गैलरी से चेहरे की फोटो चुनने के लिए फोटो लाइब्रेरी एक्सेस आवश्यक है।",
+        "face_not_face_title" to "कोई स्पष्ट चेहरा नहीं मिला",
+        "face_not_face_hint" to "कृपया चेहरे की स्पष्ट, सामने से ली गई फोटो अपलोड करें।",
+        "face_ctx_label" to "चेहरा विश्लेषण",
+
         // ---- Vastu: tabs & titles ----
         "vastu_title" to "वास्तु शास्त्र",
         "vastu_sub" to "शास्त्रीय गृह-ऊर्जा विश्लेषण",
@@ -269,6 +299,34 @@ object W {
         "palm_lib_rationale" to "Choosing a palm photo from your gallery needs photo-library access.",
         "palm_cam_title" to "Camera access",
         "palm_lib_title" to "Photo access",
+        "face_title" to "Face Reading",
+        "face_sub" to "Samudrika Shastra face reading from your photo",
+        "face_capture_title" to "Photograph your face",
+        "face_tip_1" to "Face the camera directly, head straight",
+        "face_tip_2" to "Use bright, even light on your face — avoid shadows",
+        "face_tip_3" to "Keep a neutral expression, eyes open",
+        "face_tip_4" to "Fill the frame with your face, no sunglasses or hats",
+        "face_preview_cd" to "Face preview",
+        "face_ready" to "Photo ready for analysis",
+        "face_analyze" to "Analyze My Face",
+        "face_loading" to "Reading your face...",
+        "face_loading_sub" to "The AI is studying every feature of your face.",
+        "face_your_face" to "Your Face",
+        "face_features" to "Facial Features",
+        "face_observation" to "Observation",
+        "face_interpretation" to "Interpretation",
+        "face_personality" to "Overall Personality",
+        "face_career" to "Career",
+        "face_relationships" to "Relationships",
+        "face_health" to "Health Indications",
+        "face_guidance" to "Guidance",
+        "face_err_failed" to "Face analysis failed. Please try again.",
+        "face_err_unavailable" to "Face reading is not available yet. Please try again later.",
+        "face_cam_rationale" to "Taking a face photo needs camera access.",
+        "face_lib_rationale" to "Choosing a face photo from your gallery needs photo-library access.",
+        "face_not_face_title" to "No clear face detected",
+        "face_not_face_hint" to "Please upload a clear, front-facing photo of a face.",
+        "face_ctx_label" to "Face reading",
         "vastu_title" to "Vastu Shastra",
         "vastu_sub" to "Classical home-energy analysis",
         "vastu_tab_manual" to "Manual Entry",
@@ -396,6 +454,22 @@ object W {
             "L-shaped" -> "L-आकार"
             "triangular" -> "त्रिकोणीय"
             else -> value
+        }
+    }
+
+    /** Facial-feature display name in the active language (face reading). */
+    fun faceFeatureName(key: String): String {
+        val hi = LangPrefs.language.value == "hi"
+        return when (key) {
+            "face_shape" -> if (hi) "चेहरे का आकार" else "Face Shape"
+            "forehead" -> if (hi) "माथा" else "Forehead"
+            "eyebrows" -> if (hi) "भौहें" else "Eyebrows"
+            "eyes" -> if (hi) "आंखें" else "Eyes"
+            "nose" -> if (hi) "नाक" else "Nose"
+            "lips" -> if (hi) "होंठ" else "Lips"
+            "chin" -> if (hi) "ठोड़ी" else "Chin"
+            "ears" -> if (hi) "कान" else "Ears"
+            else -> key.replace('_', ' ').replaceFirstChar { it.uppercase() }
         }
     }
 }

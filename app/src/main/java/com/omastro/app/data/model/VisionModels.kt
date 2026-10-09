@@ -441,6 +441,141 @@ data class PalmistryReading(
 }
 
 /**
+ * One facial feature assessment (Samudrika Shastra).
+ */
+data class FaceFeature(
+    val key: String = "",
+    val observation: String = "",
+    val interpretation: String = ""
+)
+
+/** Canonical feature order for face reading. */
+val FACE_FEATURE_KEYS = listOf(
+    "face_shape", "forehead", "eyebrows", "eyes",
+    "nose", "lips", "chin", "ears"
+)
+
+/** Result of POST /face-reading/analyze. */
+data class FaceReading(
+    val reading: String = "",
+    val features: List<FaceFeature> = emptyList(),
+    val overallPersonality: String = "",
+    val career: String = "",
+    val relationships: String = "",
+    val healthIndications: List<String> = emptyList(),
+    val guidance: List<String> = emptyList(),
+    val disclaimer: String = "",
+    /** False when the photo has no clear face — show the refusal, never features. */
+    val isFace: Boolean = true,
+    val refusal: String = "",
+    val parsedFactsRaw: Map<String, Any?> = emptyMap()
+) {
+    companion object {
+        @Suppress("UNCHECKED_CAST")
+        fun fromMap(data: Map<String, Any?>?): FaceReading {
+            if (data == null) return FaceReading()
+            val pf = (data["parsed_facts"] as? Map<String, Any?>).orEmpty()
+            fun str(v: Any?): String = (v as? String).orEmpty()
+            fun strList(v: Any?): List<String> =
+                (v as? List<*>)?.mapNotNull { it as? String }.orEmpty()
+
+            fun feature(key: String): FaceFeature? {
+                val raw = pf[key] ?: return null
+                return when (raw) {
+                    is Map<*, *> -> FaceFeature(
+                        key = key,
+                        observation = str(raw["observation"]),
+                        interpretation = str(raw["interpretation"])
+                    )
+                    is String -> if (raw.isNotBlank())
+                        FaceFeature(key = key, observation = raw) else null
+                    else -> null
+                }
+            }
+            val features = FACE_FEATURE_KEYS.mapNotNull { feature(it) }
+
+            val isFace = (pf["is_face"] as? Boolean)
+                ?: (data["is_face"] as? Boolean)
+                ?: true
+            return FaceReading(
+                reading = str(data["reading"]),
+                features = features,
+                overallPersonality = str(pf["overall_personality"]),
+                career = str(pf["career"]),
+                relationships = str(pf["relationships"]),
+                healthIndications = strList(pf["health_indications"]),
+                guidance = strList(pf["guidance"]),
+                disclaimer = str(data["disclaimer"]),
+                isFace = isFace,
+                refusal = str(data["refusal"]).ifBlank { str(pf["refusal"]) },
+                parsedFactsRaw = pf
+            )
+        }
+    }
+
+    /**
+     * FULL face reading rendered as chat context for follow-up AI questions.
+     *
+     * Includes every facial feature (observation + interpretation), the full
+     * reading text, overall personality, career, relationships, health
+     * indications, guidance, disclaimer, and any extra parsed facts — so the
+     * AI can explain anything in the report. When the photo had no clear
+     * face, only the refusal is included (never invented features).
+     */
+    fun toContextBlock(): String {
+        val sb = StringBuilder("=== FACE READING — SAMUDRIKA SHASTRA (from face photo) ===\n")
+        if (!isFace) {
+            sb.append("No clear face was visible in the photo.\n")
+            if (refusal.isNotBlank()) sb.append("Refusal: ").append(refusal.trim()).append('\n')
+            sb.append("Do not describe facial features; ask the user for a clear front-facing photo.")
+            return sb.toString().trim()
+        }
+        if (reading.isNotBlank()) {
+            sb.append("\n--- Full reading ---\n").append(reading.trim()).append('\n')
+        }
+        if (features.isNotEmpty()) {
+            sb.append("\n--- Facial features ---\n")
+            features.forEach { f ->
+                sb.append("- ").append(f.key).append('\n')
+                if (f.observation.isNotBlank())
+                    sb.append("  Observation: ").append(f.observation).append('\n')
+                if (f.interpretation.isNotBlank())
+                    sb.append("  Interpretation: ").append(f.interpretation).append('\n')
+            }
+        }
+        if (overallPersonality.isNotBlank())
+            sb.append("\nOverall personality: ").append(overallPersonality).append('\n')
+        if (career.isNotBlank())
+            sb.append("Career: ").append(career).append('\n')
+        if (relationships.isNotBlank())
+            sb.append("Relationships: ").append(relationships).append('\n')
+        if (healthIndications.isNotEmpty()) {
+            sb.append("\nHealth indications:\n")
+            healthIndications.forEach { sb.append("- ").append(it).append('\n') }
+        }
+        if (guidance.isNotEmpty()) {
+            sb.append("\nGuidance:\n")
+            guidance.forEach { sb.append("- ").append(it).append('\n') }
+        }
+        val covered = setOf(
+            "face_shape", "forehead", "eyebrows", "eyes", "nose", "lips",
+            "chin", "ears", "overall_personality", "career", "relationships",
+            "health_indications", "guidance", "is_face", "refusal"
+        )
+        val extras = parsedFactsRaw.filterKeys { it !is String || (it as String) !in covered }
+        if (extras.isNotEmpty()) {
+            sb.append("\n--- Additional parsed facts ---\n")
+            renderGeneric(sb, "", extras)
+        }
+        if (disclaimer.isNotBlank())
+            sb.append("\nDisclaimer: ").append(disclaimer.trim()).append('\n')
+        sb.append("\nAnswer follow-up questions strictly from this reading. ")
+        sb.append("Do not invent details that are not in it.")
+        return sb.toString().trim()
+    }
+}
+
+/**
  * A photo-analysis attachment for AI chat context (like BirthDataAttachment,
  * but for photo/vision parsed facts). Stored in-memory per chat mode.
  */

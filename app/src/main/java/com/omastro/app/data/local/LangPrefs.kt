@@ -58,6 +58,7 @@ object LangPrefs {
         "Gochar" to "गोचर",
         "Muhurat" to "मुहूर्त",
         "Palmistry" to "हस्तरेखा",
+        "Face Reading" to "चेहरा विश्लेषण",
         "Vastu Shastra" to "वास्तु शास्त्र",
         // Drawer — Account
         "Add Money" to "पैसे जोड़ें",
