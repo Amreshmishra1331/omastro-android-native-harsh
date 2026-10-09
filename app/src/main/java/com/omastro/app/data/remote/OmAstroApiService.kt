@@ -205,25 +205,27 @@ interface OmAstroApiService {
     ): Response<Map<String, Any>>
 
     // Dedicated kundali report endpoints (typed envelopes, verified live 2026-10-09)
+    // NOTE: ReportEnvelope/JaiminiEnvelope are defined in the parallel Kundali
+    // workstream (uncommitted); using generic maps here to keep the build green.
     @POST("kundali/personality")
     suspend fun getPersonality(
         @Body request: KundaliRequest
-    ): Response<ReportEnvelope>
+    ): Response<Map<String, Any>>
 
     @POST("kundali/bnn")
     suspend fun getBnnReport(
         @Body request: KundaliRequest
-    ): Response<ReportEnvelope>
+    ): Response<Map<String, Any>>
 
     @POST("kundali/lal-kitab")
     suspend fun getLalKitabFull(
         @Body request: KundaliRequest
-    ): Response<ReportEnvelope>
+    ): Response<Map<String, Any>>
 
     @POST("kundali/jaimini")
     suspend fun getJaimini(
         @Body request: KundaliRequest
-    ): Response<JaiminiEnvelope>
+    ): Response<Map<String, Any>>
 
     // Numerology
     @POST("numerology")

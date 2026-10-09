@@ -40,7 +40,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.omastro.app.data.model.Astrologer
 import com.omastro.app.data.model.BirthDataAttachment
-import com.omastro.app.data.model.GeocodePlace
+import com.omastro.app.data.remote.GeocodePlace
 import com.omastro.app.ui.components.DatePickerField
 import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.components.TimePickerField
