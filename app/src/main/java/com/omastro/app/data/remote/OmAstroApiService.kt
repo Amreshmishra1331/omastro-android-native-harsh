@@ -143,6 +143,33 @@ interface OmAstroApiService {
         @Body request: Map<String, @JvmSuppressWildcards Any?>
     ): Response<Map<String, Any>>
 
+    // AI Chat saved sessions
+    // GET /ai/chats -> list saved chat sessions (50 latest)
+    @GET("ai/chats")
+    suspend fun listAiChats(): Response<SavedChatListResponse>
+
+    // POST /ai/chats -> save/update a chat session
+    @POST("ai/chats")
+    suspend fun saveAiChat(
+        @Body request: SaveChatRequest
+    ): Response<Map<String, Any>>
+
+    // GET /ai/chats/{id} -> get one saved chat (history + context)
+    @GET("ai/chats/{id}")
+    suspend fun getAiChat(
+        @Path("id") chatId: String
+    ): Response<SavedChatDetailResponse>
+
+    // DELETE /ai/chats/{id} -> delete one chat
+    @DELETE("ai/chats/{id}")
+    suspend fun deleteAiChat(
+        @Path("id") chatId: String
+    ): Response<Map<String, Any>>
+
+    // DELETE /ai/chats -> clear all chats
+    @DELETE("ai/chats")
+    suspend fun clearAiChats(): Response<Map<String, Any>>
+
     // FCM Device Token Registration
     @POST("auth/fcm-token")
     suspend fun updateFcmToken(

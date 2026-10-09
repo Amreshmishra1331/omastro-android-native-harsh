@@ -4,6 +4,30 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — AI chat full context system (website parity)
+
+### Broken / missing
+- **No birth-data context**: AI chat sent only `message` + `persona` + `session_id`. No way to attach birth data, so the AI had no chart context (website's "Attach Kundali" feature was missing).
+- **No context replay**: Server-returned `chatContext` was discarded; every turn started fresh instead of building on the computed chart.
+- **No history sent**: Previous turns were not included in requests (website sends last 12).
+- **No quota display**: `questions_used/limit/left` from responses was ignored.
+- **No session persistence**: No save/load/delete of chat sessions via `/ai/chats`.
+- **No model selection**: `ai_model` (lite/pro/expert) was never sent.
+
+### Removed
+- Nothing (existing chat UI preserved; new features are additive).
+
+### Added
+- **`AiChatModels.kt`** (new): `BirthDataAttachment` (name/gender/dob/tob/place/lat/lon/tz), `buildBirthDataContext()`, `AiChatQuota`, `AutoKundali`, `AiChatFullResponse`, `AiModel` enum (lite/pro/expert), `ChatHistoryTurn`, `SavedChatSession`, `SaveChatRequest`, session list/detail response models.
+- **API**: `GET /ai/chats`, `POST /ai/chats`, `GET /ai/chats/{id}`, `DELETE /ai/chats/{id}`, `DELETE /ai/chats` in `OmAstroApiService`.
+- **`ChatRepository`**: Full-context `sendAiMessage()` sends `message`, `ai_model`, `persona`, `language`, `context` (max 28k chars), `history` (last 12, 4k chars each), `session_id`. Parses `reply`, `chatContext`, `autoKundali`, `session_id`, quota from responses. Session CRUD methods.
+- **`AiChatViewModel`**: Per-mode state (messages, chatContext, sessionId, attachments, quota, aiModel). Context built from attachments + replayed chatContext. Auto-registers server-extracted birth data. Attach/remove/clear birth data. Save/load/delete sessions with context restoration.
+- **`AttachBirthDataDialog.kt`** (new): Form with Name, Gender toggle, DOB calendar picker (DD-MM-YYYY), TOB clock picker (AM/PM), Place autocomplete. Multiple attachments shown as removable chips.
+- **`SavedSessionsDialog.kt`** (new): Saved chat list with load (restores messages + context) and delete.
+- **`AiChatScreen`**: Attach button in input bar, attachment chips, quota pill in top bar, Lite/Pro/Expert model selector, saved-chats and save buttons, quota text display.
+
+---
+
 ## [2026-10-09] — Release signing with Flutter app's official keystore
 
 ### Broken / missing

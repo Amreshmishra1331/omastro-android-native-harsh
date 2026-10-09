@@ -37,7 +37,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.omastro.app.data.model.AiModel
 import com.omastro.app.data.model.ChatMessage
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicDeepBlue
@@ -120,6 +124,9 @@ fun AiChatScreen(
     val selectedMode by viewModel.selectedMode.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
+    var showAttachDialog by remember { mutableStateOf(false) }
+    var showSessionsDialog by remember { mutableStateOf(false) }
+    var showSaveConfirm by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -185,6 +192,37 @@ fun AiChatScreen(
                     }
                 },
                 actions = {
+                    // Quota display: questions left
+                    if (uiState.quota.limit > 0) {
+                        QuotaPill(
+                            left = uiState.quota.left,
+                            limit = uiState.quota.limit
+                        )
+                    }
+                    // Saved chats
+                    IconButton(onClick = {
+                        viewModel.loadSavedSessions()
+                        showSessionsDialog = true
+                    }) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = "Saved chats",
+                            tint = SacredGold
+                        )
+                    }
+                    // Save current chat
+                    IconButton(onClick = {
+                        if (uiState.messages.isNotEmpty()) {
+                            viewModel.saveCurrentSession { showSaveConfirm = true }
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.Save,
+                            contentDescription = "Save chat",
+                            tint = SacredGold
+                        )
+                    }
+                    // New chat
                     IconButton(onClick = {
                         viewModel.clearChat()
                         inputText = ""
@@ -203,6 +241,11 @@ fun AiChatScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // Attached birth-data chips
+                AttachmentChips(
+                    attachments = uiState.attachments,
+                    onRemove = { viewModel.removeAttachment(it) }
+                )
                 if (uiState.messages.isNotEmpty() && !uiState.isTyping) {
                     InlineSuggestionStrip(
                         suggestions = modeSuggestions.getValue(selectedMode).take(3),
@@ -213,6 +256,7 @@ fun AiChatScreen(
                     value = inputText,
                     onValueChange = { inputText = it },
                     onSend = ::sendCurrent,
+                    onAttachClick = { showAttachDialog = true },
                     enabled = !uiState.isTyping
                 )
             }
@@ -231,6 +275,15 @@ fun AiChatScreen(
                     onSelect = { viewModel.selectMode(it) }
                 )
             }
+
+            // Model selector + quota row
+            AiModelSelectorRow(
+                selected = uiState.aiModel,
+                onSelect = { viewModel.setAiModel(it) },
+                quotaText = if (uiState.quota.limit > 0) {
+                    "${uiState.quota.left}/${uiState.quota.limit} questions left"
+                } else null
+            )
 
             if (uiState.messages.isEmpty() && !uiState.isTyping) {
                 ChatEmptyState(
@@ -260,6 +313,42 @@ fun AiChatScreen(
                     }
                 }
             }
+        }
+    }
+
+    // Attach Birth Data dialog
+    if (showAttachDialog) {
+        AttachBirthDataDialog(
+            onDismiss = { showAttachDialog = false },
+            onAttach = {
+                viewModel.attachBirthData(it)
+                showAttachDialog = false
+                scope.launch {
+                    snackbarHostState.showSnackbar("Birth data attached. It will be sent with your next message.")
+                }
+            }
+        )
+    }
+
+    // Saved sessions dialog
+    if (showSessionsDialog) {
+        SavedSessionsDialog(
+            sessions = uiState.savedSessions,
+            isLoading = uiState.isLoadingSessions,
+            onDismiss = { showSessionsDialog = false },
+            onSelect = {
+                viewModel.loadSession(it)
+                showSessionsDialog = false
+            },
+            onDelete = { viewModel.deleteSession(it) }
+        )
+    }
+
+    // Save confirmation feedback
+    LaunchedEffect(showSaveConfirm) {
+        if (showSaveConfirm) {
+            snackbarHostState.showSnackbar("Chat saved.")
+            showSaveConfirm = false
         }
     }
 }
@@ -533,6 +622,7 @@ private fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    onAttachClick: () -> Unit,
     enabled: Boolean
 ) {
     Surface(
@@ -547,6 +637,28 @@ private fun ChatInputBar(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.Bottom
         ) {
+            // Attach Birth Data button (website parity: paperclip)
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(StarlightWhite.copy(alpha = 0.08f))
+                    .border(
+                        1.dp,
+                        SacredGold.copy(alpha = 0.3f),
+                        CircleShape
+                    )
+                    .clickable(enabled = enabled) { onAttachClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AttachFile,
+                    contentDescription = "Attach Birth Data",
+                    tint = SacredGold,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             TextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -646,6 +758,98 @@ private fun InlineSuggestionStrip(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
                 )
             }
+        }
+    }
+}
+
+/**
+ * Quota pill shown in the top bar: "3/5 left".
+ * Website parity: questions_used/limit/left from every response.
+ */
+@Composable
+private fun QuotaPill(left: Int, limit: Int) {
+    val low = left <= 1
+    Box(
+        modifier = Modifier
+            .padding(end = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                if (low) Color(0xFFFF8A80).copy(alpha = 0.15f)
+                else SacredGold.copy(alpha = 0.15f)
+            )
+            .border(
+                1.dp,
+                if (low) Color(0xFFFF8A80).copy(alpha = 0.5f)
+                else SacredGold.copy(alpha = 0.4f),
+                RoundedCornerShape(14.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "$left/$limit",
+            color = if (low) Color(0xFFFF8A80) else SacredGold,
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+/**
+ * AI model tier selector (Lite / Pro / Expert) with quota hint.
+ * Website parity: ai_model is sent with every message.
+ */
+@Composable
+private fun AiModelSelectorRow(
+    selected: AiModel,
+    onSelect: (AiModel) -> Unit,
+    quotaText: String?
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AiModel.values().forEach { model ->
+                val isSelected = model == selected
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (isSelected) SacredGold.copy(alpha = 0.2f)
+                            else Color.Transparent
+                        )
+                        .border(
+                            1.dp,
+                            if (isSelected) SacredGold.copy(alpha = 0.6f)
+                            else StarlightWhite.copy(alpha = 0.2f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { onSelect(model) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = model.displayName,
+                        color = if (isSelected) SacredGold else StarlightWhite.copy(alpha = 0.55f),
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
+            }
+        }
+        quotaText?.let {
+            Text(
+                text = it,
+                color = StarlightWhite.copy(alpha = 0.5f),
+                fontSize = 11.5.sp
+            )
         }
     }
 }
