@@ -10,15 +10,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,50 +31,55 @@ fun NumerologyScreen(
     onBack: () -> Unit,
     onToolSelected: (String) -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Numerology", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+    // Recompose on Settings language change (no per-screen toggle).
+    val lang by LangPrefs.language.collectAsState()
+
+    key(lang) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(W.t("num_hub_title"), color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = W.t("back"), tint = SacredGold)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
+                )
+            },
+            containerColor = CosmicDeepBlue
+        ) { padding ->
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+                    Column {
+                        Text(
+                            text = W.t("num_hub_title"),
+                            color = StarlightWhite,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = W.t("num_hub_sub"),
+                            color = TextSecondary,
+                            fontSize = 13.sp
+                        )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
-            )
-        },
-        containerColor = CosmicDeepBlue
-    ) { padding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
-                Column {
-                    Text(
-                        text = "Numerology",
-                        color = StarlightWhite,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Discover what your numbers reveal about your life path, personality and destiny.",
-                        color = TextSecondary,
-                        fontSize = 13.sp
-                    )
                 }
-            }
-            items(NumerologyTool.values()) { tool ->
-                NumerologyToolCard(tool = tool, onClick = { onToolSelected(tool.id) })
+                items(NumerologyTool.values()) { tool ->
+                    NumerologyToolCard(tool = tool, onClick = { onToolSelected(tool.id) })
+                }
             }
         }
     }
@@ -105,7 +114,7 @@ private fun NumerologyToolCard(tool: NumerologyTool, onClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = tool.title,
+                text = W.t("num_tool_${tool.id}_title"),
                 color = StarlightWhite,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
@@ -113,7 +122,7 @@ private fun NumerologyToolCard(tool: NumerologyTool, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = tool.subtitle,
+                text = W.t("num_tool_${tool.id}_sub"),
                 color = TextSecondary,
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,

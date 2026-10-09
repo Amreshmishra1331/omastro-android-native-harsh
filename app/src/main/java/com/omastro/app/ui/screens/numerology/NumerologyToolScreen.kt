@@ -13,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -22,7 +21,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +43,10 @@ fun NumerologyToolScreen(
     )
     val tool = NumerologyTool.fromId(toolId)
     val uiState by vm.uiState.collectAsState()
+    // Recompute results when the Settings language changes so the output
+    // follows the global language (no per-screen toggle).
+    val lang by LangPrefs.language.collectAsState()
+    LaunchedEffect(lang) { vm.recalculate() }
 
     // Pre-fill from the Kundali Numerology tab (birth details carried over)
     LaunchedEffect(Unit) {
@@ -51,35 +56,37 @@ fun NumerologyToolScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(tool.title, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
-                    }
-                },
-                actions = {
-                    if (uiState is ToolUiState.Success || uiState is ToolUiState.Error) {
-                        IconButton(onClick = { vm.reset() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "New calculation", tint = SacredGold)
+    key(lang) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(W.t("num_tool_${tool.id}_title"), color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = W.t("back"), tint = SacredGold)
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
-            )
-        },
-        containerColor = CosmicDeepBlue
-    ) { padding ->
-        Box(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
-        ) {
-            when (val state = uiState) {
-                is ToolUiState.Idle -> ToolForm(tool, vm)
-                is ToolUiState.Loading -> LoadingView(tool)
-                is ToolUiState.Success -> ToolResultView(state.result)
-                is ToolUiState.Error -> ErrorView(state.message) { vm.reset() }
+                    },
+                    actions = {
+                        if (uiState is ToolUiState.Success || uiState is ToolUiState.Error) {
+                            IconButton(onClick = { vm.reset() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = W.t("num_btn_retry"), tint = SacredGold)
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
+                )
+            },
+            containerColor = CosmicDeepBlue
+        ) { padding ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
+            ) {
+                when (val state = uiState) {
+                    is ToolUiState.Idle -> ToolForm(tool, vm)
+                    is ToolUiState.Loading -> LoadingView(tool)
+                    is ToolUiState.Success -> ToolResultView(state.result)
+                    is ToolUiState.Error -> ErrorView(state.message) { vm.reset() }
+                }
             }
         }
     }
@@ -99,37 +106,37 @@ private fun ToolForm(tool: NumerologyTool, vm: NumerologyToolViewModel) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(text = tool.title, color = StarlightWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(text = tool.subtitle, color = TextSecondary, fontSize = 13.sp)
+        Text(text = W.t("num_tool_${tool.id}_title"), color = StarlightWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(text = W.t("num_tool_${tool.id}_sub"), color = TextSecondary, fontSize = 13.sp)
 
         CosmicCard(borderGold = true, modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (vm.needsName()) {
                     OutlinedTextField(
                         value = name, onValueChange = vm::setName,
-                        label = { Text("Full Name") }, placeholder = { Text("e.g. Rahul Sharma") },
+                        label = { Text(W.t("num_form_name")) }, placeholder = { Text(W.t("num_form_name_hint")) },
                         singleLine = true, colors = fieldColors(), modifier = Modifier.fillMaxWidth()
                     )
                 }
                 if (vm.needsDob()) {
                     OutlinedTextField(
                         value = dob, onValueChange = vm::setDob,
-                        label = { Text("Date of Birth") }, placeholder = { Text("YYYY-MM-DD  e.g. 1995-08-15") },
+                        label = { Text(W.t("num_form_dob")) }, placeholder = { Text(W.t("num_form_dob_hint")) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true, colors = fieldColors(), modifier = Modifier.fillMaxWidth()
                     )
                 }
                 if (vm.needsSecondPerson()) {
                     HorizontalDivider(color = CosmicBorder)
-                    Text("Second Person", color = SacredGoldLight, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(W.t("num_form_second"), color = SacredGoldLight, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
                         value = name2, onValueChange = vm::setName2,
-                        label = { Text("Full Name") }, singleLine = true,
+                        label = { Text(W.t("num_form_name")) }, singleLine = true,
                         colors = fieldColors(), modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = dob2, onValueChange = vm::setDob2,
-                        label = { Text("Date of Birth") }, placeholder = { Text("YYYY-MM-DD") },
+                        label = { Text(W.t("num_form_dob")) }, placeholder = { Text(W.t("num_form_dob_hint_short")) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true, colors = fieldColors(), modifier = Modifier.fillMaxWidth()
                     )
@@ -137,15 +144,15 @@ private fun ToolForm(tool: NumerologyTool, vm: NumerologyToolViewModel) {
                 if (vm.needsPhone()) {
                     OutlinedTextField(
                         value = phone, onValueChange = vm::setPhone,
-                        label = { Text("Mobile / Vehicle Number") }, placeholder = { Text("e.g. 9876543210") },
+                        label = { Text(W.t("num_form_phone")) }, placeholder = { Text(W.t("num_form_phone_hint")) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true, colors = fieldColors(), modifier = Modifier.fillMaxWidth()
                     )
                 }
                 if (vm.needsGender()) {
-                    Text("Gender", color = TextSecondary, fontSize = 13.sp)
+                    Text(W.t("num_form_gender"), color = TextSecondary, fontSize = 13.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("male" to "Male", "female" to "Female").forEach { (v, label) ->
+                        listOf("male" to W.t("num_form_male"), "female" to W.t("num_form_female")).forEach { (v, label) ->
                             FilterChip(
                                 selected = gender == v,
                                 onClick = { vm.setGender(v) },
@@ -171,11 +178,11 @@ private fun ToolForm(tool: NumerologyTool, vm: NumerologyToolViewModel) {
             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Calculate", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(W.t("num_btn_calculate"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
 
         Text(
-            text = "Numbers are computed from your details by the OmAstro engine.",
+            text = W.t("num_form_footer"),
             color = TextSecondary, fontSize = 11.sp, textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
@@ -191,7 +198,7 @@ private fun LoadingView(tool: NumerologyTool) {
     ) {
         CircularProgressIndicator(color = SacredGold)
         Spacer(modifier = Modifier.height(12.dp))
-        Text("Computing ${tool.title.lowercase()}…", color = TextSecondary, fontSize = 14.sp)
+        Text("${W.t("num_loading")} ${W.t("num_tool_${tool.id}_title").lowercase()}…", color = TextSecondary, fontSize = 14.sp)
     }
 }
 
@@ -211,10 +218,12 @@ private fun ToolResultView(result: ToolResult) {
                     )
                     section.lines.forEach { line ->
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = line.label,
-                                color = TextSecondary, fontSize = 12.sp
-                            )
+                            if (line.label.isNotBlank()) {
+                                Text(
+                                    text = line.label,
+                                    color = TextSecondary, fontSize = 12.sp
+                                )
+                            }
                             Text(
                                 text = line.value,
                                 color = if (line.highlight) SacredGold else StarlightWhite.copy(alpha = 0.92f),
@@ -246,7 +255,7 @@ private fun ErrorView(message: String, onRetry: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Try Again", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+            Text(W.t("num_btn_retry"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
         }
     }
 }

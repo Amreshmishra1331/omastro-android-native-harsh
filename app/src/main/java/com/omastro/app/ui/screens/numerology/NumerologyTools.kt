@@ -1,6 +1,8 @@
 package com.omastro.app.ui.screens.numerology
 
+import com.omastro.app.ui.i18n.W
 import java.util.Calendar
+import kotlin.math.abs
 
 /**
  * Pure numerology computations (Vedic/Chaldean reductions, client-side).
@@ -10,6 +12,8 @@ import java.util.Calendar
  * luckyNumbers/Days/Colors, karmaNumbers, challenges, coreNumbers), the tool
  * ViewModel prefers the server value with local fallback. Server APIs remain
  * the source of truth for full-profile / compatibility / name-check analyses.
+ *
+ * Display strings are bilingual via [W] and follow the Settings language.
  */
 
 /** Reduce to single digit, preserving master numbers 11 and 22. */
@@ -46,24 +50,51 @@ fun karmicDebts(day: Int, month: Int, year: Int): List<Int> {
     return out.distinct()
 }
 
+/**
+ * Challenge numbers (Decoz method): |month-day|, |day-year|, |c1-c2|,
+ * |month-year| — each reduced to a single digit, 0 kept as 0 (the
+ * "all-challenge"). Master numbers are NOT kept for challenges.
+ */
+fun challengeNumbers(day: Int, month: Int, year: Int): List<Int> {
+    fun red(n: Int) = reduceNumber(abs(n), keepMasters = false)
+    val c1 = red(month - day)
+    val c2 = red(day - year)
+    return listOf(c1, c2, red(c1 - c2), red(month - year))
+}
+
 /** Lo Shu 3x3 grid counts from all DOB digits. Positions: 4,9,2 / 3,5,7 / 8,1,6. */
 fun loShuGrid(day: Int, month: Int, year: Int): Map<Int, Int> {
     val digits = "$day$month$year".map { it - '0' }.filter { it in 1..9 }
     return (1..9).associateWith { n -> digits.count { it == n } }
 }
 
-/** Lo Shu arrows present in the grid. */
+/** Lo Shu arrows of strength present in the grid (W string keys). */
 fun loShuArrows(grid: Map<Int, Int>): List<String> {
     val has = { n: Int -> (grid[n] ?: 0) > 0 }
     val arrows = mutableListOf<String>()
-    if (has(4) && has(9) && has(2)) arrows.add("Arrow of Prosperity (4-9-2)")
-    if (has(3) && has(5) && has(7)) arrows.add("Arrow of Spirituality (3-5-7)")
-    if (has(8) && has(1) && has(6)) arrows.add("Arrow of Practicality (8-1-6)")
-    if (has(4) && has(3) && has(8)) arrows.add("Arrow of the Planner (4-3-8)")
-    if (has(9) && has(5) && has(1)) arrows.add("Arrow of Will (9-5-1)")
-    if (has(2) && has(7) && has(6)) arrows.add("Arrow of Action (2-7-6)")
-    if (has(4) && has(5) && has(6)) arrows.add("Arrow of Intellect (4-5-6)")
-    if (has(2) && has(5) && has(8)) arrows.add("Arrow of Emotion (2-5-8)")
+    if (has(4) && has(9) && has(2)) arrows.add("num_arrow_1")
+    if (has(3) && has(5) && has(7)) arrows.add("num_arrow_2")
+    if (has(8) && has(1) && has(6)) arrows.add("num_arrow_3")
+    if (has(4) && has(3) && has(8)) arrows.add("num_arrow_4")
+    if (has(9) && has(5) && has(1)) arrows.add("num_arrow_5")
+    if (has(2) && has(7) && has(6)) arrows.add("num_arrow_6")
+    if (has(4) && has(5) && has(6)) arrows.add("num_arrow_7")
+    if (has(2) && has(5) && has(8)) arrows.add("num_arrow_8")
+    return arrows
+}
+
+/** Lo Shu arrows of weakness — lines fully ABSENT from the grid (W string keys). */
+fun loShuWeakArrows(grid: Map<Int, Int>): List<String> {
+    val missing = { n: Int -> (grid[n] ?: 0) == 0 }
+    val arrows = mutableListOf<String>()
+    if (missing(4) && missing(9) && missing(2)) arrows.add("num_arrow_weak_1")
+    if (missing(3) && missing(5) && missing(7)) arrows.add("num_arrow_weak_2")
+    if (missing(8) && missing(1) && missing(6)) arrows.add("num_arrow_weak_3")
+    if (missing(4) && missing(3) && missing(8)) arrows.add("num_arrow_weak_4")
+    if (missing(9) && missing(5) && missing(1)) arrows.add("num_arrow_weak_5")
+    if (missing(2) && missing(7) && missing(6)) arrows.add("num_arrow_weak_6")
+    if (missing(4) && missing(5) && missing(6)) arrows.add("num_arrow_weak_7")
+    if (missing(2) && missing(5) && missing(8)) arrows.add("num_arrow_weak_8")
     return arrows
 }
 
@@ -79,85 +110,228 @@ fun personalMonth(personalYear: Int, calendarMonth: Int): Int =
 fun personalDay(personalMonth: Int, calendarDay: Int): Int =
     reduceNumber(personalMonth + calendarDay)
 
-/** Kua number. gender: "male" or "female". */
+/**
+ * Kua number. gender: "male" or "female".
+ *
+ * The year digit-sum is reduced WITHOUT master-number preservation: a year
+ * sum of 22 must become 4 — the old code kept 22 and produced Kua -11 for
+ * males born in 1939/1948/1957/1966/1975/1984/1993. Kua 5 does not exist in
+ * Feng Shui: males convert to 2, females to 8.
+ */
 fun kuaNumber(year: Int, gender: String): Int {
-    val sum = reduceNumber(year)
-    val raw = if (gender.lowercase() == "male") 11 - sum else 4 + sum
-    return reduceNumber(raw)
+    val isMale = gender.lowercase() == "male"
+    val sum = reduceNumber(year, keepMasters = false)
+    val raw = if (isMale) 11 - sum else 4 + sum
+    val k = reduceNumber(raw, keepMasters = false)
+    return when {
+        k == 5 && isMale -> 2
+        k == 5 -> 8
+        else -> k
+    }
 }
 
-/** Kua group + lucky directions. */
-fun kuaInfo(kua: Int): Pair<String, List<String>> {
+/**
+ * Kua group + lucky directions. Returns the group W-key and a list of
+ * (direction W-key, classical epithet) pairs. Epithets (Sheng Chi, Tian Yi,
+ * Yan Nian, Fu Wei) are proper nouns and stay untranslated.
+ */
+fun kuaInfo(kua: Int): Pair<String, List<Pair<String, String>>> {
     val east = setOf(1, 3, 4, 9)
     return if (kua in east) {
-        "East Group" to listOf("South-East (Sheng Chi)", "East (Tian Yi)", "South (Yan Nian)", "North (Fu Wei)")
+        "num_kua_group_east" to listOf(
+            "num_dir_se" to "Sheng Chi",
+            "num_dir_e" to "Tian Yi",
+            "num_dir_s" to "Yan Nian",
+            "num_dir_n" to "Fu Wei"
+        )
     } else {
-        "West Group" to listOf("North-East (Sheng Chi)", "West (Tian Yi)", "North-West (Yan Nian)", "South-West (Fu Wei)")
+        "num_kua_group_west" to listOf(
+            "num_dir_ne" to "Sheng Chi",
+            "num_dir_w" to "Tian Yi",
+            "num_dir_nw" to "Yan Nian",
+            "num_dir_sw" to "Fu Wei"
+        )
     }
+}
+
+/** Kua element (Five-Element association). Returns a W-key. */
+fun kuaElement(kua: Int): String = when (kua) {
+    1 -> "num_elem_water"
+    2, 8 -> "num_elem_earth"
+    3, 4 -> "num_elem_wood"
+    6, 7 -> "num_elem_metal"
+    else -> "num_elem_fire"
 }
 
 /** Lucky weekdays for a Moolank. */
-fun luckyDays(moolank: Int): List<String> = when (moolank) {
-    1 -> listOf("Sunday", "Monday")
-    2 -> listOf("Monday", "Friday")
-    3 -> listOf("Thursday", "Friday")
-    4 -> listOf("Saturday", "Sunday")
-    5 -> listOf("Wednesday", "Friday")
-    6 -> listOf("Friday", "Monday")
-    7 -> listOf("Monday", "Sunday")
-    8 -> listOf("Saturday", "Friday")
-    9 -> listOf("Tuesday", "Thursday")
-    else -> listOf("Sunday")
+fun luckyDays(moolank: Int): List<String> = when (reduceNumber(moolank)) {
+    1 -> listOf("num_day_sunday", "num_day_monday")
+    2 -> listOf("num_day_monday", "num_day_friday")
+    3 -> listOf("num_day_thursday", "num_day_friday")
+    4 -> listOf("num_day_saturday", "num_day_sunday")
+    5 -> listOf("num_day_wednesday", "num_day_friday")
+    6 -> listOf("num_day_friday", "num_day_monday")
+    7 -> listOf("num_day_monday", "num_day_sunday")
+    8 -> listOf("num_day_saturday", "num_day_friday")
+    9 -> listOf("num_day_tuesday", "num_day_thursday")
+    else -> listOf("num_day_sunday")
+}.map { W.t(it) }
+
+/** Dates in [year]/[month] whose digit-sum reduces to [moolank]. */
+fun luckyDatesInMonth(moolank: Int, year: Int, month: Int): List<Int> {
+    val cal = Calendar.getInstance()
+    cal.set(year, month - 1, 1)
+    val max = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+    return (1..max).filter { reduceNumber(it) == moolank }
 }
 
-/** Planet ruler of a number (Vedic). */
-fun planetRuler(n: Int): String = when (reduceNumber(n)) {
-    1 -> "Sun"
-    2 -> "Moon"
-    3 -> "Jupiter"
-    4 -> "Rahu"
-    5 -> "Mercury"
-    6 -> "Venus"
-    7 -> "Ketu"
-    8 -> "Saturn"
-    9 -> "Mars"
-    11 -> "Moon (Master)"
-    22 -> "Saturn (Master)"
-    else -> "Sun"
-}
+/** Planet ruler of a number (Vedic), bilingual. */
+fun planetRuler(n: Int): String = W.t(
+    when (reduceNumber(n)) {
+        1 -> "num_planet_1"
+        2 -> "num_planet_2"
+        3 -> "num_planet_3"
+        4 -> "num_planet_4"
+        5 -> "num_planet_5"
+        6 -> "num_planet_6"
+        7 -> "num_planet_7"
+        8 -> "num_planet_8"
+        9 -> "num_planet_9"
+        11 -> "num_planet_11"
+        22 -> "num_planet_22"
+        else -> "num_planet_1"
+    }
+)
 
-/** Gem, color, deity and mantra remedy for a number's ruling planet. */
-data class PlanetRemedy(val planet: String, val gem: String, val color: String, val day: String, val mantra: String)
+/** Gem, color, metal, finger, weekday and mantra remedy for a number's ruling planet. */
+data class PlanetRemedy(
+    val planet: String,
+    val gem: String,
+    val color: String,
+    val mantra: String,
+    val metalKey: String,
+    val fingerKey: String,
+    val dayKey: String
+)
 
 fun planetRemedy(n: Int): PlanetRemedy = when (reduceNumber(n)) {
-    1 -> PlanetRemedy("Sun", "Ruby (Manik)", "Copper / Gold", "Sunday", "Om Suryaya Namah")
-    2 -> PlanetRemedy("Moon", "Pearl (Moti)", "White / Silver", "Monday", "Om Chandraya Namah")
-    3 -> PlanetRemedy("Jupiter", "Yellow Sapphire (Pukhraj)", "Yellow", "Thursday", "Om Gurave Namah")
-    4 -> PlanetRemedy("Rahu", "Hessonite (Gomed)", "Brown / Smoky", "Saturday", "Om Rahave Namah")
-    5 -> PlanetRemedy("Mercury", "Emerald (Panna)", "Green", "Wednesday", "Om Budhaya Namah")
-    6 -> PlanetRemedy("Venus", "Diamond (Heera) / Opal", "White / Pink", "Friday", "Om Shukraya Namah")
-    7 -> PlanetRemedy("Ketu", "Cat's Eye (Lehsunia)", "Grey / Smoky", "Tuesday", "Om Ketave Namah")
-    8 -> PlanetRemedy("Saturn", "Blue Sapphire (Neelam)", "Dark Blue / Black", "Saturday", "Om Shanicharaya Namah")
-    else -> PlanetRemedy("Mars", "Red Coral (Moonga)", "Red", "Tuesday", "Om Mangalaya Namah")
+    1 -> PlanetRemedy(planetRuler(1), "Ruby (Manik)", "Copper / Gold", "Om Suryaya Namah", "num_metal_gold", "num_finger_ring", "num_day_sunday")
+    2 -> PlanetRemedy(planetRuler(2), "Pearl (Moti)", "White / Silver", "Om Chandraya Namah", "num_metal_silver", "num_finger_little", "num_day_monday")
+    3 -> PlanetRemedy(planetRuler(3), "Yellow Sapphire (Pukhraj)", "Yellow", "Om Gurave Namah", "num_metal_gold", "num_finger_index", "num_day_thursday")
+    4 -> PlanetRemedy(planetRuler(4), "Hessonite (Gomed)", "Brown / Smoky", "Om Rahave Namah", "num_metal_silver", "num_finger_middle", "num_day_saturday")
+    5 -> PlanetRemedy(planetRuler(5), "Emerald (Panna)", "Green", "Om Budhaya Namah", "num_metal_gold", "num_finger_little", "num_day_wednesday")
+    6 -> PlanetRemedy(planetRuler(6), "Diamond (Heera) / Opal", "White / Pink", "Om Shukraya Namah", "num_metal_platinum", "num_finger_ring", "num_day_friday")
+    7 -> PlanetRemedy(planetRuler(7), "Cat's Eye (Lehsunia)", "Grey / Smoky", "Om Ketave Namah", "num_metal_silver", "num_finger_middle", "num_day_tuesday")
+    8 -> PlanetRemedy(planetRuler(8), "Blue Sapphire (Neelam)", "Dark Blue / Black", "Om Shanicharaya Namah", "num_metal_iron", "num_finger_middle", "num_day_saturday")
+    else -> PlanetRemedy(planetRuler(9), "Red Coral (Moonga)", "Red", "Om Mangalaya Namah", "num_metal_copper", "num_finger_ring", "num_day_tuesday")
 }
 
-/** Mobile/vehicle number compatibility: digit sum vs Moolank. */
-fun numberCompatibility(number: String, moolank: Int): Pair<Int, String> {
-    val digits = number.filter { it.isDigit() }
-    if (digits.isEmpty()) return 0 to "Enter a valid number."
-    val sum = reduceNumber(digits.map { it - '0' }.sum())
-    val friendly = setOf(
-        setOf(1, 1), setOf(2, 2), setOf(3, 3), setOf(5, 5), setOf(6, 6), setOf(9, 9),
-        setOf(1, 9), setOf(2, 6), setOf(3, 5), setOf(3, 9), setOf(5, 6)
-    )
-    val verdict = when {
-        sum == moolank -> "Excellent — resonates directly with your Moolank $moolank."
-        setOf(sum, moolank) in friendly -> "Good — $sum is friendly with your Moolank $moolank."
-        sum == 4 || sum == 8 -> "Caution — $sum carries heavy karmic energy for Moolank $moolank."
-        else -> "Neutral — $sum neither supports nor harms Moolank $moolank."
+/** Compatibility tier of a number pair (symmetric). */
+enum class PairTier { EXCELLENT, GOOD, NEUTRAL, CAUTION }
+
+private val friendlyPairs = setOf(
+    setOf(1, 1), setOf(2, 2), setOf(3, 3), setOf(5, 5), setOf(6, 6), setOf(9, 9),
+    setOf(1, 9), setOf(2, 6), setOf(3, 5), setOf(3, 9), setOf(5, 6)
+)
+
+fun numberPairTier(a: Int, b: Int): PairTier {
+    val x = reduceNumber(a)
+    val y = reduceNumber(b)
+    return when {
+        x == y -> PairTier.EXCELLENT
+        setOf(x, y) in friendlyPairs -> PairTier.GOOD
+        x == 4 || x == 8 || y == 4 || y == 8 -> PairTier.CAUTION
+        else -> PairTier.NEUTRAL
     }
-    return sum to verdict
 }
+
+/** W-key for a [PairTier]. */
+fun pairTierKey(tier: PairTier): String = when (tier) {
+    PairTier.EXCELLENT -> "num_tier_excellent"
+    PairTier.GOOD -> "num_tier_good"
+    PairTier.NEUTRAL -> "num_tier_neutral"
+    PairTier.CAUTION -> "num_tier_caution"
+}
+
+/** W-key for a [PairTier]'s one-line explanation. */
+fun pairTierDescKey(tier: PairTier): String = when (tier) {
+    PairTier.EXCELLENT -> "num_tier_excellent_d"
+    PairTier.GOOD -> "num_tier_good_d"
+    PairTier.NEUTRAL -> "num_tier_neutral_d"
+    PairTier.CAUTION -> "num_tier_caution_d"
+}
+
+/**
+ * Mobile/vehicle number analysis: digit sum vs Moolank.
+ * Returns (digitSum, tier). The caller builds the verdict text (bilingual).
+ */
+fun numberCompatibility(number: String, moolank: Int): Pair<Int, PairTier> {
+    val digits = number.filter { it.isDigit() }
+    if (digits.isEmpty()) return 0 to PairTier.NEUTRAL
+    val sum = reduceNumber(digits.map { it - '0' }.sum())
+    return sum to numberPairTier(sum, moolank)
+}
+
+// ---------- Name numerology (deterministic, on-device) ----------
+
+/** Pythagorean letter value: A=1..I=9, J=1..R=9, S=1..Z=8. */
+fun pythagoreanValue(c: Char): Int {
+    val u = c.uppercaseChar()
+    return when (u) {
+        in 'A'..'I' -> u - 'A' + 1
+        in 'J'..'R' -> u - 'J' + 1
+        in 'S'..'Z' -> u - 'S' + 1
+        else -> 0
+    }
+}
+
+/** Chaldean letter value (9 is sacred — no letter carries it). */
+fun chaldeanValue(c: Char): Int = when (c.uppercaseChar()) {
+    'A', 'I', 'J', 'Q', 'Y' -> 1
+    'B', 'K', 'R' -> 2
+    'C', 'G', 'L', 'S' -> 3
+    'D', 'M', 'T' -> 4
+    'E', 'H', 'N', 'X' -> 5
+    'U', 'V', 'W' -> 6
+    'O', 'Z' -> 7
+    'F', 'P' -> 8
+    else -> 0
+}
+
+private val NAME_VOWELS = setOf('A', 'E', 'I', 'O', 'U')
+
+data class NameNumbers(
+    val expression: Int,
+    val soulUrge: Int,
+    val personality: Int,
+    val chaldean: Int
+)
+
+/**
+ * Name numbers from a Latin-script name. Vowels = A E I O U (Y counts as a
+ * consonant — the simplified convention most calculators use). Master
+ * numbers 11/22 are preserved.
+ */
+fun nameNumbers(name: String): NameNumbers {
+    val letters = name.uppercase().filter { it in 'A'..'Z' }
+    val vowels = letters.filter { it in NAME_VOWELS }
+    val consonants = letters.filter { it !in NAME_VOWELS }
+    return NameNumbers(
+        expression = reduceNumber(letters.sumOf { pythagoreanValue(it) }),
+        soulUrge = reduceNumber(vowels.sumOf { pythagoreanValue(it) }),
+        personality = reduceNumber(consonants.sumOf { pythagoreanValue(it) }),
+        chaldean = reduceNumber(letters.sumOf { chaldeanValue(it) })
+    )
+}
+
+/** W-key for a core-number trait line (1-9, 11, 22). */
+fun traitKey(n: Int): String = "num_trait_${reduceNumber(n)}"
+
+/** W-key for a personal cycle (year/month/day) meaning 1-9. */
+fun cycleMeaningKey(n: Int): String = "num_py_${reduceNumber(n, keepMasters = false).coerceIn(1, 9)}"
+
+/** W-key for a Lo Shu number meaning 1-9. */
+fun loShuMeaningKey(n: Int): String = "num_loshu_$n"
 
 /** Parse YYYY-MM-DD into triple, or null. */
 fun parseDob(dob: String): Triple<Int, Int, Int>? {

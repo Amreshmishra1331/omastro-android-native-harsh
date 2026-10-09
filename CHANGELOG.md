@@ -4,6 +4,48 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Numerology Depth Audit: all 12 tools verified real, deep, honest, bilingual
+
+Audited every numerology tool end-to-end (input → computation → output) in `ui/screens/numerology/`. Two real math/logic bugs found and fixed, three dead-when-offline tools rebuilt on real on-device math, all 12 tools deepened with genuine interpretations, the whole module made bilingual (EN/हिन्दी, auto-switch with Settings), and honest server-unavailable states added throughout. No emojis anywhere in the module (verified by scan). No fabricated readings: every interpretation is either deterministic math from the user's own DOB/name or a standard published numerology meaning; server data is preferred where it maps 1:1 and clearly labeled when it is.
+
+### Fixed (real bugs)
+1. **Kua Number produced Kua −11 for males** (`ui/screens/numerology/NumerologyTools.kt :: kuaNumber`):
+   - **Before**: the birth-year digit sum preserved master numbers, so any year summing to 22 (1939, 1948, 1957, 1966, 1975, 1984, 1993 — verified by simulation) gave males `11 − 22 = −11`, an impossible Kua shown as fact. Kua 5 was also never converted (male→2, female→8 per Feng Shui); 9 male birth years 1950–2026 were affected.
+   - **After**: year sum reduced without master preservation; male `11 − sum`, female `4 + sum`; result 5 converts to 2 (male) / 8 (female). Formula shown on screen (e.g. "Male: 11 − 4 = 7") so the derivation is checkable. Added Five-Element mapping (1 Water, 2/8 Earth, 3/4 Wood, 6/7 Metal, 9 Fire) and bilingual group/direction names (Sheng Chi / Tian Yi / Yan Nian / Fu Wei epithets kept as proper nouns).
+2. **Name Numerology, Compatibility, Name Correction were 100% server-dependent** (`NumerologyToolViewModel.kt`):
+   - **Before**: all three called `repo.getNumerologyNameCheck / getNumerologyCompatibility` with `getOrThrow()` — with the server unreachable they showed only a raw error and zero content.
+   - **After**: all three compute real results on-device first, server analysis appended only as an enhancement:
+     - *Name Numerology*: Pythagorean Expression / Soul Urge (vowels A·E·I·O·U) / Personality (consonants) + Chaldean total, masters 11/22 kept, each with planet ruler and an Expression trait line.
+     - *Compatibility*: deterministic 3-axis score (Moolank, Bhagyank, Expression pairs) from the shared number-pair tier table (Excellent 50 / Good 38 / Neutral 28 / Caution 12 per axis → /100) with a per-axis breakdown; server score/analysis appended when available.
+     - *Name Correction*: current name numbers + Moolank/Bhagyank target numbers + honest guidance tip. The 2026-10-10 "Expression: 0" honesty fix holds — verified: missing server values still render via null-safe `?:` with bilingual "not returned / not available" text, never 0.
+   - Name validation added: a "name" of digits/symbols is rejected ("The name must contain at least one letter") since name math needs letters.
+3. **Moolank, Karmic Debt, Planetary Numbers demanded a name they never used** (`needsName()`):
+   - **Before**: all three required a ≥2-char name although the computation is DOB-only — dishonest friction.
+   - **After**: `needsName()` is true only for Name Numerology, Compatibility, Name Correction (the tools that actually use the name).
+
+### Deepened (real content, no fabrication)
+4. **Moolank** (`moolankResult`): added "Key Traits" section — one-line standard trait for the Moolank and Bhagyank (1–9, 11, 22); derivation section now bilingual.
+5. **Lo Shu Grid** (`loshuResult`): was a flat `1:0 2:1 …` count line — now renders the real 3×3 magic-square layout (rows 4·9·2 / 3·5·7 / 8·1·6) with a legend; added the 8 **Arrows of Weakness** (fully-absent lines: Poverty, Hypersensitivity, Impracticality, Disorder, Indecision, Inactivity, Poor Memory, Loneliness) alongside the 8 Arrows of Strength; added "What Each Number Means" (standard palace meanings 1–9). Server grid shown first when available, clearly labeled "(server)" vs "(on-device)".
+6. **Time Cycles** (`timeCyclesResult`): current Personal Year/Month/Day now carry their 1–9 cycle meanings (not just numbers); "Next 12 months" lists bilingual month names with number, planet ruler and meaning.
+7. **Karmic Debt** (`karmicResult`): added the 4 **Challenge Numbers** (Decoz: |month−day|, |day−year|, |c1−c2|, |month−year|, 0 kept as the all-challenge) with standard meanings; pinnacles kept with planet rulers; karmic-debt meanings bilingual.
+8. **Gems & Remedies** (`gemsResult`): was gem/color/day/mantra only — added "How to Wear" (standard metal + finger per planet: e.g. Ruby in gold on ring finger) and a proper Daan line. `PlanetRemedy` gained `metalKey`/`fingerKey`/`dayKey`.
+9. **Lucky Calendar** (`luckyCalResult`): added "Lucky Dates This Month" — actual calendar dates of the current month reducing to the user's Moolank; "Best Months" now shows bilingual month names; personal-year energy labeled Favorable/Average.
+10. **Mobile / Lucky Number** (`mobileResult`): verdict rebuilt on the shared `PairTier` table (bilingual, with the special "resonates directly with your Moolank" case); added "Digit Influences" — each distinct digit mapped to its planet (0 honestly labeled as amplifying neighbors).
+11. **Planetary Numbers** (`planetaryResult`): added "What Each Number Means" per-planet lines; missing-number remedies unchanged (gem per missing number); career hint bilingual.
+
+### Honesty
+12. **Silent server fallbacks now labeled**: Moolank, Lo Shu, Time Cycles, Karmic, Lucky Calendar prefer server fields where they map 1:1; when the server is unreachable they compute on-device AND show a bilingual note ("Server profile unavailable — showing on-device calculation from your details") instead of failing silently.
+13. **Error states bilingual**: unexpected failures show "Something went wrong. Please try again." / "कुछ गलत हो गया। कृपया पुनः प्रयास करें।" instead of raw exception text.
+
+### Bilingual
+14. **Entire numerology module bilingual** (`ui/i18n/FeatureStrings.kt`: +297 `num_*` keys, EN+हिन्दी, parity verified): hub title/subtitle, all 12 tool titles/subtitles, form labels/placeholders/errors, every result heading/label/interpretation, planets, weekdays, metals, fingers, elements, directions, months. `W.t()` reads `LangPrefs.language` at compute time; tool screens recompose via `key(lang)` and **re-run the calculation on Settings language change** (`recalculate()`), so results follow the global language with no per-screen toggle. Server requests now send the real UI language instead of hardcoded `"en"`.
+
+### Verified as already fine
+- Moolank/Bhagyank/Success-Number, karmic-debt detection, Lo Shu placement + all 8 strength arrows, personal year/month/day formulas, lucky weekdays, mobile digit-sum verdict math: all correct against standard Vedic/Chaldean definitions.
+- `parseDob` strict validation, loading/error/empty states, no fabricated defaults beyond the fixed Kua/Name-Correction cases, no emojis (regex scan of the module: zero hits).
+
+---
+
 ## [2026-10-10] — Navigation Audit: every feature reachable in ≤2 taps
 
 Mapped all 22 top-level routes (NavHost `Screen` sealed class) plus Kundali's 23 tabs and the 12 Numerology tools, counting taps from the dashboard home. Two gaps found and fixed; drawer audited for dead/duplicate entries.
