@@ -15,3 +15,6 @@
 .cxx
 *.apk
 *.aab
+
+# Firebase config is injected by CI — never commit
+app/google-services.json

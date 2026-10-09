@@ -81,6 +81,20 @@ Open the project directory in **Android Studio Hedgehog / Iguana / Jellyfish** o
 ./gradlew bundleRelease
 ```
 
+### Firebase configuration (google-services.json)
+
+`app/google-services.json` is intentionally **not committed** to this repository (it is listed in
+`.gitignore`). CI injects the file at build time from a protected secret before running Gradle:
+
+```bash
+# CI step (example)
+echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
+./gradlew bundleRelease
+```
+
+For local development, place your own `google-services.json` from the Firebase console into
+`app/` — it will never be committed.
+
 ---
 
 ## 🔗 WordPress Backend Integration
