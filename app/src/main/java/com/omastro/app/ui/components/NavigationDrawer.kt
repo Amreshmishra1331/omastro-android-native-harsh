@@ -229,7 +229,7 @@ fun OmAstroDrawerContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = (userName?.firstOrNull() ?: "O").uppercase(),
+                            text = userName?.firstOrNull()?.uppercase() ?: "O",
                             color = CosmicDeepBlue,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
