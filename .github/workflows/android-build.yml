@@ -39,6 +39,20 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
 
+      - name: Build Release APK (signed with official Flutter keystore)
+        run: ./gradlew assembleRelease --stacktrace
+        env:
+          # google-services.json is gitignored; CI builds without Firebase
+          # FCM features degrade gracefully at runtime if absent.
+          CI: true
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OmAstroApp-Release-${{ github.run_number }}
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 14
+
       - name: Build Summary
         if: always()
         run: |

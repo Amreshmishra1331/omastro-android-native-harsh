@@ -4,6 +4,21 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Release signing with Flutter app's official keystore
+
+### Broken / missing
+- **Release builds were unsigned**: The `release` build type had no `signingConfig`, so release APKs could not be published to the Play Store or share the Flutter app's identity. The Flutter app was built with an official keystore on the server (`omastro-release.keystore`).
+
+### Removed
+- Nothing (debug signing unchanged — still uses the committed stable `debug.keystore` for Appetize/CI debug builds).
+
+### Added
+- **`app/build.gradle.kts`**: New `signingConfigs.release` block pointing at `keystores/omastro-release.keystore` (store password `android`, key alias `omastro`, key password `android`). The `release` build type now uses this signing config. SHA-1: `9F:39:0C:5B:B2:3D:B8:8A:3C:7E:74:BA:67:6F:B7:53:47:81:36:E9`.
+- **`.github/workflows/android-build.yml`**: CI now also runs `./gradlew assembleRelease` and uploads the signed release APK as `OmAstroApp-Release-<run_number>` (retention 14 days), alongside the existing debug APK artifact.
+- **Google Sign-In note**: Package `com.omastroai.app` must be registered as an Android OAuth client with the release SHA-1 (`9F:39:0C:5B:B2:3D:B8:8A:3C:7E:74:BA:67:6F:B7:53:47:81:36:E9`) in the same Google Cloud project as the web client ID for release builds. Debug builds continue to use the debug SHA-1 (`27:37:38:7D:8C:2C:17:03:97:34:FA:0B:DA:6C:4F:BB:30:1C:7B:A1`).
+
+---
+
 ## [2026-10-09] — FIX: Wallet balance (was 0) + Numerology welcome message
 
 ### Broken / missing
