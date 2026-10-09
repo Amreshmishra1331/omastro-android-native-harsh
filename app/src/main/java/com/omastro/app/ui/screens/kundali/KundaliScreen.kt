@@ -1478,7 +1478,7 @@ private fun PlanetAnalysisCard(planet: ApiPlanet, kundali: KundaliResponse?) {
             }
             if (expanded) {
                 Spacer(Modifier.height(10.dp))
-                Divider(color = CosmicBorder, thickness = 1.dp)
+                HorizontalDivider(color = CosmicBorder, thickness = 1.dp)
                 Spacer(Modifier.height(10.dp))
                 PlanetDetailRow("Nakshatra", "${planet.nakshatra} · Pada ${planet.pada} · Lord ${planet.nakshatraLord}")
                 if (planet.d9Rashi.isNotBlank())
