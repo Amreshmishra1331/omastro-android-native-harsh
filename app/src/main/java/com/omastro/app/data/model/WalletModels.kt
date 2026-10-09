@@ -5,15 +5,9 @@ import com.google.gson.annotations.SerializedName
 data class WalletTransaction(
     @SerializedName("id") val id: String,
     @SerializedName("type") val type: String, // "credit", "debit"
-    @SerializedName("amount") val amount: Int,
+    @SerializedName("amount") val amount: Int, // amount in paise
     @SerializedName("description") val description: String,
     @SerializedName("date") val date: String
-)
-
-data class WalletBalanceResponse(
-    @SerializedName("balance") val balance: Int,
-    @SerializedName("currency") val currency: String = "Coins",
-    @SerializedName("transactions") val transactions: List<WalletTransaction> = emptyList()
 )
 
 data class RechargePack(
@@ -24,27 +18,25 @@ data class RechargePack(
     val badge: String? = null
 )
 
-data class RazorpayOrderRequest(
-    @SerializedName("pack_id") val packId: String,
-    @SerializedName("amount_inr") val amountInr: Double
+data class TopupOrderRequest(
+    @SerializedName("amount") val amountPaise: Int, // amount in paise
+    @SerializedName("currency") val currency: String = "INR"
 )
 
-data class RazorpayOrderResponse(
+data class TopupOrderResponse(
     @SerializedName("order_id") val orderId: String,
-    @SerializedName("amount") val amount: Int, // in paise
-    @SerializedName("currency") val currency: String = "INR",
-    @SerializedName("key_id") val keyId: String
+    @SerializedName("rzp_key_id") val rzpKeyId: String,
+    @SerializedName("amount") val amount: Int, // amount in paise
+    @SerializedName("currency") val currency: String = "INR"
 )
 
-data class PaymentVerifyRequest(
-    @SerializedName("razorpay_order_id") val orderId: String,
+data class TopupVerifyRequest(
+    @SerializedName("order_id") val orderId: String,
     @SerializedName("razorpay_payment_id") val paymentId: String,
-    @SerializedName("razorpay_signature") val signature: String,
-    @SerializedName("pack_id") val packId: String
+    @SerializedName("razorpay_signature") val signature: String
 )
 
-data class PaymentVerifyResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("new_balance") val newBalance: Int,
-    @SerializedName("message") val message: String
+data class TopupVerifyResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null
 )

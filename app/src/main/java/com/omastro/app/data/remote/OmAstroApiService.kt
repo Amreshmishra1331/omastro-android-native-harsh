@@ -1,78 +1,89 @@
 package com.omastro.app.data.remote
 
+import com.google.gson.annotations.SerializedName
 import com.omastro.app.data.model.*
 import retrofit2.Response
 import retrofit2.http.*
 
 interface OmAstroApiService {
 
-    // Dynamic Auth Configuration & Login
-    @GET("auth/config")
-    suspend fun getAuthConfig(): Response<AuthConfigResponse>
+    // Authentication (real backend contract)
+    @POST("auth/login")
+    suspend fun login(
+        @Body request: LoginRequest
+    ): Response<LoginResponse>
 
-    @POST("auth/send-otp")
-    suspend fun sendOtp(
-        @Body request: SendOtpRequest
-    ): Response<SendOtpResponse>
+    @POST("auth/register")
+    suspend fun register(
+        @Body request: RegisterRequest
+    ): Response<RegisterResponse>
 
-    @POST("auth/verify-otp")
-    suspend fun verifyOtp(
-        @Body request: VerifyOtpRequest
-    ): Response<VerifyOtpResponse>
+    @POST("auth/verify-signup-otp")
+    suspend fun verifySignupOtp(
+        @Body request: VerifySignupOtpRequest
+    ): Response<VerifySignupOtpResponse>
 
-    // Kundali & Horoscopes
+    // Kundali
     @POST("kundali")
     suspend fun calculateKundali(
         @Body request: KundaliRequest
     ): Response<KundaliResponse>
 
-    @GET("horoscope/daily")
-    suspend fun getDailyHoroscope(
-        @Query("sign") sign: String,
-        @Query("period") period: String = "today"
+    // Rashifal (daily horoscope)
+    @POST("rashifal")
+    suspend fun getRashifal(
+        @Body request: Map<String, String>
     ): Response<DailyHoroscopeResponse>
 
-    // Panchang & Muhurat
-    @GET("panchang")
+    // Panchang
+    @POST("panchang")
     suspend fun getPanchang(
-        @Query("date") date: String? = null
+        @Body request: Map<String, String>
     ): Response<PanchangResponse>
 
     // Matchmaking (Kundali Milan)
-    @POST("matchmaking")
+    @POST("matching")
     suspend fun calculateMatchmaking(
         @Body request: MatchmakingRequest
     ): Response<MatchmakingResponse>
 
-    // Astrologers & Consultations
+    // Astrologers
     @GET("astrologers")
     suspend fun getAstrologers(
         @Query("category") category: String? = null
     ): Response<List<Astrologer>>
 
-    @GET("chat/{astrologerId}/history")
+    @GET("astrologers/chat/history")
     suspend fun getChatHistory(
-        @Path("astrologerId") astrologerId: String
+        @Query("astrologer_id") astrologerId: String
     ): Response<List<ChatMessage>>
 
-    @POST("chat/send")
-    suspend fun sendMessage(
-        @Body request: SendMessageRequest
-    ): Response<ChatMessage>
+    @POST("astrologers/chat/open")
+    suspend fun openChat(
+        @Body request: OpenChatRequest
+    ): Response<OpenChatResponse>
 
-    // Wallet & Coin Recharge
-    @GET("wallet/balance")
-    suspend fun getWalletBalance(): Response<WalletBalanceResponse>
+    @POST("astrologers/chat/close")
+    suspend fun closeChat(
+        @Body request: CloseChatRequest
+    ): Response<Map<String, Any>>
 
-    @POST("wallet/order")
-    suspend fun createRechargeOrder(
-        @Body request: RazorpayOrderRequest
-    ): Response<RazorpayOrderResponse>
+    // Wallet (real INR wallet)
+    @GET("wallet/transactions")
+    suspend fun getWalletTransactions(
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
+    ): Response<List<WalletTransaction>>
 
-    @POST("wallet/verify")
-    suspend fun verifyPayment(
-        @Body request: PaymentVerifyRequest
-    ): Response<PaymentVerifyResponse>
+    @POST("wallet/topup-order")
+    suspend fun createTopupOrder(
+        @Body request: TopupOrderRequest
+    ): Response<TopupOrderResponse>
+
+    @POST("wallet/topup-verify")
+    suspend fun verifyTopup(
+        @Body request: TopupVerifyRequest
+    ): Response<TopupVerifyResponse>
 
     // FCM Device Token Registration
     @POST("auth/fcm-token")
@@ -86,14 +97,31 @@ interface OmAstroApiService {
         @Body request: KundaliRequest
     ): Response<Map<String, Any>>
 
-    // BNN & Numerology Deep Analysis
+    // BNN Deep Analysis
     @POST("kundali/bnn")
     suspend fun getBnnAnalysis(
         @Body request: KundaliRequest
     ): Response<Map<String, Any>>
 
+    // Numerology
     @POST("numerology")
     suspend fun getNumerology(
         @Body request: Map<String, String>
     ): Response<Map<String, Any>>
 }
+
+// Astrologer chat session models (real backend contract)
+data class OpenChatRequest(
+    @SerializedName("astrologer_id") val astrologerId: String
+)
+
+data class OpenChatResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("session_id") val sessionId: String? = null,
+    @SerializedName("message") val message: String? = null
+)
+
+data class CloseChatRequest(
+    @SerializedName("astrologer_id") val astrologerId: String,
+    @SerializedName("session_id") val sessionId: String? = null
+)
