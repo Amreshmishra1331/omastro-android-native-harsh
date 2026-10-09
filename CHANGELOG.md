@@ -4,6 +4,24 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — FIX: Google Sign-In error 10 (DEVELOPER_ERROR) — stable debug keystore + setup docs
+
+### Broken / missing
+- **Google Sign-In failed with error code 10 (DEVELOPER_ERROR)**: tapping "Sign in with Google" showed the account picker, then failed. Root cause: error 10 means Google does not recognise the app's signing certificate — no Android OAuth client was registered for this app's package name + SHA-1 in the Google Cloud project that owns the web client ID. Worse, CI runners generate a fresh random `~/.android/debug.keystore` on every run, so the APK's SHA-1 changed on every build — registering a fingerprint in Cloud Console could never work for CI/Appetize builds.
+- **Error 10 showed a generic message**: users saw only "Google sign-in failed (code 10)" with no explanation of what to do.
+
+### Removed
+- Nothing removed. The `requestIdToken(GOOGLE_SERVER_CLIENT_ID)` call was already correct (web client ID `613285624759-p3bksd1ersn333f4mqirv64are5uglsb.apps.googleusercontent.com`); the failure was purely the missing Android-side registration.
+
+### Added
+- **Stable debug keystore committed** (`app/keystores/debug.keystore`, PKCS12, alias `androiddebugkey`, password `android`): debug keystores are not secrets — this mirrors the conventional `~/.android/debug.keystore`. `app/build.gradle.kts` now wires it into `signingConfigs.debug`, so EVERY debug APK (local or CI) is signed with the same key and the same SHA-1 forever:
+  `27:37:38:7D:8C:2C:17:03:97:34:FA:0B:DA:6C:4F:BB:30:1C:7B:A1`
+- **One-time Google Cloud Console setup documented** in `GoogleAuthConfig` KDoc (exact clicks): create an Android OAuth client in the project owning the web client ID, package name `com.omastroai.app` (the `applicationId` — not the `namespace`), SHA-1 as above. No app-code change needed afterwards.
+- **Friendly error-10 message** in `GoogleSignInHelper.parseResult`: explains the SHA-1 registration requirement instead of a bare code.
+- `GoogleAuthConfig.DEBUG_SHA1_FINGERPRINT` and `APP_PACKAGE_NAME` constants so docs and reality cannot drift apart.
+
+---
+
 ## [2026-10-09] — FIX: Login envelope mismatch (login buffered forever) + official Google G logo
 
 ### Broken / missing

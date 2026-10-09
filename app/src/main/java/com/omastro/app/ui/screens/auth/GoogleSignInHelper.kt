@@ -18,10 +18,52 @@ import com.google.android.gms.common.api.ApiException
  * If Google Sign-In ever fails server-side with "Wrong audience", replace
  * this with the Web-application OAuth client ID from Google Cloud Console
  * (APIs & Services → Credentials) for the OmAstro project.
+ *
+ * ---------------------------------------------------------------------------
+ * FIXING GOOGLE SIGN-IN ERROR 10 (DEVELOPER_ERROR) — SETUP STEPS
+ * ---------------------------------------------------------------------------
+ * Error 10 means Google does not recognise this app's signing certificate.
+ * `requestIdToken()` needs a **Web** client ID (the one above — correct), but
+ * Google Play Services ALSO requires an **Android** OAuth client registered
+ * for this app's package name + SHA-1 fingerprint in the SAME Cloud project.
+ *
+ * One-time setup (do this in Google Cloud Console):
+ *  1. Open https://console.cloud.google.com/ and select the project that owns
+ *     the web client ID above (project number 613285624759).
+ *  2. Go to "APIs & Services" → "Credentials".
+ *  3. Click "+ CREATE CREDENTIALS" → "OAuth client ID".
+ *  4. Application type: "Android".
+ *  5. Name: "OmAstro Android" (any label).
+ *  6. Package name: com.omastroai.app
+ *     (this is the `applicationId` in app/build.gradle.kts — NOT the
+ *     `namespace`, which is com.omastro.app and is irrelevant here).
+ *  7. SHA-1 certificate fingerprint:
+ *     27:37:38:7D:8C:2C:17:03:97:34:FA:0B:DA:6C:4F:BB:30:1C:7B:A1
+ *     (this is the stable debug keystore committed at
+ *     app/keystores/debug.keystore — every debug APK, local or CI-built,
+ *     is signed with it, so the fingerprint never changes).
+ *  8. Click "Create". No app-code change is needed after this — the existing
+ *     `requestIdToken(WEB_CLIENT_ID)` call starts working once Google's
+ *     servers propagate the new client (usually within minutes).
+ *
+ * For a Play Store release build later: generate a release keystore, add a
+ * SECOND Android OAuth client with the release SHA-1 (same package name),
+ * and keep both — debug and release fingerprints can coexist.
  */
 object GoogleAuthConfig {
     const val GOOGLE_SERVER_CLIENT_ID =
         "613285624759-p3bksd1ersn333f4mqirv64are5uglsb.apps.googleusercontent.com"
+
+    /**
+     * SHA-1 of app/keystores/debug.keystore — the fingerprint to register in
+     * Google Cloud Console (see KDoc above). Kept here so the setup docs and
+     * the actual key can never drift apart silently.
+     */
+    const val DEBUG_SHA1_FINGERPRINT =
+        "27:37:38:7D:8C:2C:17:03:97:34:FA:0B:DA:6C:4F:BB:30:1C:7B:A1"
+
+    /** Package name Google sees (`applicationId`, not `namespace`). */
+    const val APP_PACKAGE_NAME = "com.omastroai.app"
 }
 
 /**
@@ -85,6 +127,15 @@ object GoogleSignInHelper {
             // 12501 = SIGN_IN_CANCELLED (user dismissed the picker)
             if (e.statusCode == 12501) {
                 Result.Cancelled()
+            } else if (e.statusCode == 10) {
+                // 10 = DEVELOPER_ERROR: the app's package name + SHA-1 is not
+                // registered as an Android OAuth client in Google Cloud Console.
+                // See GoogleAuthConfig KDoc for the exact one-time setup steps.
+                Result.Error(
+                    "Google sign-in is not set up for this app yet (error 10). " +
+                    "The app's SHA-1 fingerprint must be registered in Google " +
+                    "Cloud Console — see setup steps in the app's documentation."
+                )
             } else {
                 Result.Error("Google sign-in failed (code ${e.statusCode}). Please try again.")
             }

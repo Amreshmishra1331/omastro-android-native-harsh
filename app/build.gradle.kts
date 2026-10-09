@@ -38,6 +38,27 @@ android {
         }
         debug {
             isDebuggable = true
+            // Stable debug signing key committed to the repo (debug keys are NOT
+            // secrets - this mirrors the conventional ~/.android/debug.keystore).
+            // WHY: CI runners generate a fresh random debug keystore on every run,
+            // so without this the APK's SHA-1 changes on every build and Google
+            // Sign-In (error 10, DEVELOPER_ERROR) can never be fixed by registering
+            // a fingerprint in Google Cloud Console. With this key, every debug
+            // APK - local or CI - has the same SHA-1:
+            //   27:37:38:7D:8C:2C:17:03:97:34:FA:0B:DA:6C:4F:BB:30:1C:7B:A1
+            // Register that SHA-1 with package "com.omastroai.app" as an Android
+            // OAuth client in the same Google Cloud project as the web client ID
+            // used in GoogleSignInHelper (see its KDoc for exact steps).
+            signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("keystores/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
         }
     }
 
