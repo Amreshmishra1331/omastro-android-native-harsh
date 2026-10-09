@@ -4,6 +4,15 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — Kundali 23-tab build fixes (CI green)
+
+### Fixed
+- **Redeclaration: SaturnTransit** — the new Kundali model collided with the existing `HoroscopeModels.SaturnTransit` (rashifal). Merged: the HoroscopeModels class now carries the extra kundali keys (`house_from_moon`, `saturn_rashi`, `moon_rashi`, `description_hi`) with defaults, so one class serves both the rashifal `saturn_transit` and kundali `saturnTransit` payloads; the duplicate in `KundaliModels.kt` was removed.
+- **Typed kundali envelopes restored** — `POST kundali/personality`, `kundali/bnn`, `kundali/lal-kitab`, `kundali/jaimini` return `Response<ReportEnvelope>` / `Response<JaiminiEnvelope>` (types committed in `KundaliModels.kt`); `AstroRepository` relies on the typed `.data` access.
+- CI: Android Build **success** on `23cb5dd`.
+
+---
+
 ## [2026-10-09] — Kundali: 8 tabs → 23 website-parity tabs (full A-Z rebuild)
 
 ### Broken / missing
