@@ -11,9 +11,6 @@ import java.io.IOException
 class WalletRepository(
     private val api: OmAstroApiService = ApiClient.apiService
 ) {
-    private val _coinBalance = MutableStateFlow(0)
-    val coinBalance: StateFlow<Int> = _coinBalance.asStateFlow()
-
     // Real INR wallet balance (in paise, from /wallet/balance API)
     private val _walletBalancePaise = MutableStateFlow(0)
     val walletBalancePaise: StateFlow<Int> = _walletBalancePaise.asStateFlow()
@@ -56,13 +53,17 @@ class WalletRepository(
         }
     }
 
+    /**
+     * Add-money slabs — website parity (verified 2026-10-02):
+     * ₹25 → ₹35 credit, ₹50 → ₹80, ₹100 → ₹200, above ₹100 → double.
+     * The server computes and grants the bonus on verify; the app only
+     * sends the pay amount. Never invent prices or badges here.
+     */
     fun getRechargePacks(): List<RechargePack> {
         return listOf(
-            RechargePack("pack_100", 100, 99.0, 0, null),
-            RechargePack("pack_250", 250, 199.0, 25, "POPULAR"),
-            RechargePack("pack_600", 600, 499.0, 100, "BEST VALUE"),
-            RechargePack("pack_1500", 1500, 999.0, 300, "DIVINE SAVER"),
-            RechargePack("pack_3500", 3500, 1999.0, 800, "VIP SPECIAL")
+            RechargePack("slab_25", 25.0, 35.0),
+            RechargePack("slab_50", 50.0, 80.0),
+            RechargePack("slab_100", 100.0, 200.0)
         )
     }
 
@@ -83,7 +84,8 @@ class WalletRepository(
 
     suspend fun createOrder(pack: RechargePack): Result<TopupOrderResponse> {
         return try {
-            val amountPaise = (pack.priceInr * 100).toInt()
+            // Only the pay amount is sent — bonus is server-computed on verify.
+            val amountPaise = (pack.payInr * 100).toInt()
             val res = api.createTopupOrder(TopupOrderRequest(amountPaise))
             val body = res.body()
             if (res.isSuccessful && body != null) {

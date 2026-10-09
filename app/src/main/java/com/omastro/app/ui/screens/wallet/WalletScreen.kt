@@ -21,9 +21,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.RechargePack
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,7 +34,7 @@ fun WalletScreen(
     onBack: () -> Unit,
     viewModel: WalletViewModel = viewModel()
 ) {
-    val coinBalance by viewModel.coinBalance.collectAsState()
+    val lang by LangPrefs.language.collectAsState()
     val walletBalanceInr by viewModel.walletBalanceInr.collectAsState()
     val paidBalanceInr by viewModel.paidBalanceInr.collectAsState()
     val bonusBalanceInr by viewModel.bonusBalanceInr.collectAsState()
@@ -87,7 +89,7 @@ fun WalletScreen(
             putExtra(RazorpayPaymentActivity.EXTRA_AMOUNT_PAISE, po.order.amount)
             putExtra(RazorpayPaymentActivity.EXTRA_CURRENCY, po.order.currency)
             putExtra(RazorpayPaymentActivity.EXTRA_TITLE, "OmAstro AI")
-            putExtra(RazorpayPaymentActivity.EXTRA_DESCRIPTION, "Wallet Recharge — ${po.pack.coins} Coins")
+            putExtra(RazorpayPaymentActivity.EXTRA_DESCRIPTION, W.tf("money_credit_desc", "₹${po.pack.creditInr.toInt()}"))
         }
         paymentLauncher.launch(intent)
     }
@@ -95,10 +97,10 @@ fun WalletScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wallet", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("money_wallet_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                        Icon(Icons.Default.ArrowBack, contentDescription = W.t("back"), tint = SacredGold)
                     }
                 },
                 actions = {
@@ -106,7 +108,7 @@ fun WalletScreen(
                         viewModel.refreshBalance()
                         viewModel.refreshTransactions()
                     }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = SacredGold)
+                        Icon(Icons.Default.Refresh, contentDescription = W.t("money_refresh"), tint = SacredGold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
@@ -135,7 +137,7 @@ fun WalletScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "AVAILABLE BALANCE",
+                            text = W.t("money_avail_balance"),
                             color = RadiantAmber,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
@@ -166,7 +168,7 @@ fun WalletScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Paid Balance",
+                                    text = W.t("money_paid_balance"),
                                     color = StarlightWhite.copy(alpha = 0.5f),
                                     fontSize = 11.sp
                                 )
@@ -179,7 +181,7 @@ fun WalletScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Bonus Balance",
+                                    text = W.t("money_bonus_balance"),
                                     color = StarlightWhite.copy(alpha = 0.5f),
                                     fontSize = 11.sp
                                 )
@@ -187,7 +189,7 @@ fun WalletScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Use coins for Kundali, Horoscope and astrologer consultations",
+                            text = W.t("money_wallet_hint"),
                             color = StarlightWhite.copy(alpha = 0.6f),
                             fontSize = 12.sp
                         )
@@ -197,7 +199,7 @@ fun WalletScreen(
 
             // Recharge Packs Section
             item {
-                Text(text = "Recharge Packs", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = W.t("money_add_money"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             items(viewModel.rechargePacks) { pack ->
@@ -208,16 +210,19 @@ fun WalletScreen(
                 )
             }
 
+            // Bonus slabs + GST note (website Add Money parity).
+            item { BonusSlabCard() }
+
             // Recent Transactions Section
             item {
-                Text(text = "Recent Transactions", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = W.t("money_recent_tx"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             if (transactions.isEmpty()) {
                 item {
                     CosmicCard(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "No transactions yet. Your recharge and usage history will appear here.",
+                            text = W.t("money_tx_empty"),
                             color = StarlightWhite.copy(alpha = 0.6f),
                             fontSize = 13.sp,
                             modifier = Modifier
@@ -244,6 +249,11 @@ private fun RechargePackCard(
     isProcessing: Boolean,
     onBuyClick: () -> Unit
 ) {
+    // Website bonus-slab parity: "Pay ₹X → Get ₹Y credit" (+bonus chip).
+    // The bonus itself is computed and granted by the server on verify.
+    val payLabel = "₹${pack.payInr.toInt()}"
+    val creditLabel = "₹${pack.creditInr.toInt()}"
+    val bonusLabel = "₹${pack.bonusInr.toInt()}"
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -253,19 +263,19 @@ private fun RechargePackCard(
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "${pack.coins} Coins",
+                        text = W.tf("money_pack_pay_get", payLabel, creditLabel),
                         color = StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
-                    if (pack.bonusCoins > 0) {
+                    if (pack.bonusInr > 0) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = RadiantAmber
                         ) {
                             Text(
-                                text = "+${pack.bonusCoins} bonus",
+                                text = W.tf("money_pack_bonus", bonusLabel),
                                 color = CosmicDeepBlue,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 10.sp,
@@ -273,9 +283,6 @@ private fun RechargePackCard(
                             )
                         }
                     }
-                }
-                if (pack.badge != null) {
-                    Text(text = pack.badge, color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
@@ -289,13 +296,50 @@ private fun RechargePackCard(
                     CircularProgressIndicator(color = CosmicDeepBlue, modifier = Modifier.size(18.dp))
                 } else {
                     Text(
-                        text = "Rs. ${pack.priceInr.toInt()}",
+                        text = W.tf("money_pack_btn", payLabel),
                         color = CosmicDeepBlue,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Bonus-slab explainer (website Add Money parity): the exact slabs plus the
+ * 18% GST note. Informational only — the server owns the real bonus.
+ */
+@Composable
+private fun BonusSlabCard() {
+    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = W.t("money_slab_title"),
+                color = RadiantAmber,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            listOf(
+                W.t("money_slab_25"),
+                W.t("money_slab_50"),
+                W.t("money_slab_100"),
+                W.t("money_slab_above")
+            ).forEach { line ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "•  ", color = SacredGold, fontSize = 13.sp)
+                    Text(text = line, color = StarlightWhite, fontSize = 13.sp)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = W.t("money_gst_note"),
+                color = StarlightWhite.copy(alpha = 0.55f),
+                fontSize = 11.sp
+            )
         }
     }
 }

@@ -25,13 +25,22 @@ data class WalletBalanceResponse(
     @SerializedName("message") val message: String? = null
 )
 
+/**
+ * Add-money option — website bonus-slab parity (verified 2026-10-02):
+ * pay ₹25 → ₹35 credit, pay ₹50 → ₹80, pay ₹100 → ₹200, above ₹100 → double.
+ * 18% GST is included in the price the user pays. The bonus slab itself is
+ * computed server-side on verify — the app only sends the pay amount.
+ */
 data class RechargePack(
     val id: String,
-    val coins: Int,
-    val priceInr: Double,
-    val bonusCoins: Int = 0,
-    val badge: String? = null
-)
+    /** Amount charged via Razorpay (INR). */
+    val payInr: Double,
+    /** Wallet credit the server grants for this slab (INR). */
+    val creditInr: Double
+) {
+    /** Bonus portion of the slab (credit minus pay), in INR. */
+    val bonusInr: Double get() = creditInr - payInr
+}
 
 data class TopupOrderRequest(
     @SerializedName("amount") val amountPaise: Int, // amount in paise

@@ -46,6 +46,6 @@ object AppContainer {
     val submitAstrologerReviewUseCase by lazy { SubmitAstrologerReviewUseCase(consultationRepository) }
 
     val getWalletBalanceUseCase by lazy { GetWalletBalanceUseCase(walletRepository) }
-    val rechargeCoinsUseCase by lazy { RechargeCoinsUseCase(walletRepository) }
+    val rechargeUseCase by lazy { RechargeUseCase(walletRepository) }
     val requestInAppReviewUseCase by lazy { RequestInAppReviewUseCase() }
 }

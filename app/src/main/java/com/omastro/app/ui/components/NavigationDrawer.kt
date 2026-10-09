@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omastro.app.ui.navigation.Screen
 import com.omastro.app.ui.theme.*
+import com.omastro.app.ui.i18n.W
 
 /**
  * Dialog kinds surfaced from the navigation drawer (and reused by Settings).
@@ -211,7 +212,7 @@ private data class DrawerEntry(
 fun OmAstroDrawerContent(
     userName: String?,
     userEmail: String?,
-    walletBalance: Int,
+    walletBalanceInr: Double,
     currentRoute: String?,
     onNavigate: (String) -> Unit,
     onWalletClick: () -> Unit,
@@ -295,14 +296,14 @@ fun OmAstroDrawerContent(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "₹$walletBalance",
+                            text = "₹${String.format("%.2f", walletBalanceInr)}",
                             color = SacredGold,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Add Money",
+                            text = W.t("money_add_btn"),
                             color = StarlightWhite.copy(alpha = 0.6f),
                             fontSize = 12.sp
                         )

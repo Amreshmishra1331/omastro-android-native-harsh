@@ -437,7 +437,7 @@ private fun HomeTabContent(
             ) {
                 Column {
                     Text(
-                        text = "MY WALLET",
+                        text = W.t("money_my_wallet"),
                         color = StarlightWhite.copy(alpha = 0.85f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -452,7 +452,7 @@ private fun HomeTabContent(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Paid: ₹${String.format("%.2f", paidInr)} · Bonus: ₹${String.format("%.2f", bonusInr)}",
+                        text = W.tf("money_paid_bonus", "₹${String.format("%.2f", paidInr)}", "₹${String.format("%.2f", bonusInr)}"),
                         color = StarlightWhite.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
@@ -468,13 +468,13 @@ private fun HomeTabContent(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Wallet",
+                        text = W.t("money_wallet_title"),
                         color = StarlightWhite,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Add money to wallet to start chatting",
+                        text = W.t("money_add_money_hint"),
                         color = StarlightWhite.copy(alpha = 0.6f),
                         fontSize = 12.sp
                     )
@@ -923,7 +923,7 @@ private fun ActivityTabContent(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Total Balance",
+                                    text = W.t("money_total_balance"),
                                     color = StarlightWhite.copy(alpha = 0.85f),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold

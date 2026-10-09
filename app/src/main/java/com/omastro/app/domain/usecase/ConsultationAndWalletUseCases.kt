@@ -54,11 +54,10 @@ class SubmitAstrologerReviewUseCase(private val repository: ConsultationReposito
 }
 
 class GetWalletBalanceUseCase(private val repository: WalletRepository) {
-    val coinBalance: StateFlow<Int> = repository.coinBalance
     val transactions: StateFlow<List<WalletTransaction>> = repository.transactions
 }
 
-class RechargeCoinsUseCase(private val repository: WalletRepository) {
+class RechargeUseCase(private val repository: WalletRepository) {
     suspend fun createOrder(pack: RechargePack): Result<TopupOrderResponse> =
         repository.createOrder(pack)
 

@@ -38,8 +38,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.Astrologer
 import com.omastro.app.data.model.BirthDataAttachment
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.data.remote.GeocodePlace
 import com.omastro.app.ui.components.DatePickerField
 import com.omastro.app.ui.components.PlaceSearchField
@@ -80,6 +82,7 @@ fun ChatScreen(
     val showBirthAttach by viewModel.showBirthAttach.collectAsState()
     val showReview by viewModel.showReview.collectAsState()
     val lastFailedText by viewModel.lastFailedText.collectAsState()
+    val lang by LangPrefs.language.collectAsState()
 
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
@@ -145,7 +148,7 @@ fun ChatScreen(
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { viewModel.clearSessionError() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = StarlightWhite, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Close, contentDescription = W.t("money_dismiss"), tint = StarlightWhite, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -168,7 +171,7 @@ fun ChatScreen(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     CircularProgressIndicator(color = SacredGold, modifier = Modifier.size(36.dp))
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    Text("Connecting…", color = StarlightWhite.copy(alpha = 0.6f), fontSize = 13.sp)
+                                    Text(W.t("money_connecting"), color = StarlightWhite.copy(alpha = 0.6f), fontSize = 13.sp)
                                 }
                             }
                         }
@@ -241,7 +244,7 @@ fun ChatScreen(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF8A80)),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF8A80).copy(alpha = 0.5f))
                 ) {
-                    Text("End Chat", fontWeight = FontWeight.SemiBold)
+                    Text(W.t("money_end_chat"), fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -307,7 +310,7 @@ private fun ChatHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                Icon(Icons.Default.ArrowBack, contentDescription = W.t("back"), tint = SacredGold)
             }
             Box(modifier = Modifier.size(44.dp)) {
                 if (!astro?.img.isNullOrBlank()) {
@@ -345,11 +348,11 @@ private fun ChatHeader(
                 )
                 Text(
                     text = when {
-                        connecting -> "connecting…"
-                        isTyping -> "typing…"
+                        connecting -> W.t("money_connecting")
+                        isTyping -> W.t("money_typing")
                         astro == null -> ""
-                        astro.online -> "online"
-                        else -> "offline"
+                        astro.online -> W.t("money_online")
+                        else -> W.t("money_offline")
                     },
                     color = if (isTyping) SacredGold else StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 12.sp
@@ -362,7 +365,7 @@ private fun ChatHeader(
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.5f))
                 ) {
                     Text(
-                        text = "FREE TRIAL",
+                        text = W.t("money_free_trial"),
                         color = Color(0xFF4CAF50),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -509,7 +512,7 @@ private fun ChatComposer(
                 onValueChange = onInputChange,
                 placeholder = {
                     Text(
-                        if (inputLocked) "Add Money to chat" else "Type your question…",
+                        if (inputLocked) W.t("money_input_locked") else W.t("money_input_hint"),
                         color = StarlightWhite.copy(alpha = 0.5f)
                     )
                 },
@@ -541,7 +544,7 @@ private fun ChatComposer(
             ) {
                 Icon(
                     imageVector = Icons.Default.Send,
-                    contentDescription = "Send",
+                    contentDescription = W.t("money_send"),
                     tint = if (canSend) CosmicDeepBlue else StarlightWhite.copy(alpha = 0.4f)
                 )
             }
@@ -563,36 +566,36 @@ private fun RateConsentDialog(
     val expensive = astro.ratePaise > 500
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Start chat with ${astro.name}?", fontWeight = FontWeight.Bold) },
+        title = { Text(W.tf("money_consent_title", astro.name), fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 if (offline) {
                     Text(
-                        "${astro.name} is currently offline. Start the chat with this astrologer anyway?",
+                        W.tf("money_consent_offline", astro.name),
                         fontSize = 14.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 if (expensive) {
                     Text(
-                        "Rate: ${astro.displayRate} (higher than the expected ₹5/min).",
+                        W.tf("money_consent_rate_high", astro.displayRate),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = SacredSaffron
                     )
                 } else {
-                    Text("Rate: ${astro.displayRate}.", fontSize = 14.sp)
+                    Text(W.tf("money_consent_rate", astro.displayRate), fontSize = 14.sp)
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Yes, start", color = SacredGold, fontWeight = FontWeight.Bold)
+                Text(W.t("money_yes_start"), color = SacredGold, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = StarlightWhite.copy(alpha = 0.7f))
+                Text(W.t("money_cancel"), color = StarlightWhite.copy(alpha = 0.7f))
             }
         },
         containerColor = CosmicNavy,
@@ -626,14 +629,14 @@ private fun BirthAttachDialog(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    "Attach Birth Details",
+                    W.t("money_attach_title"),
                     color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "The astrologer gives far better guidance with your birth chart attached.",
+                    W.t("money_attach_sub"),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 13.sp
                 )
@@ -642,7 +645,7 @@ private fun BirthAttachDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Full Name") },
+                    label = { Text(W.t("money_name")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = dialogFieldColors()
@@ -654,7 +657,7 @@ private fun BirthAttachDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("M" to "Male", "F" to "Female").forEach { (value, label) ->
+                    listOf("M" to W.t("money_male"), "F" to W.t("money_female")).forEach { (value, label) ->
                         val selected = gender == value
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -715,24 +718,24 @@ private fun BirthAttachDialog(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = StarlightWhite.copy(alpha = 0.7f))
                     ) {
-                        Text("Skip")
+                        Text(W.t("money_skip"))
                     }
                     Button(
                         onClick = {
                             if (name.isBlank()) {
-                                error = "Please enter your name."
+                                error = W.t("money_err_name")
                                 return@Button
                             }
                             if (dob.isBlank()) {
-                                error = "Please pick your date of birth."
+                                error = W.t("money_err_dob")
                                 return@Button
                             }
                             if (tob.isBlank()) {
-                                error = "Please pick your time of birth."
+                                error = W.t("money_err_tob")
                                 return@Button
                             }
                             if (place.isBlank()) {
-                                error = "Please enter your place of birth."
+                                error = W.t("money_err_pob")
                                 return@Button
                             }
                             onAttach(
@@ -751,7 +754,7 @@ private fun BirthAttachDialog(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                     ) {
-                        Text("Attach", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                        Text(W.t("money_attach"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -783,27 +786,27 @@ private fun AddMoneyDialog(
 ) {
     AlertDialog(
         onDismissRequest = onLater,
-        title = { Text("Insufficient Balance", fontWeight = FontWeight.Bold) },
+        title = { Text(W.t("money_add_title"), fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(
-                    "This astrologer charges $rateLabel. Please add money to continue the chat.",
+                    W.tf("money_add_body", rateLabel),
                     fontSize = 14.sp
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = onAddMoney) {
-                Text("Add Money", color = SacredGold, fontWeight = FontWeight.Bold)
+                Text(W.t("money_add_btn"), color = SacredGold, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             Row {
                 TextButton(onClick = onRetry) {
-                    Text("Retry", color = StarlightWhite.copy(alpha = 0.7f))
+                    Text(W.t("money_retry"), color = StarlightWhite.copy(alpha = 0.7f))
                 }
                 TextButton(onClick = onLater) {
-                    Text("Maybe Later", color = StarlightWhite.copy(alpha = 0.7f))
+                    Text(W.t("money_later"), color = StarlightWhite.copy(alpha = 0.7f))
                 }
             }
         },
@@ -837,7 +840,7 @@ private fun ReviewDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "Rate your chat with $astroName",
+                    W.tf("money_review_title", astroName),
                     color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
@@ -860,7 +863,7 @@ private fun ReviewDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { if (it.length <= 500) text = it },
-                    label = { Text("Write a review (optional)") },
+                    label = { Text(W.t("money_review_hint")) },
                     modifier = Modifier.fillMaxWidth().height(110.dp),
                     colors = dialogFieldColors(),
                     maxLines = 4
@@ -875,14 +878,14 @@ private fun ReviewDialog(
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = StarlightWhite.copy(alpha = 0.7f))
                     ) {
-                        Text("Later")
+                        Text(W.t("money_later_btn"))
                     }
                     Button(
                         onClick = { onSubmit(stars, text.trim()) },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                     ) {
-                        Text("Submit", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                        Text(W.t("money_submit"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                     }
                 }
             }

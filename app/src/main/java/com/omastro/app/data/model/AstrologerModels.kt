@@ -25,10 +25,14 @@ data class Astrologer(
     @SerializedName("rate_label") val rateLabel: String = "",
     @SerializedName("gender") val gender: String = ""
 ) {
-    /** Display price, e.g. "₹5/min" from the server's rate_label. */
+    /**
+     * Display price — the server's rate_label ("₹5/min", verified live).
+     * The fallback only fires if the server omits rate_label: it formats the
+     * paise exactly (₹5.50/min, never truncated to ₹5/min).
+     */
     val displayRate: String
         get() = rateLabel.ifBlank {
-            if (ratePaise > 0) "₹${ratePaise / 100}/min" else "Free"
+            if (ratePaise > 0) formatPaiseRate(ratePaise) else "Free"
         }
 }
 
@@ -116,9 +120,9 @@ data class AstroSessionState(
     @SerializedName("message") val message: String? = null,
     @SerializedName("resumed") val resumed: Boolean = false
 ) {
-    /** Display rate, e.g. "₹5/min". */
+    /** Display rate, e.g. "₹5/min" (server rate_paise; exact, never truncated). */
     val rateLabel: String
-        get() = if (ratePaise > 0) "₹${ratePaise / 100}/min" else "Free"
+        get() = if (ratePaise > 0) formatPaiseRate(ratePaise) else "Free"
 
     /** True while the free trial covers the chat (no paid debit yet). */
     val isFreeTrial: Boolean
@@ -143,6 +147,14 @@ data class AstrologerReviewRequest(
     @SerializedName("review") val review: String = "",
     @SerializedName("session_id") val sessionId: String = ""
 )
+
+/**
+ * Formats a paise rate as rupees without ever truncating fractional rupees:
+ * 500 paise -> "₹5/min", 550 paise -> "₹5.50/min".
+ */
+private fun formatPaiseRate(paise: Int): String =
+    if (paise % 100 == 0) "₹${paise / 100}/min"
+    else "₹%.2f/min".format(paise / 100.0)
 
 // ---------------------------------------------------------------------------
 // Chat history — GET /astrologers/chat/history?session_id=&astrologer_slug=

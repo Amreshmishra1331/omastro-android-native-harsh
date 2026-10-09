@@ -6,6 +6,7 @@ import com.omastro.app.data.model.TopupOrderResponse
 import com.omastro.app.data.model.RechargePack
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.di.AppContainer
+import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,15 +19,14 @@ import kotlinx.coroutines.launch
  *  2. UI launches RazorpayPaymentActivity with the order; the genuine
  *     Razorpay sheet collects the payment.
  *  3. On success the activity returns payment_id + signature, which are sent
- *     to POST /wallet/topup-verify. Coins are credited ONLY on verified success.
+ *     to POST /wallet/topup-verify. Balance is credited ONLY on verified success.
  * Nothing is ever fabricated: no mock payment ids, no mock signatures.
  */
 class WalletViewModel : ViewModel() {
 
     private val walletRepo = AppContainer.walletRepository
-    private val rechargeCoinsUseCase = AppContainer.rechargeCoinsUseCase
+    private val rechargeUseCase = AppContainer.rechargeUseCase
 
-    val coinBalance: StateFlow<Int> = walletRepo.coinBalance
     val walletBalanceInr: StateFlow<Double> = walletRepo.walletBalanceInr
     val paidBalanceInr: StateFlow<Double> = walletRepo.paidBalanceInr
     val bonusBalanceInr: StateFlow<Double> = walletRepo.bonusBalanceInr
@@ -68,12 +68,12 @@ class WalletViewModel : ViewModel() {
         viewModelScope.launch {
             _isProcessing.value = true
             _message.value = null
-            rechargeCoinsUseCase.createOrder(pack)
+            rechargeUseCase.createOrder(pack)
                 .onSuccess { order ->
                     _pendingOrder.value = PendingOrder(order, pack)
                 }
                 .onFailure { err ->
-                    _message.value = err.message ?: "Could not start the payment. Please try again."
+                    _message.value = err.message ?: W.t("money_pay_start_fail")
                 }
             _isProcessing.value = false
         }
@@ -90,19 +90,19 @@ class WalletViewModel : ViewModel() {
      */
     fun verifyPayment(orderId: String, paymentId: String?, signature: String?, pack: RechargePack) {
         if (paymentId.isNullOrBlank() || signature.isNullOrBlank()) {
-            _message.value = "Payment could not be verified (missing payment details)."
+            _message.value = W.t("money_verify_missing")
             return
         }
         viewModelScope.launch {
             _isProcessing.value = true
-            rechargeCoinsUseCase.verifyPayment(
+            rechargeUseCase.verifyPayment(
                 orderId = orderId,
                 paymentId = paymentId,
                 signature = signature
             ).onSuccess { res ->
-                _message.value = (res.message ?: "").ifBlank { "Recharge successful." }
+                _message.value = (res.message ?: "").ifBlank { W.t("money_recharge_ok") }
             }.onFailure { err ->
-                _message.value = err.message ?: "Payment verification failed. If money was debited it will be refunded."
+                _message.value = err.message ?: W.t("money_verify_fail")
             }
             _isProcessing.value = false
         }
@@ -111,7 +111,7 @@ class WalletViewModel : ViewModel() {
     /** Called when the user cancels the sheet or it fails to open. */
     fun onPaymentAborted(reason: String?) {
         _pendingOrder.value = null
-        _message.value = reason ?: "Payment was cancelled."
+        _message.value = reason ?: W.t("money_pay_cancelled")
     }
 
     fun refreshTransactions() {
@@ -119,7 +119,7 @@ class WalletViewModel : ViewModel() {
             _isProcessing.value = true
             walletRepo.getTransactions()
                 .onFailure { err ->
-                    _message.value = err.message ?: "Could not load transactions."
+                    _message.value = err.message ?: W.t("money_tx_load_fail")
                 }
             _isProcessing.value = false
         }

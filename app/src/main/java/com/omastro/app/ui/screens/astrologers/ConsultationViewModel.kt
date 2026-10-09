@@ -8,6 +8,7 @@ import com.omastro.app.data.model.BirthDataAttachment
 import com.omastro.app.data.model.ChatHistoryTurn
 import com.omastro.app.data.model.buildBirthDataContext
 import com.omastro.app.di.AppContainer
+import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -178,7 +179,7 @@ class ConsultationViewModel : ViewModel() {
             _listError.value = null
             getAstrologersUseCase(category)
                 .onSuccess { _astrologers.value = it }
-                .onFailure { _listError.value = it.message ?: "Could not load astrologers." }
+                .onFailure { _listError.value = it.message ?: W.t("money_err_load") }
             _isLoading.value = false
         }
     }
@@ -205,7 +206,7 @@ class ConsultationViewModel : ViewModel() {
             }
             _autoMatchPhase.value = AutoMatchPhase.IDLE
             if (list.isEmpty()) {
-                _sessionError.value = "No astrologers available right now. Please try again."
+                _sessionError.value = W.t("money_empty_none")
                 return@launch
             }
             // Prefer online ₹5/min (rate_paise <= 500), else cheapest online, else first.
@@ -283,10 +284,10 @@ class ConsultationViewModel : ViewModel() {
             _connecting.value = true
             _sessionError.value = null
             // System notice: joined (website parity — center bubble).
-            appendSystemMessage("${astro.name} joined the chat")
+            appendSystemMessage(W.tf("money_joined", astro.name))
             // 1. Register chat session (server mints UUID).
             val sessionId = openChatSessionUseCase(slug).getOrElse {
-                _sessionError.value = it.message ?: "Could not open chat."
+                _sessionError.value = it.message ?: W.t("money_err_open_chat")
                 _connecting.value = false
                 return@launch
             }
@@ -316,7 +317,7 @@ class ConsultationViewModel : ViewModel() {
                     _inputLocked.value = true
                     _showAddMoney.value = true
                     _sessionError.value = state.message
-                        ?: "Insufficient balance. Please add money to chat."
+                        ?: W.t("money_insufficient")
                     _connecting.value = false
                     return@onSuccess
                 }
@@ -326,7 +327,7 @@ class ConsultationViewModel : ViewModel() {
                 startTimers()
                 scheduleGreeting()
             }.onFailure {
-                _sessionError.value = it.message ?: "Could not start billing session."
+                _sessionError.value = it.message ?: W.t("money_err_start_billing")
                 _connecting.value = false
             }
         }
@@ -349,9 +350,9 @@ class ConsultationViewModel : ViewModel() {
             _isTyping.value = false
             val birth = _birthAttachment.value
             val greeting = if (birth != null && birth.name.isNotBlank()) {
-                "Namaste ${birth.name}, I am ${astro.name}. I have your birth details with me. Please tell me, what would you like guidance on today?"
+                W.tf("money_greet_birth", birth.name, astro.name)
             } else {
-                "Namaste, I am ${astro.name}. Please share your birth details or tell me what guidance you seek today."
+                W.tf("money_greet_plain", astro.name)
             }
             appendAstroMessage(greeting)
             lastUserMessageAt = System.currentTimeMillis()
@@ -368,7 +369,7 @@ class ConsultationViewModel : ViewModel() {
         val slug = _activeSlug.value ?: return
         if (trimmed.isEmpty() || _sendLocked.value || _inputLocked.value) return
         if (billingSessionUuid == null) {
-            _sessionError.value = "Chat session is not active."
+            _sessionError.value = W.t("money_err_no_session")
             return
         }
         _sendLocked.value = true
@@ -426,7 +427,7 @@ class ConsultationViewModel : ViewModel() {
                     // Center system notice on failure (never as astrologer bubble);
                     // keep text in input for one-tap retry (handled by UI reading lastFailedText).
                     _lastFailedText.value = trimmed
-                    appendSystemMessage("Message could not be sent. Tap retry to send again.")
+                    appendSystemMessage(W.t("money_send_failed"))
                     _sessionError.value = err.message
                     scheduleIdle()
                 }
@@ -526,20 +527,19 @@ class ConsultationViewModel : ViewModel() {
                     _sessionState.value = state
                     if (state.insufficient) {
                         // Mid-chat low balance -> hard close.
-                        hardClose("Your wallet balance ran out. The chat has ended.")
+                        hardClose(W.t("money_balance_out"))
                     } else if (!lowBalanceWarned && state.walletCoversSec in 1..60) {
                         // Proactive warning BEFORE the hard close: the wallet
                         // covers ~1 minute or less of chat at the current rate.
                         lowBalanceWarned = true
                         appendSystemMessage(
-                            "Low balance: about ${state.walletCoversSec}s of chat time left. " +
-                                "Add money to continue without interruption."
+                            W.tf("money_low_balance", state.walletCoversSec)
                         )
                     }
                 }.onFailure {
                     // Tick failed: pause billing display but keep chatting is unsafe —
                     // website closes the session when debit fails. Hard close here too.
-                    hardClose("Billing update failed. The chat has ended.")
+                    hardClose(W.t("money_billing_failed"))
                 }
             }
         }
@@ -554,16 +554,16 @@ class ConsultationViewModel : ViewModel() {
             if (gen != replyGeneration) return@launch
             if (_activeSlug.value == null) return@launch
             val nudges = listOf(
-                "Are you still there? I am here whenever you are ready.",
-                "Take your time. I am listening.",
-                "Do you have another question for me?"
+                W.t("money_nudge_1"),
+                W.t("money_nudge_2"),
+                W.t("money_nudge_3")
             )
             appendAstroMessage(nudges.random())
             // 2-min total -> closing + hard close.
             delay(60_000)
             if (gen != replyGeneration) return@launch
             if (_activeSlug.value == null) return@launch
-            appendAstroMessage("It seems you may be away. I am closing this chat for now — you can start a new one anytime.")
+            appendAstroMessage(W.t("money_idle_close"))
             delay(1500)
             if (gen != replyGeneration) return@launch
             endChat(showReview = true)
@@ -666,7 +666,7 @@ class ConsultationViewModel : ViewModel() {
                     _sessionState.value = state
                     _inputLocked.value = true
                     _showAddMoney.value = true
-                    _sessionError.value = state.message ?: "Insufficient balance."
+                    _sessionError.value = state.message ?: W.t("money_insufficient_short")
                     return@onSuccess
                 }
                 _sessionState.value = state

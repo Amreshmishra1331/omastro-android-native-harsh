@@ -123,7 +123,7 @@ class MainActivity : ComponentActivity() {
                         val drawerScope = rememberCoroutineScope()
                         var drawerDialog by remember { mutableStateOf<DrawerDialog?>(null) }
                         val drawerUser by AppContainer.authRepository.currentUser.collectAsState()
-                        val drawerBalance by AppContainer.walletRepository.coinBalance.collectAsState()
+                        val drawerBalanceInr by AppContainer.walletRepository.walletBalanceInr.collectAsState()
                         val openDrawer: () -> Unit = { drawerScope.launch { drawerState.open() } }
                         val activity = this@MainActivity
 
@@ -166,7 +166,7 @@ class MainActivity : ComponentActivity() {
                             OmAstroDrawerContent(
                                 userName = drawerUser?.name,
                                 userEmail = drawerUser?.email ?: drawerUser?.phone,
-                                walletBalance = drawerBalance,
+                                walletBalanceInr = drawerBalanceInr,
                                 currentRoute = currentRoute,
                                 onNavigate = ::drawerNavigate,
                                 onWalletClick = { drawerNavigate(Screen.Wallet.route) },

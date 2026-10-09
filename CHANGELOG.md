@@ -4,6 +4,33 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Money-path audit: fabricated recharge packs removed, wallet/astrologer billing bilingual
+
+Audited every rupee the app touches — astrologer directory rates, per-minute billing, free-trial display, wallet balance, Add Money → Razorpay, transaction history — against the production server (live probe of `GET /wp-json/omastro/v1/astrologers` confirmed `rate_paise`/`rate_label`, e.g. ₹5–₹100/min). One fabricated-money-data bug and one real balance-display bug found and fixed; the whole money path is now bilingual (EN/हिन्दी via `W`/`FeatureStrings`, auto-following the Settings language).
+
+### Before
+- **Fabricated recharge packs** (`WalletRepository.getRechargePacks()`): hardcoded coin packs — ₹99→100 coins, ₹199→250+25 "POPULAR", ₹499→600+100 "BEST VALUE", ₹999→1500+300 "DIVINE SAVER", ₹1999→3500+800 "VIP SPECIAL". Wrong three ways: prices matched nothing on the website, the coin system was retired on 2026-10-01 (wallet is INR now), and the badges were invented marketing. The Wallet screen also said "Use coins for Kundali…" and sent "Wallet Recharge — N Coins" as the Razorpay description.
+- **No bonus-slab / GST display**: the website's Add Money page shows the bonus slabs (₹25→₹35, ₹50→₹80, ₹100→₹200, above ₹100→double) and 18% GST — the app showed neither, only the fabricated packs.
+- **Drawer balance was always ₹0** (`MainActivity.kt:126`): the nav drawer read the dead `WalletRepository.coinBalance` (never updated, permanently 0) — every user saw ₹0 in the drawer regardless of their real balance.
+- **English-only money UI**: every string on the Astrologers directory, chat screen, rate-consent / birth-attach / Add-Money / review dialogs, wallet screen, and dashboard wallet hero was hardcoded English.
+- **Rate fallback could understate a price**: `displayRate`/`rateLabel` used integer paise division (`"₹${ratePaise / 100}/min"`) — e.g. 550 paise would render "₹5/min".
+
+### After
+- **Real bonus slabs** (`WalletModels.kt` / `WalletRepository.kt` / `WalletScreen.kt`): `RechargePack` is now `(id, payInr, creditInr)` — ₹25→₹35, ₹50→₹80, ₹100→₹200; pack cards read "Pay ₹25 → Get ₹35" with a "+₹10 bonus" chip; a new "Bonus slabs" card lists all four slabs (incl. "above ₹100 → double credit") plus the "18% GST included" note. Only the pay amount is sent to `POST /wallet/topup-order` — the bonus is computed and granted server-side on verify. Razorpay description now reads "Wallet Recharge — ₹35 credit". All coin language removed (dead `coinBalance` chain deleted from `WalletRepository`/`WalletViewModel`/`GetWalletBalanceUseCase`; `RechargeCoinsUseCase` renamed `RechargeUseCase`).
+- **Drawer shows the real balance** (`MainActivity.kt`, `NavigationDrawer.kt`): the drawer now reads `walletBalanceInr` and renders the server balance to 2 decimals; paid+bonus separated on the Wallet screen as before.
+- **Bilingual money path**: 102 new `money_*` keys in `FeatureStrings.kt` (EN + हिन्दी) + a `W.tf()` printf-format helper; wired through `AstrologersScreen` (title, search, sort chips, auto-match, consent dialog, list items, empty states), `ChatScreen` (header, FREE TRIAL badge, composer hints, End Chat, all four dialogs), `ConsultationViewModel` (join notices, greetings, nudges, low-balance/insufficient-balance/billing-failure messages — same `W.t`-in-ViewModel pattern as `KundaliViewModel`), `WalletScreen`/`WalletViewModel` (balance card, packs, slabs, GST, all payment messages), the nav drawer, and the dashboard wallet hero. No emojis anywhere.
+- **Exact paise formatting** (`AstrologerModels.kt`): new `formatPaiseRate()` — 500 paise → "₹5/min", 550 paise → "₹5.50/min"; the `rate_label` server value is still preferred (verified live against production).
+
+### Verified correct (no change)
+- Astrologer directory shows the server's `rate_label` per astrologer (live-probed: ₹5/min … ₹100/min, `rate_paise` 500–10000); auto-match prefers online ₹5/min; rate-consent dialog appears when offline or > ₹5/min (website parity).
+- Per-minute billing: server is the source of truth (30s tick); timer pill is display-only; insufficient balance on session start → Add Money dialog + locked input; proactive "about Ns of chat time left" warning at ≤60s coverage; hard close + final bill on balance exhaustion or tick failure; in-chat FREE TRIAL badge is server-driven via `free_seconds_left`.
+- Wallet balance: real server balance with paid vs bonus separated (Wallet screen + Dashboard); transaction history is real server data with an honest empty state; Razorpay flow (order → real checkout sheet → server verify) credits nothing until verified.
+- Gap (honest, not fabricated): the directory shows no first-time "FREE" badge — free-chat eligibility is server-owned and no endpoint exposes it to the client; adding one would be a guess. The in-chat FREE TRIAL badge (from `free_seconds_left`) is correct. Recommendation: expose `free_chat_available` on `GET /astrologers`.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox intercepts Java localhost TCP, breaking the Gradle daemon — same as previous entries). Substitute verification: brace/paren/bracket balance unchanged vs HEAD on all touched files (identical checker signatures); all 95 used `W.t[f]("money_*")` keys resolve in both EN and HI maps (102 keys each, zero missing); no stale references to `RechargeCoinsUseCase`, `coinBalance` (wallet path), `pack.coins/priceInr/bonusCoins/badge` remain; no emojis in the money screens. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) pack cards show the slab prices, (2) the drawer shows the real balance, (3) switching Settings language to हिन्दी re-labels the astrologers + wallet screens, (4) a real (small) recharge still completes end-to-end.
+
 ## [2026-10-10] — Kundali 23-tab depth audit: real-data fixes + full bilingual UI
 
 Audited all 23 Kundali tabs (`KundaliScreen.kt` / `KundaliExtendedTabs.kt`) against the server response shapes in `KundaliModels.kt` — every tab renders real server data (no placeholders, no "coming soon", no emojis; only professional jyotish glyphs ♈☉ etc.). Four tabs were rendering a fraction of available data and are now fixed; all 23 tabs are now bilingual (EN/हिन्दी via `W`/`FeatureStrings`, auto-following the Settings language).

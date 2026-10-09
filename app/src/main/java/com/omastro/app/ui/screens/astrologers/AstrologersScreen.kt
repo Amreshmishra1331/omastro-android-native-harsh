@@ -28,17 +28,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.Astrologer
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.components.GradientButton
 import com.omastro.app.ui.theme.*
 
 /** Directory sort modes. */
-private enum class AstroSort(val label: String) {
-    RECOMMENDED("Recommended"),
-    RATING("Top rated"),
-    PRICE_LOW("Price: low to high"),
-    EXPERIENCE("Most experienced")
+private enum class AstroSort(val key: String) {
+    RECOMMENDED("money_sort_recommended"),
+    RATING("money_sort_rating"),
+    PRICE_LOW("money_sort_price"),
+    EXPERIENCE("money_sort_exp")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +57,7 @@ fun AstrologersScreen(
     val pendingConsent by viewModel.pendingConsent.collectAsState()
     val sessionError by viewModel.sessionError.collectAsState()
     val activeSlug by viewModel.activeSlug.collectAsState()
+    val lang by LangPrefs.language.collectAsState()
 
     // Directory controls: search / sort / online-only filter.
     var searchQuery by remember { mutableStateOf("") }
@@ -82,17 +85,17 @@ fun AstrologersScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Consult Astrologers", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("money_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = SacredGold)
+                            Icon(Icons.Default.Menu, contentDescription = W.t("money_menu"), tint = SacredGold)
                         }
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.loadAstrologers() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = SacredGold)
+                        Icon(Icons.Default.Refresh, contentDescription = W.t("money_refresh"), tint = SacredGold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
@@ -127,7 +130,7 @@ fun AstrologersScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search name, expertise, language", color = StarlightWhite.copy(alpha = 0.4f), fontSize = 13.sp) },
+                        placeholder = { Text(W.t("money_search_hint"), color = StarlightWhite.copy(alpha = 0.4f), fontSize = 13.sp) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SacredGold, modifier = Modifier.size(18.dp)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -145,7 +148,7 @@ fun AstrologersScreen(
                             FilterChip(
                                 selected = sortMode == mode,
                                 onClick = { sortMode = mode },
-                                label = { Text(mode.label, fontSize = 12.sp) },
+                                label = { Text(W.t(mode.key), fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = SacredGold,
                                     selectedLabelColor = CosmicDeepBlue
@@ -156,7 +159,7 @@ fun AstrologersScreen(
                             FilterChip(
                                 selected = onlineOnly,
                                 onClick = { onlineOnly = !onlineOnly },
-                                label = { Text("Online only", fontSize = 12.sp) },
+                                label = { Text(W.t("money_online_only"), fontSize = 12.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = SacredGold,
                                     selectedLabelColor = CosmicDeepBlue
@@ -195,8 +198,8 @@ fun AstrologersScreen(
                 if (visibleAstrologers.isEmpty() && !isLoading) {
                     item {
                         Text(
-                            text = if (astrologers.isEmpty()) "No astrologers available right now. Please try again."
-                            else "No astrologers match your search.",
+                            text = if (astrologers.isEmpty()) W.t("money_empty_none")
+                            else W.t("money_empty_search"),
                             color = StarlightWhite.copy(alpha = 0.6f),
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,
@@ -266,14 +269,14 @@ private fun AutoMatchCard(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (searching) "Finding best astrologers…" else "Chat Now",
+                    text = if (searching) W.t("money_automatch_searching") else W.t("money_automatch_title"),
                     color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
                 Text(
-                    text = if (searching) "Matching you with an available astrologer"
-                    else "Auto-match with an online astrologer (₹5/min)",
+                    text = if (searching) W.t("money_automatch_sub")
+                    else W.t("money_automatch_rate"),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 12.sp
                 )
@@ -304,27 +307,27 @@ private fun RateConsentDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Start chat with ${astro.name}?", fontWeight = FontWeight.Bold)
+            Text(W.tf("money_consent_title", astro.name), fontWeight = FontWeight.Bold)
         },
         text = {
             Column {
                 if (offline) {
                     Text(
-                        "${astro.name} is currently offline. Start the chat with this astrologer anyway?",
+                        W.tf("money_consent_offline", astro.name),
                         fontSize = 14.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 if (expensive) {
                     Text(
-                        "Rate: ${astro.displayRate} (higher than the expected ₹5/min).",
+                        W.tf("money_consent_rate_high", astro.displayRate),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = SacredSaffron
                     )
                 } else {
                     Text(
-                        "Rate: ${astro.displayRate}.",
+                        W.tf("money_consent_rate", astro.displayRate),
                         fontSize = 14.sp
                     )
                 }
@@ -332,12 +335,12 @@ private fun RateConsentDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Yes, start", color = SacredGold, fontWeight = FontWeight.Bold)
+                Text(W.t("money_yes_start"), color = SacredGold, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = StarlightWhite.copy(alpha = 0.7f))
+                Text(W.t("money_cancel"), color = StarlightWhite.copy(alpha = 0.7f))
             }
         },
         containerColor = CosmicNavy,
@@ -375,7 +378,7 @@ private fun AstrologerListItem(
                             .background(CosmicNavy),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Person, contentDescription = "Astrologer", tint = SacredGold, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Filled.Person, contentDescription = astro.name, tint = SacredGold, modifier = Modifier.size(28.dp))
                     }
                 }
                 Box(
@@ -407,7 +410,7 @@ private fun AstrologerListItem(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${astro.experience} yrs exp • ${astro.languages.joinToString(", ")}",
+                    text = "${W.tf("money_yrs_exp", astro.experience)} • ${astro.languages.joinToString(", ")}",
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 11.sp
                 )
@@ -421,7 +424,7 @@ private fun AstrologerListItem(
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = "${astro.rating} (${astro.reviews} reviews)",
+                        text = W.tf("money_reviews", "%.1f".format(astro.rating), astro.reviews),
                         color = SacredGold,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -446,7 +449,7 @@ private fun AstrologerListItem(
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "Chat",
+                        text = W.t("money_chat"),
                         color = CosmicDeepBlue,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
