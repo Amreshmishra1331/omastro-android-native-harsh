@@ -180,19 +180,19 @@ fun PalmistryScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        W.t("palm_title"),
-                        color = StarlightWhite,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                },
-                subtitle = {
-                    Text(
-                        W.t("palm_sub"),
-                        color = StarlightWhite.copy(alpha = 0.55f),
-                        fontSize = 12.sp
-                    )
+                    Column {
+                        Text(
+                            W.t("palm_title"),
+                            color = StarlightWhite,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            W.t("palm_sub"),
+                            color = StarlightWhite.copy(alpha = 0.55f),
+                            fontSize = 12.sp
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

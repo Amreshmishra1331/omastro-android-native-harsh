@@ -1,6 +1,7 @@
 package com.omastro.app.data.repository
 
 import com.google.gson.Gson
+import com.omastro.app.data.model.FaceReading
 import com.omastro.app.data.model.PalmistryReading
 import com.omastro.app.data.model.VastuAnalysis
 import com.omastro.app.data.model.VastuAnalyzeRequest

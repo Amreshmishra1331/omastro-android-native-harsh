@@ -176,19 +176,19 @@ fun FaceReadingScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        W.t("face_title"),
-                        color = StarlightWhite,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                },
-                subtitle = {
-                    Text(
-                        W.t("face_sub"),
-                        color = StarlightWhite.copy(alpha = 0.55f),
-                        fontSize = 12.sp
-                    )
+                    Column {
+                        Text(
+                            W.t("face_title"),
+                            color = StarlightWhite,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            W.t("face_sub"),
+                            color = StarlightWhite.copy(alpha = 0.55f),
+                            fontSize = 12.sp
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {

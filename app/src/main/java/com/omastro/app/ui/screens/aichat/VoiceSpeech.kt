@@ -151,8 +151,8 @@ object VoiceModeManager {
     private var tts: TextToSpeech? = null
     private var ready = false
     private var pendingLanguage = "en"
-    var isSpeaking = mutableStateOf(false)
-        private set
+    private val _isSpeaking = mutableStateOf(false)
+    val isSpeaking: androidx.compose.runtime.State<Boolean> = _isSpeaking
 
     fun init(context: Context) {
         if (tts != null) return
@@ -162,17 +162,17 @@ object VoiceModeManager {
         }.apply {
             setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {
-                    isSpeaking.value = true
+                    _isSpeaking.value = true
                 }
                 override fun onDone(utteranceId: String?) {
-                    isSpeaking.value = false
+                    _isSpeaking.value = false
                 }
                 @Deprecated("Deprecated in Java")
                 override fun onError(utteranceId: String?) {
-                    isSpeaking.value = false
+                    _isSpeaking.value = false
                 }
                 override fun onError(utteranceId: String?, errorCode: Int) {
-                    isSpeaking.value = false
+                    _isSpeaking.value = false
                 }
             })
         }
@@ -206,7 +206,7 @@ object VoiceModeManager {
 
     fun stop() {
         tts?.stop()
-        isSpeaking.value = false
+        _isSpeaking.value = false
     }
 
     fun shutdown() {
@@ -217,7 +217,7 @@ object VoiceModeManager {
         }
         tts = null
         ready = false
-        isSpeaking.value = false
+        _isSpeaking.value = false
     }
 
     /** Removes markdown so TTS reads natural prose. */
