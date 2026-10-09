@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,6 +46,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -371,11 +374,13 @@ private fun VastuManualForm(
     var septic by remember { mutableStateOf("") }
     var staircase by remember { mutableStateOf("") }
     var rooms by remember { mutableStateOf(listOf(VastuRoomEntry())) }
+    var showCompass by remember { mutableStateOf(false) }
 
     val padaInfo = padaText.toIntOrNull()?.let { n ->
         padaReference.find { it.pada == n }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -389,6 +394,26 @@ private fun VastuManualForm(
                 value = facing,
                 onChange = { facing = it }
             )
+            Spacer(modifier = Modifier.height(10.dp))
+            // Live compass: point the phone at the entrance to detect direction.
+            OutlinedButton(
+                onClick = { showCompass = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = SacredGold),
+                border = BorderStroke(1.dp, SacredGold.copy(alpha = 0.6f))
+            ) {
+                Icon(
+                    Icons.Default.Explore,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    W.t("vastu_compass_open"),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+            }
             Spacer(modifier = Modifier.height(10.dp))
             OutlinedTextField(
                 value = padaText,
@@ -527,6 +552,18 @@ private fun VastuManualForm(
             Text(W.t("vastu_analyze"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
         }
         Spacer(modifier = Modifier.height(24.dp))
+    } // end form Column
+
+        // Compass Mode overlay — full-screen live compass + camera.
+        if (showCompass) {
+            CompassModeScreen(
+                onUseDirection = { dir ->
+                    facing = dir
+                    showCompass = false
+                },
+                onBack = { showCompass = false }
+            )
+        }
     }
 }
 

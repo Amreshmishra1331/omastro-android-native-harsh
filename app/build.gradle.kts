@@ -165,6 +165,13 @@ dependencies {
     // Encrypted shared preferences for secure token storage
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
+    // CameraX — Vastu Compass Mode (live camera preview behind the compass)
+    val cameraxVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

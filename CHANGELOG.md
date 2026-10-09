@@ -4,6 +4,27 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Vastu Compass Mode (live compass + camera)
+
+### Added
+1. **Compass Mode in the Vastu screen** (`ui/screens/vastu/CompassModeScreen.kt`, `CompassSensor.kt`):
+   - **Before**: facing direction could only be picked from a dropdown — users had to guess their entrance direction.
+   - **After**: "Find direction with compass" button in the Facing & Entrance card opens a full-screen live compass: real-time heading from the device magnetometer + accelerometer (tilt-compensated via `SensorManager.getRotationMatrix`/`getOrientation`), rotating compass dial (Canvas: tick marks, N/NE/E/SE/S/SW/W/NW ring, fixed gold marker at top), live degrees readout + localized 8-sector direction label.
+   - **CameraX live preview** behind the dial — point the top of the phone at the main entrance and see the direction in real time. Bound once via `ProcessCameraProvider`, unbound on dispose; if the camera is busy the compass still works (preview stays dark, no crash).
+   - **"Use this direction"** captures the live direction code and auto-fills the form's facing-direction field.
+   - **Permissions**: CAMERA via the existing `rememberPermissionRequest` rationale/denial dialogs; sensor access needs no runtime permission.
+   - **Honest states**: devices without magnetometer/accelerometer get a clear "Compass not available" screen (never fake headings); low-accuracy readings show a figure-8 calibration hint.
+   - Fully bilingual (EN/हिन्दी), auto-switches with Settings language — 10 new keys in `FeatureStrings.kt` (`vastu_compass_*`).
+
+### Changed
+- `app/build.gradle.kts`: added CameraX 1.3.4 (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-view`).
+- `VastuScreen.kt`: compass entry button in the facing card; full-screen `CompassModeScreen` overlay wired to the `facing` form state.
+
+### Removed
+- Nothing.
+
+---
+
 ## [2026-10-10] — World-class differentiators: voice, photo AI, palmistry, Vastu
 
 NEW features beyond the website (backend: `POST /vastu/*`, `POST /ai/vision`, `POST /palmistry/analyze` — live on production, documented in `workspace/vastu-vision-api.md`).
