@@ -67,7 +67,7 @@ fun KundaliScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Janam Kundali", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = { Text("Janam Kundali", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
@@ -130,7 +130,7 @@ fun KundaliScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = error ?: "Something went wrong.",
-                            color = Color.White,
+                            color = StarlightWhite,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center
                         )
@@ -257,7 +257,7 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
     ) {
         Text(
             text = "Janam Kundali",
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
@@ -286,7 +286,7 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
                     ) {
                         Text(
                             text = label,
-                            color = if (selected) CosmicDeepBlue else Color.White,
+                            color = if (selected) CosmicDeepBlue else StarlightWhite,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 13.sp,
                             textAlign = TextAlign.Center,
@@ -507,7 +507,7 @@ private fun SubjectHeader(kundali: KundaliResponse?, subjectName: String) {
     CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (subjectName.isNotBlank()) {
-                Text(subjectName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(subjectName, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
             Text(
                 text = "Lagna: ${lagna.rashi.ifBlank { meta.lagnaEn }}${if (lagna.rashiHi.isNotBlank()) " (${lagna.rashiHi})" else ""}  ${lagna.deg}°${lagna.min}'",
@@ -517,12 +517,12 @@ private fun SubjectHeader(kundali: KundaliResponse?, subjectName: String) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 if (meta.nakshatra.isNotBlank()) {
-                    Text("✦ ${meta.nakshatra}", color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                    Text("✦ ${meta.nakshatra}", color = StarlightWhite, fontSize = 12.sp, modifier = Modifier.weight(1f))
                 }
                 if (meta.moonSignEn.isNotBlank()) {
                     Text(
                         "☽ ${meta.moonSignEn}${if (meta.moonSignHi.isNotBlank()) " (${meta.moonSignHi})" else ""}",
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontSize = 12.sp,
                         modifier = Modifier.weight(1f)
                     )
@@ -566,7 +566,7 @@ internal fun LazyListScope.chartsTab(
                 ) {
                     Text(
                         if (style == "North Indian") "North Indian Diamond" else "South Indian Grid",
-                        color = if (selected) CosmicDeepBlue else Color.White,
+                        color = if (selected) CosmicDeepBlue else StarlightWhite,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -587,7 +587,7 @@ internal fun LazyListScope.chartsTab(
                 ) {
                     Text(
                         text = label,
-                        color = if (isSelected) CosmicDeepBlue else Color.White,
+                        color = if (isSelected) CosmicDeepBlue else StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -635,7 +635,7 @@ internal fun LazyListScope.chartsTab(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     "House ${h.number} · ${h.rashi}${if (h.rashiHi.isNotBlank()) " (${h.rashiHi})" else ""}",
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp
                                 )
@@ -815,7 +815,7 @@ private fun DashaChainRow(level: String, planet: String, dates: String, duration
             Text(level, color = TextSecondary, fontSize = 10.sp)
             Text(
                 "${planetGlyph(planet)} $planet",
-                color = Color.White,
+                color = StarlightWhite,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
@@ -862,7 +862,7 @@ private fun ExpandableDashaNode(
     Column {
         CosmicCard(
             modifier = Modifier.fillMaxWidth(),
-            borderColor = if (isCurrent) SacredGold else Color.White.copy(alpha = 0.08f)
+            borderColor = if (isCurrent) SacredGold else StarlightWhite.copy(alpha = 0.08f)
         ) {
             Column {
                 Row(
@@ -884,7 +884,7 @@ private fun ExpandableDashaNode(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     node.planet,
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
@@ -978,7 +978,7 @@ private fun LazyListScope.yogasTab(kundali: KundaliResponse?) {
                         )
                     }
                 }
-                Text(yoga.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp)
+                Text(yoga.name, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp)
                 yoga.description.split("|").forEach { part ->
                     val p = part.trim()
                     if (p.isNotEmpty()) {
@@ -1042,7 +1042,7 @@ private fun LazyListScope.doshasTab(kundali: KundaliResponse?) {
                 ) {
                     Text(
                         dosha.name,
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         modifier = Modifier.weight(1f),
@@ -1153,7 +1153,7 @@ private fun LazyListScope.ashtakavargaTab(kundali: KundaliResponse?) {
                 Column {
                     Text(
                         "House ${row.house} · ${row.rashi}",
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
@@ -1171,7 +1171,7 @@ private fun LazyListScope.ashtakavargaTab(kundali: KundaliResponse?) {
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Text(text, color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
 }
 
 @Composable

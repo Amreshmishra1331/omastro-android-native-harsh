@@ -31,7 +31,9 @@ import androidx.navigation.NavController
 import com.omastro.app.data.model.SavedChatSession
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.data.remote.SavedChart
+import com.omastro.app.di.AppContainer
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.navigation.PendingChartHolder
 import com.omastro.app.ui.navigation.Screen
 import com.omastro.app.ui.theme.*
 import java.text.SimpleDateFormat
@@ -82,6 +84,13 @@ fun DashboardScreen(
     val isPro = profile?.plan?.isPro == true
     val isMax = profile?.plan?.isMax == true
     val planName = profile?.plan?.name ?: "Free"
+
+    // Notification bell badge (website parity). Refreshed with the dashboard.
+    val notificationRepo = AppContainer.notificationRepository
+    val unreadCount by notificationRepo.unreadCount.collectAsState()
+    LaunchedEffect(Unit) {
+        try { notificationRepo.refresh() } catch (e: Exception) { /* badge stays hidden */ }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -137,7 +146,7 @@ fun DashboardScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = displayName,
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -176,6 +185,36 @@ fun DashboardScreen(
                         )
                     }
                 }
+                Spacer(modifier = Modifier.width(4.dp))
+                // Notification bell with unread badge (website parity).
+                Box {
+                    IconButton(onClick = { navController.navigate(Screen.Notifications.route) }) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notifications",
+                            tint = SacredGold,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    if (unreadCount > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 2.dp, y = 2.dp)
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE53935)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (unreadCount > 99) "99+" else "$unreadCount",
+                                color = StarlightWhite,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -209,6 +248,11 @@ fun DashboardScreen(
                         isLoading = isLoading,
                         onTabSelect = { selectedTab = it },
                         onKundaliClick = { chartId ->
+                            // Load the tapped chart into the holder so KundaliScreen
+                            // opens that chart instead of a blank form.
+                            savedCharts.find { it.id == chartId }?.let {
+                                PendingChartHolder.set(it)
+                            }
                             navController.navigate(Screen.Kundali.route)
                         },
                         onAddMoney = {
@@ -229,7 +273,12 @@ fun DashboardScreen(
                         onDeleteChat = { viewModel.deleteAiChat(it) },
                         onClearAllChats = { viewModel.clearAllAiChats() },
                         onDeleteChart = { viewModel.deleteSavedChart(it) },
-                        onKundaliClick = { navController.navigate(Screen.Kundali.route) },
+                        onKundaliClick = { chartId ->
+                            savedCharts.find { it.id == chartId }?.let {
+                                PendingChartHolder.set(it)
+                            }
+                            navController.navigate(Screen.Kundali.route)
+                        },
                         onChatClick = { navController.navigate(Screen.AiChat.route) },
                         onAddMoney = { navController.navigate(Screen.Wallet.route) }
                     )
@@ -372,7 +421,7 @@ private fun HomeTabContent(
                 Column {
                     Text(
                         text = "MY WALLET",
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = StarlightWhite.copy(alpha = 0.85f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
@@ -380,14 +429,14 @@ private fun HomeTabContent(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "₹${String.format("%.2f", totalInr)}",
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Black
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Paid: ₹${String.format("%.2f", paidInr)} · Bonus: ₹${String.format("%.2f", bonusInr)}",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = StarlightWhite.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
                 }
@@ -403,7 +452,7 @@ private fun HomeTabContent(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Wallet",
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -462,7 +511,7 @@ private fun HomeTabContent(
         // Recent Kundalis
         Text(
             text = "Recent Kundalis",
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold
         )
@@ -508,7 +557,7 @@ private fun QuickActionButton(
     ) {
         Text(
             text = title,
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
@@ -534,7 +583,7 @@ private fun SavedChartRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = chart.name.ifBlank { "Kundali" },
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -568,7 +617,7 @@ private fun ActivityTabContent(
     onDeleteChat: (String) -> Unit,
     onClearAllChats: () -> Unit,
     onDeleteChart: (String) -> Unit,
-    onKundaliClick: () -> Unit,
+    onKundaliClick: (String) -> Unit,
     onChatClick: () -> Unit,
     onAddMoney: () -> Unit
 ) {
@@ -628,7 +677,7 @@ private fun ActivityTabContent(
                         ) {
                             SavedChartRow(
                                 chart = chart,
-                                onClick = onKundaliClick
+                                onClick = { onKundaliClick(chart.id) }
                             )
                         }
                     }
@@ -671,7 +720,7 @@ private fun ActivityTabContent(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = chat.displayTitle,
-                                        color = Color.White,
+                                        color = StarlightWhite,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
@@ -727,13 +776,13 @@ private fun ActivityTabContent(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "Total Balance",
-                                    color = Color.White.copy(alpha = 0.85f),
+                                    color = StarlightWhite.copy(alpha = 0.85f),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = "₹${String.format("%.2f", totalInr)}",
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Black
                                 )
@@ -741,10 +790,10 @@ private fun ActivityTabContent(
                             Button(
                                 onClick = onAddMoney,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White.copy(alpha = 0.2f)
+                                    containerColor = StarlightWhite.copy(alpha = 0.2f)
                                 )
                             ) {
-                                Text("Add Money", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Add Money", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -857,7 +906,7 @@ private fun TransactionRow(transaction: WalletTransaction) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = transaction.description.ifBlank { transaction.type },
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -937,7 +986,7 @@ private fun ProfileField(label: String, value: String) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -968,7 +1017,7 @@ private fun PasswordTabContent(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = currentEmail.ifBlank { "—" },
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontSize = 14.sp
                 )
             }
@@ -982,8 +1031,8 @@ private fun PasswordTabContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                focusedTextColor = StarlightWhite,
+                unfocusedTextColor = StarlightWhite,
                 focusedBorderColor = SacredGold,
                 unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f)
             )
@@ -997,8 +1046,8 @@ private fun PasswordTabContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                focusedTextColor = StarlightWhite,
+                unfocusedTextColor = StarlightWhite,
                 focusedBorderColor = SacredGold,
                 unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f)
             )
@@ -1012,19 +1061,31 @@ private fun PasswordTabContent(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                focusedTextColor = StarlightWhite,
+                unfocusedTextColor = StarlightWhite,
                 focusedBorderColor = SacredGold,
                 unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f)
             )
         )
 
+        // No REST endpoint exists for in-app password change (probed 2026-10-09:
+        // /wp-json/omastro/v1 has forgot-password / reset-password-otp / set-password
+        // but no change-password route). Honest flow: send a reset link instead.
+        Text(
+            text = "Password change is handled via a secure reset link sent to your email.",
+            color = StarlightWhite.copy(alpha = 0.6f),
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+
         Button(
-            onClick = { /* Password change via website - no REST endpoint */ },
+            onClick = { navController.navigate(Screen.Auth.FORGOT_ROUTE) },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
         ) {
-            Text("Change Password", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("Send Password Reset Link", color = StarlightWhite, fontWeight = FontWeight.Bold)
         }
 
         Text(
@@ -1034,7 +1095,7 @@ private fun PasswordTabContent(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { navController.navigate(Screen.Auth.route) }
+                .clickable { navController.navigate(Screen.Auth.FORGOT_ROUTE) }
         )
     }
 }
@@ -1067,7 +1128,7 @@ private fun PlanTabContent(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = planName,
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1123,7 +1184,7 @@ private fun BillingTabContent(
                 ) {
                     Text(
                         text = "MY WALLET",
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = StarlightWhite.copy(alpha = 0.9f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
@@ -1131,29 +1192,29 @@ private fun BillingTabContent(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "₹${String.format("%.2f", totalInr)}",
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Black
                     )
                     Text(
                         text = "Total Balance",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = StarlightWhite.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Paid: ₹${String.format("%.2f", paidInr)} · Bonus: ₹${String.format("%.2f", bonusInr)}",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = StarlightWhite.copy(alpha = 0.8f),
                         fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onAddMoney,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White.copy(alpha = 0.2f)
+                            containerColor = StarlightWhite.copy(alpha = 0.2f)
                         )
                     ) {
-                        Text("Add Money", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Add Money", color = StarlightWhite, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1162,7 +1223,7 @@ private fun BillingTabContent(
         // Transaction history
         Text(
             text = "Transaction History",
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1210,15 +1271,26 @@ private fun AccountTabContent(
                     fontSize = 13.sp,
                     lineHeight = 20.sp
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                // No DELETE /me endpoint exists on the server (probed 2026-10-09),
+                // so no delete button is shown — a fake button would be dishonest.
+                // Account deletion is handled via the website support channel.
+                Text(
+                    text = "To delete your account, please contact support via the website. In-app deletion will appear here once the server supports it.",
+                    color = StarlightWhite.copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
             }
         }
 
-        // Logout
+        // Logout — must clear the session token first, otherwise the user
+        // stays silently logged in and a cold start lands back on home.
         CosmicCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
-                    // Navigate to auth (logout handled by AuthRepository)
+                    AppContainer.authRepository.logout()
                     navController.navigate(Screen.Auth.route) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -1237,7 +1309,7 @@ private fun AccountTabContent(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Logout",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -1263,7 +1335,7 @@ private fun AccountTabContent(
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Settings",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )

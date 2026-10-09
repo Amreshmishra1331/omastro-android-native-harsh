@@ -58,7 +58,7 @@ fun GocharScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gochar (Planetary Transits)", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Gochar (Planetary Transits)", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -90,7 +90,7 @@ fun GocharScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "Transit Analysis Unavailable",
-                            color = Color.White,
+                            color = StarlightWhite,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -136,7 +136,7 @@ fun GocharScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = "Analyze planetary transits for any date",
-                                        color = Color.White,
+                                        color = StarlightWhite,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -284,7 +284,7 @@ fun GocharScreen(
                             Column {
                                 Text(
                                     "Gochar Analysis",
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -511,7 +511,7 @@ private fun GocharInputField(
         modifier = modifier.fillMaxWidth(),
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
+            focusedTextColor = StarlightWhite,
             unfocusedTextColor = StarlightWhite,
             focusedBorderColor = SacredGold,
             unfocusedBorderColor = CosmicBorder,

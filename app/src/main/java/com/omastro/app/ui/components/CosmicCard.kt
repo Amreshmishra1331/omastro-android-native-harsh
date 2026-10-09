@@ -50,7 +50,9 @@ fun CosmicCard(
 @Composable
 fun AstrologyHeader(
     title: String,
-    coinBalance: Int = 500,
+    // Nullable: when null, no balance badge is rendered. Never fall back to a
+    // hardcoded number — a fake balance is worse than no badge.
+    coinBalance: Int? = null,
     onWalletClick: () -> Unit = {}
 ) {
     Row(
@@ -84,7 +86,8 @@ fun AstrologyHeader(
             )
         }
 
-        // Coin Badge
+        // Coin Badge — only when a real balance is supplied.
+        if (coinBalance != null) {
         Surface(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
@@ -110,6 +113,7 @@ fun AstrologyHeader(
                     fontSize = 13.sp
                 )
             }
+        }
         }
     }
 }

@@ -71,12 +71,13 @@ class AstroHealthViewModel : ViewModel() {
 
         viewModelScope.launch {
             _uiState.value = AstroHealthUiState.Loading
-            val tobParts = tob.split(":")
+            // AM/PM-safe conversion via the shared helper.
+            val (tobHr24, tobMn24) = com.omastro.app.ui.components.parseTimeTo24(tob) ?: (0 to 0)
             val request = com.omastro.app.data.model.KundaliRequest(
                 name = name,
                 dob = dob,
-                tobHr = tobParts.getOrNull(0)?.toIntOrNull() ?: 0,
-                tobMn = tobParts.getOrNull(1)?.toIntOrNull() ?: 0,
+                tobHr = tobHr24,
+                tobMn = tobMn24,
                 tob = tob,
                 pob = place,
                 lat = lat,

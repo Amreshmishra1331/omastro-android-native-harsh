@@ -4,6 +4,42 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — A-to-Z audit fixes (all 17 confirmed issues + missing features)
+
+### Fixed confirmed issues
+1. **Dashboard logout didn't clear the token** (`DashboardScreen.kt`): the Account-tab Logout only navigated to `auth`; the token stayed in encrypted storage so a cold start landed back on home. Now calls `AppContainer.authRepository.logout()` before navigating.
+2. **Recent Kundalis opened a blank screen** (`DashboardScreen.kt`): taps ignored the chart id. Now looks the chart up and loads it via `PendingChartHolder` (Home + Activity tabs).
+3. **Change Password was a no-op; "Forgot password?" went to login mode**: probed `/wp-json/omastro/v1` — no change-password route exists. Replaced the dead button with honest copy + "Send Password Reset Link" (real `POST auth/forgot-password` flow). Added `auth/forgot` route (`Screen.Auth.FORGOT_ROUTE`, `AuthScreen(initialMode=...)`) so the link opens forgot mode directly.
+4. **Kundali `tob_hr`/`tob_mn` dropped AM/PM** (`KundaliViewModel.kt`, `AstroHealthViewModel.kt`): "08:30 PM" sent hr=8. Now both use the shared `parseTimeTo24` helper (20:30).
+5. **Numerology Mobile tool hardcoded Moolank 1**: `needsDob()` excluded MOBILE_NUM and fell back to `Triple(1,1,2000)`. Now every tool collects DOB; the verdict compares against the user's real Moolank.
+6. **Numerology client-side claims**: `POST /numerology` verified on server (rich: coreNumbers, personalYear/Month/Day, loshuGrid, luckyNumbers/Days/Colors, karmaNumbers, challenges). Tools now prefer server values with local fallback: Lo Shu (server loshuGrid), Time Cycles (server personalYear/Month/Day), Lucky Calendar (server luckyNumbers/Days/Colors), Karmic (server karmaNumbers + challenges), Moolank (server coreNumbers as extra section). Removed the unverified "matching the website engine" comment.
+7. **Matchmaking fake defaults** (`MatchmakingModels.kt`, `MatchmakingScreen.kt`): defaults were 28.5/79%/"Highly Auspicious Match" — plausible fakes if the server omitted keys. Replaced with sentinels (-1/blank) + `hasRealData` guard; incomplete responses now show an honest error state, never a fake verdict.
+8. **Release keystore password in plaintext gradle**: `app/build.gradle.kts` now reads `OMASTRO_KEYSTORE_PASSWORD` env (CI secret) with the existing value as local fallback.
+9. **Duplicate `POST kundali/bnn` Retrofit declarations**: removed the uncalled Map-based `getBnnAnalysis`; single typed `getBnnReport` remains.
+10. **Notification taps did nothing**: `notification_type` extra is now consumed — `MainActivity.routeForNotificationType()` maps ai_chat/chat→AI Chat, astrologer→Astrologers, panchang→Panchang, horoscope→Rashifal, both on cold start and via `onNewIntent` while alive.
+11. **`AstrologyHeader` hardcoded `coinBalance = 500`**: parameter is now nullable; the badge renders only with a real balance, never a fake number.
+12. **Astrologers directory had no search/sort/filter/refresh**: added search field (name/expertise/language), sort chips (Recommended/Top rated/Price/Most experienced), Online-only filter, and a refresh action. Empty states distinguish "no astrologers" from "no matches".
+13. **Wallet had no refresh**: added refresh action in the top bar (balance + transactions).
+14. **No proactive low-balance warning in astrologer chat**: tick handler now warns once via system message when `wallet_covers_sec` ≤ 60s, before the hard close.
+15. **Deleted dead `HomeViewModel.kt`** (unreferenced). `POST /numerology` is now wired (no longer dead).
+16. **Danger Zone advertised deletion with no action**: no `DELETE /me` route exists (probed). Replaced with honest copy directing to website support; no fake button.
+17. **AI chat language hardcoded "en"**: added per-mode EN/हिन्दी selector pill row; `language` is sent with every message and saved with sessions.
+
+### Added missing features (PDF rows where Android = MISSING)
+- **Notification center** (website parity): `GET /notifications`, `POST /notifications/mark-read`, `POST /notifications/clear` in Retrofit; `NotificationModels.kt` + `NotificationRepository.kt` (unread badge state); `NotificationsScreen.kt` (list with read/unread styling, mark-read on tap, mark-all-read, clear-all with confirm); bell icon with red unread badge in the Dashboard header; `Screen.Notifications` route.
+- **Dark/Light mode**: `applyAppPalette(dark)` in `Color.kt` (tokens are now palette-driven `var`s), `OmAstroTheme(darkTheme=...)`, `ThemePrefs` (persisted), `key(isDarkTheme)` recomposition in `MainActivity`, working toggle in Settings ("Dark — Cosmic Night" / "Light — Temple Gold"). 217 hardcoded `Color.White` usages migrated to palette-following `StarlightWhite`.
+- **Hindi (honest partial scope)**: `LangPrefs` ("en"/"hi", persisted); real Hindi strings for bottom nav + drawer menus; working radio buttons in the Language dialog labeled "Menus & navigation only (partial)". AI chat reply language (EN/HI) is server-side and already real.
+- **AI Chat History in drawer**: was "Coming soon" — now navigates to `ai_chat/history` which opens AI Chat with the real saved-sessions dialog open.
+- **Report a Bug**: was "Coming soon" — now opens an email composer to support@omastroai.com with app version prefilled (drawer + Settings).
+- **Refer & Earn**: probed server — no referral endpoint exists; kept as honest "Coming soon" (no fake implementation).
+
+### Removed
+- Dead `HomeViewModel.kt` and the empty `ui/screens/home/` package.
+- Uncalled `getBnnAnalysis` (Map) Retrofit method + repository wrapper.
+- Fake `coinBalance = 500` default; fake Change-Password button; fake Danger-Zone delete button.
+
+---
+
 ## [2026-10-09] — Dashboard website parity rebuild (/dashboard/)
 
 ### Broken / missing

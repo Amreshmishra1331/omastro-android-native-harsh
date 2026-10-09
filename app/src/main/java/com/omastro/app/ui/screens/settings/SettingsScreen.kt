@@ -61,7 +61,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings & Profile", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Settings & Profile", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
@@ -95,7 +95,7 @@ fun SettingsScreen(
                         Column {
                             Text(
                                 text = user?.name?.takeIf { it.isNotBlank() } ?: "Vedic Seeker",
-                                color = Color.White,
+                                color = StarlightWhite,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -154,7 +154,7 @@ fun SettingsScreen(
 
             // ============ MY ASTROLOGY ============
             item {
-                Text("My Astrology", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("My Astrology", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -185,7 +185,7 @@ fun SettingsScreen(
 
             // ============ REWARDS ============
             item {
-                Text("Rewards", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Rewards", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -203,7 +203,7 @@ fun SettingsScreen(
 
             // ============ PREFERENCES ============
             item {
-                Text("Preferences", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Preferences", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -214,14 +214,47 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.Language,
                         title = "App Language",
-                        subtitle = "English · हिन्दी coming soon"
+                        subtitle = "English · हिन्दी (partial)"
                     )
+                }
+            }
+            item {
+                val isDarkTheme by com.omastro.app.data.local.ThemePrefs.isDarkTheme.collectAsState()
+                CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isDarkTheme) Icons.Default.DarkMode else Icons.Default.LightMode,
+                            contentDescription = null,
+                            tint = SacredGold,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Appearance", color = StarlightWhite, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                if (isDarkTheme) "Dark — Cosmic Night" else "Light — Temple Gold",
+                                color = StarlightWhite.copy(alpha = 0.6f),
+                                fontSize = 12.sp
+                            )
+                        }
+                        Switch(
+                            checked = isDarkTheme,
+                            onCheckedChange = { com.omastro.app.data.local.ThemePrefs.setDarkTheme(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = SacredGold,
+                                checkedTrackColor = SacredGold.copy(alpha = 0.4f)
+                            )
+                        )
+                    }
                 }
             }
 
             // ============ SUPPORT & FEEDBACK ============
             item {
-                Text("Support & Feedback", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Support & Feedback", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -240,12 +273,22 @@ fun SettingsScreen(
                 CosmicCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { drawerDialog = DrawerDialog.ComingSoon("Report a Bug") }
+                        .clickable {
+                            val bugIntent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                                data = android.net.Uri.parse("mailto:support@omastroai.com")
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, "OmAstro App Bug Report")
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    "Describe the issue:\n"
+                                )
+                            }
+                            try { context.startActivity(bugIntent) } catch (e: Exception) { /* no email app */ }
+                        }
                 ) {
                     SettingsRow(
                         icon = Icons.Default.BugReport,
                         title = "Report a Bug",
-                        subtitle = "Help us improve the app"
+                        subtitle = "Email support"
                     )
                 }
             }
@@ -276,7 +319,7 @@ fun SettingsScreen(
 
             // ============ ABOUT ============
             item {
-                Text("About", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("About", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -307,7 +350,7 @@ fun SettingsScreen(
             title = {
                 Text(
                     "Privacy & Disclaimers",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -327,7 +370,7 @@ fun SettingsScreen(
                 }
             },
             containerColor = CosmicNavy,
-            titleContentColor = Color.White
+            titleContentColor = StarlightWhite
         )
     }
 
@@ -353,7 +396,7 @@ private fun SettingsRow(
             Icon(icon, contentDescription = null, tint = SacredGold, modifier = Modifier.size(22.dp))
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(title, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                Text(title, color = StarlightWhite, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                 subtitle?.let {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(it, color = StarlightWhite.copy(alpha = 0.55f), fontSize = 12.sp)

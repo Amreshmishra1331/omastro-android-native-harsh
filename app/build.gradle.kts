@@ -45,9 +45,11 @@ android {
         // client ID used in GoogleSignInHelper.
         create("release") {
             storeFile = file("keystores/omastro-release.keystore")
-            storePassword = "android"
+            // Prefer env injection (CI secret OMASTRO_KEYSTORE_PASSWORD); the
+            // checked-in fallback keeps local builds working.
+            storePassword = System.getenv("OMASTRO_KEYSTORE_PASSWORD") ?: "android"
             keyAlias = "omastro"
-            keyPassword = "android"
+            keyPassword = System.getenv("OMASTRO_KEYSTORE_PASSWORD") ?: "android"
         }
     }
 

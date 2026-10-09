@@ -67,7 +67,7 @@ fun SavedSessionsDialog(
             ) {
                 Text(
                     "Saved Chats",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
@@ -168,7 +168,7 @@ private fun SavedSessionRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 session.displayTitle,
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,

@@ -249,9 +249,10 @@ class KundaliViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-            val parts = tob.split(":")
-            val hr = parts.getOrNull(0)?.toIntOrNull() ?: 8
-            val mn = parts.getOrNull(1)?.toIntOrNull() ?: 30
+            // Parse "HH:MM" (24h) or "HH:MM AM/PM" (12h). AM/PM must convert to
+            // 24h: "08:30 PM" -> hr=20 (previously AM/PM was silently dropped).
+            // Shared helper keeps every screen's conversion identical.
+            val (hr, mn) = com.omastro.app.ui.components.parseTimeTo24(tob) ?: (8 to 30)
             val req = KundaliRequest(
                 name = name,
                 dob = dob,

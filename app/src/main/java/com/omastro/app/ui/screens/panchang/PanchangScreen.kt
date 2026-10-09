@@ -66,7 +66,7 @@ fun PanchangScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Panchang", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Panchang", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -181,7 +181,7 @@ private fun PanchangBanner() {
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = "Tithi · Vara · Nakshatra · Yoga · Karana",
-            color = Color.White.copy(alpha = 0.85f),
+            color = StarlightWhite.copy(alpha = 0.85f),
             fontSize = 13.sp
         )
     }
@@ -225,7 +225,7 @@ private fun ControlsCard(
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = dateLabel,
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f)
@@ -425,7 +425,7 @@ private fun DetailRow(label: String, value: String) {
         )
         Text(
             text = value,
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.End,
@@ -542,7 +542,7 @@ private fun HoraRow(hour: HoraHour, isCurrent: Boolean) {
         )
         Text(
             text = "${hour.start ?: "—"} – ${hour.end ?: "—"}",
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 13.sp
         )
         if (isCurrent) {
@@ -612,7 +612,7 @@ private fun PanchangErrorCard(message: String?, onRetry: () -> Unit) {
         ) {
             Text(
                 text = "Panchang Unavailable",
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )

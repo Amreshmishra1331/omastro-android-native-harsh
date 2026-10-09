@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -14,12 +15,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.ui.theme.*
 
 @Composable
 fun BottomNavBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val lang by LangPrefs.language.collectAsState()
 
     NavigationBar(
         modifier = Modifier
@@ -55,7 +58,7 @@ fun BottomNavBar(navController: NavController) {
                 },
                 label = {
                     Text(
-                        text = screen.title,
+                        text = LangPrefs.label(screen.title),
                         fontSize = 11.sp,
                         color = if (isSelected) SacredGold else TextSecondary
                     )

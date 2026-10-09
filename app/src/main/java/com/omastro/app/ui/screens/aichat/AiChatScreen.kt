@@ -114,7 +114,8 @@ fun AiChatScreen(
     onBack: () -> Unit,
     onMenuClick: (() -> Unit)? = null,
     viewModel: AiChatViewModel = viewModel(),
-    lockedMode: AiChatMode? = null
+    lockedMode: AiChatMode? = null,
+    openHistoryOnStart: Boolean = false
 ) {
     // When locked to a specific mode (e.g. Divine Chat section), pre-select it
     // and hide the mode switcher.
@@ -126,6 +127,10 @@ fun AiChatScreen(
     var inputText by remember { mutableStateOf("") }
     var showAttachDialog by remember { mutableStateOf(false) }
     var showSessionsDialog by remember { mutableStateOf(false) }
+    // Deep link from the drawer ("AI Chat History") opens the real history UI.
+    LaunchedEffect(openHistoryOnStart) {
+        if (openHistoryOnStart) showSessionsDialog = true
+    }
     var showSaveConfirm by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -161,7 +166,7 @@ fun AiChatScreen(
                     Column {
                         Text(
                             "AI Jyotishi",
-                            color = Color.White,
+                            color = StarlightWhite,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
@@ -283,6 +288,12 @@ fun AiChatScreen(
                 quotaText = if (uiState.quota.limit > 0) {
                     "${uiState.quota.left}/${uiState.quota.limit} questions left"
                 } else null
+            )
+
+            // Reply language selector (EN / HI) — website parity.
+            LanguageSelectorRow(
+                selected = uiState.language,
+                onSelect = { viewModel.setLanguage(it) }
             )
 
             if (uiState.messages.isEmpty() && !uiState.isTyping) {
@@ -439,7 +450,7 @@ private fun ChatEmptyState(
                 AiChatMode.DIVINE -> "Welcome to Divine Guidance"
                 AiChatMode.MUNDANE -> "Welcome to Mundane Astrology"
             },
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -540,7 +551,7 @@ private fun ChatBubble(message: ChatMessage) {
         ) {
             Text(
                 text = message.message,
-                color = if (isUser) CosmicDeepBlue else Color.White,
+                color = if (isUser) CosmicDeepBlue else StarlightWhite,
                 fontSize = 14.5.sp,
                 lineHeight = 21.sp,
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp)
@@ -674,8 +685,8 @@ private fun ChatInputBar(
                     focusedContainerColor = CosmicCharcoal,
                     unfocusedContainerColor = CosmicCharcoal,
                     disabledContainerColor = CosmicCharcoal,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = StarlightWhite,
+                    unfocusedTextColor = StarlightWhite,
                     disabledTextColor = StarlightWhite.copy(alpha = 0.4f),
                     cursorColor = SacredGold,
                     focusedIndicatorColor = Color.Transparent,
@@ -793,6 +804,57 @@ private fun QuotaPill(left: Int, limit: Int) {
             fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold
         )
+    }
+}
+
+/**
+ * Reply language selector (English / Hindi).
+ * Website parity: `language` is sent with every message.
+ */
+@Composable
+private fun LanguageSelectorRow(
+    selected: String,
+    onSelect: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = "Reply in:",
+            color = StarlightWhite.copy(alpha = 0.55f),
+            fontSize = 12.sp
+        )
+        listOf("en" to "English", "hi" to "हिन्दी").forEach { (code, label) ->
+            val isSelected = selected == code
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (isSelected) SacredGold.copy(alpha = 0.2f)
+                        else Color.Transparent
+                    )
+                    .border(
+                        1.dp,
+                        if (isSelected) SacredGold.copy(alpha = 0.6f)
+                        else StarlightWhite.copy(alpha = 0.2f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable { onSelect(code) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    color = if (isSelected) SacredGold else StarlightWhite.copy(alpha = 0.55f),
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                )
+            }
+        }
     }
 }
 

@@ -50,7 +50,7 @@ fun HoroscopeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rashifal", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Rashifal", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
@@ -136,13 +136,13 @@ fun HoroscopeScreen(
                                         .background(Color(sign.glyphColor)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = sign.symbol, fontSize = 26.sp, color = Color.White)
+                                    Text(text = sign.symbol, fontSize = 26.sp, color = StarlightWhite)
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
                                         text = "${sign.symbol} ${sign.name}",
-                                        color = Color.White,
+                                        color = StarlightWhite,
                                         fontSize = 17.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -230,7 +230,7 @@ fun HoroscopeScreen(
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
                                         "Rashifal Unavailable",
-                                        color = Color.White,
+                                        color = StarlightWhite,
                                         fontSize = 17.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -305,7 +305,7 @@ private fun RashifalBanner() {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Select your sign and read detailed horoscope",
-                color = Color.White.copy(alpha = 0.85f),
+                color = StarlightWhite.copy(alpha = 0.85f),
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
             )
@@ -336,12 +336,12 @@ private fun SignGridCard(sign: HoroscopeSign, isSelected: Boolean, onClick: () -
                 .background(Color(sign.glyphColor)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = sign.symbol, fontSize = 24.sp, color = Color.White)
+            Text(text = sign.symbol, fontSize = 24.sp, color = StarlightWhite)
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = sign.name,
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -478,7 +478,7 @@ private fun SaturnAlertCard(transit: SaturnTransit) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = transit.descriptionEn,
-                color = Color.White.copy(alpha = 0.85f),
+                color = StarlightWhite.copy(alpha = 0.85f),
                 fontSize = 13.sp,
                 lineHeight = 20.sp
             )
@@ -503,7 +503,7 @@ private fun RashifalSummaryCard(summary: String) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = summary,
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 14.sp,
                 lineHeight = 22.sp
             )
@@ -548,7 +548,7 @@ private fun CategoryScoreRow(area: RashifalArea) {
         ) {
             Text(
                 text = area.label.ifBlank { "Energy" },
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -634,7 +634,7 @@ private fun LuckyCell(label: String, value: String, modifier: Modifier = Modifie
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value.ifBlank { "—" },
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -673,7 +673,7 @@ private fun RemediesCard(remedies: List<String>) {
                 )
                 Text(
                     text = remedy,
-                    color = Color.White.copy(alpha = 0.9f),
+                    color = StarlightWhite.copy(alpha = 0.9f),
                     fontSize = 13.sp,
                     lineHeight = 20.sp,
                     modifier = Modifier.weight(1f)
@@ -723,7 +723,7 @@ private fun DashaCell(label: String, value: String) {
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value.ifBlank { "—" },
-            color = Color.White,
+            color = StarlightWhite,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )

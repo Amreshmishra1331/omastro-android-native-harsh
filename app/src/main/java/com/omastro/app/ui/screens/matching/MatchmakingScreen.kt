@@ -49,7 +49,7 @@ fun MatchmakingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Kundali Milan (Ashtakoota)", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Kundali Milan (Ashtakoota)", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -81,7 +81,7 @@ fun MatchmakingScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "Calculation Failed",
-                            color = Color.White,
+                            color = StarlightWhite,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -127,7 +127,7 @@ fun MatchmakingScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = "Enter birth details to check compatibility",
-                                        color = Color.White,
+                                        color = StarlightWhite,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -217,6 +217,37 @@ fun MatchmakingScreen(
             }
             else -> {
                 val res = result!!
+                // Guard: never display sentinel defaults as a real verdict.
+                if (!res.hasRealData) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item { Spacer(modifier = Modifier.height(8.dp)) }
+                        item {
+                            CosmicCard(modifier = Modifier.fillMaxWidth()) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Incomplete server response",
+                                        color = SacredGold,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "The server did not return a complete compatibility score. Please try again.",
+                                        color = StarlightWhite.copy(alpha = 0.7f),
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -248,7 +279,7 @@ fun MatchmakingScreen(
                                 )
                                 Text(
                                     text = res.verdict,
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -272,14 +303,14 @@ fun MatchmakingScreen(
                                 Column {
                                     Text("GROOM (VARA)", color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(res.manglikBoy, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(res.manglikBoy, color = StarlightWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                             CosmicCard(modifier = Modifier.weight(1f)) {
                                 Column {
                                     Text("BRIDE (KANYA)", color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(res.manglikGirl, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    Text(res.manglikGirl, color = StarlightWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -289,7 +320,7 @@ fun MatchmakingScreen(
                     item {
                         Text(
                             text = "8 Koota Analysis (36 Gunas)",
-                            color = Color.White,
+                            color = StarlightWhite,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -310,7 +341,7 @@ fun MatchmakingScreen(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = res.conclusion,
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontSize = 13.sp,
                                     lineHeight = 20.sp
                                 )
@@ -332,6 +363,7 @@ fun MatchmakingScreen(
                         Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
+                } // end hasRealData else — real result rendered above
             }
         }
     }
@@ -355,8 +387,8 @@ private fun BirthInputField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = SacredGold,
             unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f),
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
+            focusedTextColor = StarlightWhite,
+            unfocusedTextColor = StarlightWhite,
             cursorColor = SacredGold
         )
     )
@@ -371,7 +403,7 @@ private fun GunaRow(guna: GunaDetail) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = guna.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(text = guna.name, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text(text = guna.description, color = StarlightWhite.copy(alpha = 0.6f), fontSize = 11.sp)
             }
             Text(

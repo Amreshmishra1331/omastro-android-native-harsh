@@ -19,6 +19,7 @@ object AppContainer {
     val walletRepository: WalletRepository by lazy { WalletRepository(apiService) }
     val chatRepository: ChatRepository by lazy { ChatRepository(apiService) }
     val savedChartsRepository: SavedChartsRepository by lazy { SavedChartsRepository(apiService) }
+    val notificationRepository: NotificationRepository by lazy { NotificationRepository(apiService) }
 
     // UseCases
     val loginUseCase by lazy { LoginUseCase(authRepository) }

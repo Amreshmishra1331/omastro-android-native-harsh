@@ -31,7 +31,7 @@ fun NumerologyScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Numerology", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Numerology", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -57,7 +57,7 @@ fun NumerologyScreen(
                 Column {
                     Text(
                         text = "Numerology",
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -106,7 +106,7 @@ private fun NumerologyToolCard(tool: NumerologyTool, onClick: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = tool.title,
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center

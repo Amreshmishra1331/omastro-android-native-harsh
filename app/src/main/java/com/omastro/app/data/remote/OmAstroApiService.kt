@@ -203,16 +203,24 @@ interface OmAstroApiService {
         @Body request: KundaliRequest
     ): Response<Map<String, Any>>
 
-    // BNN Deep Analysis
-    @POST("kundali/bnn")
-    suspend fun getBnnAnalysis(
-        @Body request: KundaliRequest
+    // Notifications (website parity: bell icon + list + mark-read + clear)
+    @GET("notifications")
+    suspend fun getNotifications(): Response<NotificationsResponse>
+
+    @POST("notifications/mark-read")
+    suspend fun markNotificationsRead(
+        @Body request: Map<String, @JvmSuppressWildcards Any?>
     ): Response<Map<String, Any>>
+
+    @POST("notifications/clear")
+    suspend fun clearNotifications(): Response<Map<String, Any>>
 
     // Dedicated kundali report endpoints (typed envelopes, verified live 2026-10-09).
     // ReportEnvelope/JaiminiEnvelope are defined in data/model/KundaliModels.kt
     // (committed) — the typed envelopes are required by AstroRepository's
     // `.data` access.
+    // NOTE: POST kundali/bnn is declared ONCE (getBnnReport). The older
+    // Map-based duplicate was removed 2026-10-09 (no callers).
     @POST("kundali/personality")
     suspend fun getPersonality(
         @Body request: KundaliRequest

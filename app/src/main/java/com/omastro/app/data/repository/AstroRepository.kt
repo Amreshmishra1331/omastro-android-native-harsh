@@ -164,20 +164,6 @@ class AstroRepository(
         }
     }
 
-    suspend fun getBnnAnalysis(request: KundaliRequest): Result<Map<String, Any>> {
-        return try {
-            val res = api.getBnnAnalysis(request)
-            val body = res.body()
-            if (res.isSuccessful && body != null) {
-                Result.success(body)
-            } else {
-                Result.failure(IOException("BNN analysis request failed: HTTP ${res.code()}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
     /** Typed wrapper around the same POST /kundali/bnn envelope. */
     private suspend fun getReport(
         label: String,

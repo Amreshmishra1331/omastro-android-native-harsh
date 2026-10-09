@@ -7,9 +7,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SupportAgent
@@ -20,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,6 +32,14 @@ import com.omastro.app.data.model.Astrologer
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.GradientButton
 import com.omastro.app.ui.theme.*
+
+/** Directory sort modes. */
+private enum class AstroSort(val label: String) {
+    RECOMMENDED("Recommended"),
+    RATING("Top rated"),
+    PRICE_LOW("Price: low to high"),
+    EXPERIENCE("Most experienced")
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,15 +56,43 @@ fun AstrologersScreen(
     val sessionError by viewModel.sessionError.collectAsState()
     val activeSlug by viewModel.activeSlug.collectAsState()
 
+    // Directory controls: search / sort / online-only filter.
+    var searchQuery by remember { mutableStateOf("") }
+    var sortMode by remember { mutableStateOf(AstroSort.RECOMMENDED) }
+    var onlineOnly by remember { mutableStateOf(false) }
+    val visibleAstrologers = remember(astrologers, searchQuery, sortMode, onlineOnly) {
+        var list = astrologers
+        if (onlineOnly) list = list.filter { it.online }
+        val q = searchQuery.trim().lowercase()
+        if (q.isNotEmpty()) {
+            list = list.filter { a ->
+                a.name.lowercase().contains(q) ||
+                    a.specialisations.any { it.lowercase().contains(q) } ||
+                    a.languages.any { it.lowercase().contains(q) }
+            }
+        }
+        when (sortMode) {
+            AstroSort.RATING -> list.sortedByDescending { it.rating }
+            AstroSort.PRICE_LOW -> list.sortedBy { it.ratePaise }
+            AstroSort.EXPERIENCE -> list.sortedByDescending { it.experience }
+            AstroSort.RECOMMENDED -> list // server order
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Consult Astrologers", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Consult Astrologers", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
                             Icon(Icons.Default.Menu, contentDescription = "Menu", tint = SacredGold)
                         }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.loadAstrologers() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = SacredGold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
@@ -82,6 +122,50 @@ fun AstrologersScreen(
                     )
                 }
 
+                // Search + sort + online-only filter.
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("Search name, expertise, language", color = StarlightWhite.copy(alpha = 0.4f), fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SacredGold, modifier = Modifier.size(18.dp)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StarlightWhite,
+                            unfocusedTextColor = StarlightWhite,
+                            focusedBorderColor = SacredGold,
+                            unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f)
+                        )
+                    )
+                }
+                item {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(AstroSort.values()) { mode ->
+                            FilterChip(
+                                selected = sortMode == mode,
+                                onClick = { sortMode = mode },
+                                label = { Text(mode.label, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SacredGold,
+                                    selectedLabelColor = CosmicDeepBlue
+                                )
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = onlineOnly,
+                                onClick = { onlineOnly = !onlineOnly },
+                                label = { Text("Online only", fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SacredGold,
+                                    selectedLabelColor = CosmicDeepBlue
+                                )
+                            )
+                        }
+                    }
+                }
+
                 if (listError != null) {
                     item {
                         Text(
@@ -104,8 +188,23 @@ fun AstrologersScreen(
                     }
                 }
 
-                items(astrologers) { astro ->
+                items(visibleAstrologers) { astro ->
                     AstrologerListItem(astro = astro, onChatClick = { onAstrologerClick(astro.slug) })
+                }
+
+                if (visibleAstrologers.isEmpty() && !isLoading) {
+                    item {
+                        Text(
+                            text = if (astrologers.isEmpty()) "No astrologers available right now. Please try again."
+                            else "No astrologers match your search.",
+                            color = StarlightWhite.copy(alpha = 0.6f),
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp)
+                        )
+                    }
                 }
 
                 item { Spacer(modifier = Modifier.height(20.dp)) }
@@ -168,7 +267,7 @@ private fun AutoMatchCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = if (searching) "Finding best astrologers…" else "Chat Now",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -242,7 +341,7 @@ private fun RateConsentDialog(
             }
         },
         containerColor = CosmicNavy,
-        titleContentColor = Color.White,
+        titleContentColor = StarlightWhite,
         textContentColor = StarlightWhite.copy(alpha = 0.85f)
     )
 }
@@ -293,7 +392,7 @@ private fun AstrologerListItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = astro.name,
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )

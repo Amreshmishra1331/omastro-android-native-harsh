@@ -1,5 +1,6 @@
 package com.omastro.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,11 +41,51 @@ import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.ui.theme.OmAstroTheme
 
 class MainActivity : ComponentActivity() {
+
+    /** Maps an FCM `notification_type` extra to an in-app route. */
+    private fun routeForNotificationType(type: String?): String? {
+        return when (type) {
+            "ai_chat", "chat" -> Screen.AiChat.route
+            "astrologer" -> Screen.Astrologers.route
+            "panchang" -> Screen.Panchang.route
+            "horoscope" -> Screen.Horoscope.route
+            else -> null
+        }
+    }
+
+    /** Deep link arriving while the activity is already alive (notification tap). */
+    private val pendingDeepLink = mutableStateOf<String?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingDeepLink.value = routeForNotificationType(
+            intent.getStringExtra("notification_type")
+        )
+        intent.removeExtra("notification_type")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Consume the launch-time deep link so it isn't re-applied.
+        val launchDeepLink = routeForNotificationType(
+            intent.getStringExtra("notification_type")
+        ).also { intent.removeExtra("notification_type") }
         setContent {
-            OmAstroTheme {
+            // Theme toggle: key() forces full recomposition so the swapped
+            // palette tokens are picked up by every screen.
+            val isDarkTheme by com.omastro.app.data.local.ThemePrefs.isDarkTheme.collectAsState()
+            androidx.compose.runtime.key(isDarkTheme) {
+            OmAstroTheme(darkTheme = isDarkTheme) {
                 val navController = rememberNavController()
+                // Navigate when a notification arrives while the app is alive.
+                val liveDeepLink by pendingDeepLink
+                LaunchedEffect(liveDeepLink) {
+                    liveDeepLink?.let { route ->
+                        pendingDeepLink.value = null
+                        navController.navigate(route)
+                    }
+                }
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
@@ -69,8 +110,10 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     else -> {
+                        // Deep link: notification taps land on the relevant
+                        // screen instead of always opening home.
                         val startDestination = if (isLoggedIn == true) {
-                            Screen.Home.route
+                            launchDeepLink ?: Screen.Home.route
                         } else {
                             Screen.Auth.route
                         }
@@ -133,6 +176,24 @@ class MainActivity : ComponentActivity() {
                                         AppContainer.requestInAppReviewUseCase.launchReview(activity)
                                     }
                                 },
+                                onReportBug = {
+                                    drawerScope.launch { drawerState.close() }
+                                    val bugIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                        data = android.net.Uri.parse("mailto:support@omastroai.com")
+                                        putExtra(Intent.EXTRA_SUBJECT, "OmAstro App Bug Report")
+                                        putExtra(
+                                            Intent.EXTRA_TEXT,
+                                            "App version: ${com.omastro.app.BuildConfig.VERSION_NAME} " +
+                                                "(${com.omastro.app.BuildConfig.VERSION_CODE})\n\n" +
+                                                "Describe the issue:\n"
+                                        )
+                                    }
+                                    try {
+                                        activity.startActivity(bugIntent)
+                                    } catch (e: Exception) {
+                                        // No email app — fall back silently; nothing fake shown.
+                                    }
+                                },
                                 onLogout = { drawerShowDialog(DrawerDialog.LogoutConfirm) },
                                 onComingSoon = { feature -> drawerShowDialog(DrawerDialog.ComingSoon(feature)) },
                                 onShowDialog = ::drawerShowDialog
@@ -186,6 +247,13 @@ class MainActivity : ComponentActivity() {
                             com.omastro.app.ui.screens.aichat.AiChatScreen(
                                 onBack = { navController.popBackStack() },
                                 onMenuClick = openDrawer
+                            )
+                        }
+                        composable(Screen.AiChat.HISTORY_ROUTE) {
+                            com.omastro.app.ui.screens.aichat.AiChatScreen(
+                                onBack = { navController.popBackStack() },
+                                onMenuClick = openDrawer,
+                                openHistoryOnStart = true
                             )
                         }
                         composable(Screen.DivineChat.route) {
@@ -272,6 +340,21 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        composable(Screen.Auth.FORGOT_ROUTE) {
+                            AuthScreen(
+                                initialMode = com.omastro.app.ui.screens.auth.AuthMode.FORGOT_PASSWORD,
+                                onLoginSuccess = {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Auth.route) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                        composable(Screen.Notifications.route) {
+                            com.omastro.app.ui.screens.notifications.NotificationsScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
                     }
                     } // ModalNavigationDrawer content
                 } // Scaffold
@@ -289,6 +372,7 @@ class MainActivity : ComponentActivity() {
                     )
                 } // else -> block
                 } // when (isLoggedIn)
+            } // key(isDarkTheme)
             } // OmAstroTheme
         } // setContent
     } // onCreate

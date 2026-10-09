@@ -3,10 +3,13 @@ package com.omastro.app.ui.screens.numerology
 import java.util.Calendar
 
 /**
- * Pure numerology computations (Chaldean/Vedic hybrid, matching the website engine).
- * All functions are deterministic derivations from the user's real inputs —
- * no fabricated content. Server APIs remain the source of truth for
- * full-profile / compatibility / name-check analyses.
+ * Pure numerology computations (Vedic/Chaldean reductions, client-side).
+ * NOTE: equivalence with the website engine is NOT verified — these are local
+ * derivations from the user's real inputs, no fabricated content. Where the
+ * server exposes a field (POST /numerology: loshuGrid, personalYear/Month/Day,
+ * luckyNumbers/Days/Colors, karmaNumbers, challenges, coreNumbers), the tool
+ * ViewModel prefers the server value with local fallback. Server APIs remain
+ * the source of truth for full-profile / compatibility / name-check analyses.
  */
 
 /** Reduce to single digit, preserving master numbers 11 and 22. */

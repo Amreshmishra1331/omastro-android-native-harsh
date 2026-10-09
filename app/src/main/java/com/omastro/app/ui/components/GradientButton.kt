@@ -45,7 +45,7 @@ fun GradientButton(
     ) {
         Text(
             text = text,
-            color = if (enabled) textColor else Color.White.copy(alpha = 0.5f),
+            color = if (enabled) textColor else StarlightWhite.copy(alpha = 0.5f),
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
         )

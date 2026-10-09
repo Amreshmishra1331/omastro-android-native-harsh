@@ -2,11 +2,14 @@ package com.omastro.app
 
 import android.app.Application
 import com.google.firebase.messaging.FirebaseMessaging
+import com.omastro.app.data.local.ThemePrefs
 import com.omastro.app.di.AppContainer
 
 class OmAstroApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        ThemePrefs.init(this)
+        com.omastro.app.data.local.LangPrefs.init(this)
         // Initialize Firebase Cloud Messaging token synchronization
         try {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->

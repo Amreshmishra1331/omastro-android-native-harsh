@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.OtpChannels
+import com.omastro.app.ui.theme.StarlightWhite
 
 /**
  * Authentication entry point — matches the Flutter app's login/signup design
@@ -103,10 +104,15 @@ private val LightSuccessBg = Color(0xFFE8F5E9)
 @Composable
 fun AuthScreen(
     onLoginSuccess: () -> Unit,
+    initialMode: AuthMode = AuthMode.LOGIN,
     viewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val mode by viewModel.mode.collectAsState()
+    // Honor deep-link entry (e.g. "auth/forgot") on first composition.
+    LaunchedEffect(Unit) {
+        if (initialMode != AuthMode.LOGIN) viewModel.switchMode(initialMode)
+    }
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val infoMessage by viewModel.infoMessage.collectAsState()
@@ -435,14 +441,14 @@ private fun AuthPrimaryButton(
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                color = Color.White,
+                color = StarlightWhite,
                 modifier = Modifier.size(24.dp),
                 strokeWidth = 3.dp
             )
         } else {
             Text(
                 text,
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp
@@ -531,7 +537,7 @@ private fun GoogleSignInButton(
             .fillMaxWidth()
             .height(52.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(Color.White)
+            .background(StarlightWhite)
             .border(1.dp, FlutterBorder, RoundedCornerShape(14.dp))
             .clickable(enabled = !isLoading, onClick = onClick),
         contentAlignment = Alignment.Center
@@ -685,7 +691,7 @@ private fun ColumnScope.LoginForm(
             colors = CheckboxDefaults.colors(
                 checkedColor = FlutterOrange,
                 uncheckedColor = FlutterMuted,
-                checkmarkColor = Color.White
+                checkmarkColor = StarlightWhite
             )
         )
         Text(
@@ -844,7 +850,7 @@ private fun TermsCheckboxRow(
             colors = CheckboxDefaults.colors(
                 checkedColor = FlutterOrange,
                 uncheckedColor = FlutterMuted,
-                checkmarkColor = Color.White
+                checkmarkColor = StarlightWhite
             )
         )
         val annotated = buildAnnotatedString {
@@ -932,7 +938,7 @@ private fun TermsPrivacyDialogs(
                     Text("Close", color = FlutterOrange, fontWeight = FontWeight.Bold)
                 }
             },
-            containerColor = Color.White
+            containerColor = StarlightWhite
         )
     }
     if (showPrivacy) {
@@ -956,7 +962,7 @@ private fun TermsPrivacyDialogs(
                     Text("Close", color = FlutterOrange, fontWeight = FontWeight.Bold)
                 }
             },
-            containerColor = Color.White
+            containerColor = StarlightWhite
         )
     }
 }
@@ -1025,7 +1031,7 @@ private fun OtpCodeInput(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (filled) FlutterFieldBg else Color.White)
+                            .background(if (filled) FlutterFieldBg else StarlightWhite)
                             .border(
                                 width = if (filled) 1.5.dp else 1.dp,
                                 color = if (filled) FlutterOrange else FlutterBorder,

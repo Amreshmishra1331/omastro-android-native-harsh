@@ -45,7 +45,7 @@ fun AstroHealthScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Astro Health Analysis", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Astro Health Analysis", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -95,7 +95,7 @@ fun AstroHealthScreen(
                     ) {
                         Icon(Icons.Default.Warning, contentDescription = null, tint = InauspiciousRed, modifier = Modifier.size(48.dp))
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(state.message, color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center)
+                        Text(state.message, color = StarlightWhite, fontSize = 14.sp, textAlign = TextAlign.Center)
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = { viewModel.reset() },
@@ -133,7 +133,7 @@ private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
             .padding(vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Vedic Health Analysis", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text("Vedic Health Analysis", color = StarlightWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text(
             "Planetary influences on health, computed from your birth chart.",
             color = TextSecondary, fontSize = 13.sp
@@ -259,7 +259,7 @@ private fun AnalysisNode(key: String, value: Any?, depth: Int = 0) {
                 Column {
                     Text(key, color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(value.toString(), color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                    Text(value.toString(), color = StarlightWhite, fontSize = 13.sp, lineHeight = 19.sp)
                 }
             }
         }
@@ -276,7 +276,7 @@ private fun AnalysisNode(key: String, value: Any?, depth: Int = 0) {
                             }
                             else -> Text(
                                 "• ${item.toString()}",
-                                color = Color.White,
+                                color = StarlightWhite,
                                 fontSize = 13.sp,
                                 lineHeight = 19.sp
                             )
@@ -300,7 +300,7 @@ private fun AnalysisNode(key: String, value: Any?, depth: Int = 0) {
         }
         else -> {
             CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                Text("$key: ${value.toString()}", color = Color.White, fontSize = 13.sp)
+                Text("$key: ${value.toString()}", color = StarlightWhite, fontSize = 13.sp)
             }
         }
     }

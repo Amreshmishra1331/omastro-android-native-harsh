@@ -11,7 +11,10 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Panchang : Screen("panchang", "Panchang", Icons.Default.CalendarToday)
     object Matchmaking : Screen("matchmaking", "Milan", Icons.Default.Favorite)
     object Astrologers : Screen("astrologers", "Astrologers", Icons.Default.SupportAgent)
-    object AiChat : Screen("ai_chat", "AI Chat", Icons.Default.Chat)
+    object AiChat : Screen("ai_chat", "AI Chat", Icons.Default.Chat) {
+        /** Opens AI Chat with the saved-sessions history dialog open. */
+        const val HISTORY_ROUTE = "ai_chat/history"
+    }
     object DivineChat : Screen("divine_chat", "Divine Chat", Icons.Default.AutoAwesome)
     object Chat : Screen("chat/{slug}", "Consultation") {
         fun createRoute(slug: String) = "chat/$slug"
@@ -26,7 +29,11 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object SavedCharts : Screen("saved_charts", "Saved Charts", Icons.Default.Bookmarks)
     object Gochar : Screen("gochar", "Gochar", Icons.Default.Public)
     object Muhurat : Screen("muhurat", "Muhurat", Icons.Default.Schedule)
-    object Auth : Screen("auth", "Sign In")
+    object Auth : Screen("auth", "Sign In") {
+        /** Opens the auth screen directly in forgot-password mode. */
+        const val FORGOT_ROUTE = "auth/forgot"
+    }
+    object Notifications : Screen("notifications", "Notifications", Icons.Default.Notifications)
 }
 
 val BottomNavItems = listOf(

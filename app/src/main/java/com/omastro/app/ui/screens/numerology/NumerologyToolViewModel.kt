@@ -66,7 +66,9 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
         NumerologyTool.MOOLANK, NumerologyTool.NAME_NUM, NumerologyTool.KARMIC,
         NumerologyTool.COMPAT, NumerologyTool.NAME_CORRECT, NumerologyTool.PLANETARY
     )
-    fun needsDob(): Boolean = tool != NumerologyTool.MOBILE_NUM
+    // Every tool needs DOB — including MOBILE_NUM, whose verdict is compared
+    // against the user's real Moolank (previously hardcoded Triple(1,1,2000)).
+    fun needsDob(): Boolean = true
     fun needsSecondPerson(): Boolean = tool == NumerologyTool.COMPAT
     fun needsPhone(): Boolean = tool == NumerologyTool.MOBILE_NUM
     fun needsGender(): Boolean = tool == NumerologyTool.KUA
@@ -80,8 +82,10 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                 return
             }
         }
-        val dobTriple = if (needsDob()) parseDob(_dob.value) else Triple(1, 1, 2000)
-        if (needsDob() && dobTriple == null) {
+    // calculate() now always collects DOB (needsDob() == true for every tool),
+    // so dobTriple is never the old hardcoded fallback.
+        val dobTriple = parseDob(_dob.value)
+        if (dobTriple == null) {
             _formError.value = "Date of birth must be YYYY-MM-DD (e.g. 1995-08-15)."
             return
         }
@@ -122,25 +126,80 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
         }
     }
 
+    // ---------- Server data (POST /numerology) ----------
+    // The server computes coreNumbers, personalYear/Month/Day, lifeCycles,
+    // pinnacles, challenges, nameAnalysis, loshuGrid, luckyNumbers/Days/Colors.
+    // Tools use server values where they map 1:1, with local fallback on failure.
+    private suspend fun fetchServerNumerology(): Map<String, Any>? {
+        return try {
+            val body = repo.getNumerology(mapOf(
+                "dob" to _dob.value.trim(),
+                "name" to _name.value.trim(),
+                "language" to "en"
+            )).getOrNull()
+            @Suppress("UNCHECKED_CAST")
+            body?.get("data") as? Map<String, Any>
+        } catch (e: Exception) { null }
+    }
+
+    private fun numEntry(map: Map<String, Any>?, key: String): String {
+        val e = map?.get(key) as? Map<*, *> ?: return "—"
+        val v = e["value"] ?: e["number"] ?: "—"
+        val meaning = (e["meaning"] as? String).orEmpty()
+        return if (meaning.isBlank()) "$v" else "$v — $meaning"
+    }
+
     // ---------- Tool computations ----------
 
-    private fun moolankResult(day: Int, month: Int, year: Int): ToolResult {
+    private suspend fun moolankResult(day: Int, month: Int, year: Int): ToolResult {
         val m = moolank(day); val b = bhagyank(day, month, year); val s = successNumber(day, month)
-        return ToolResult("Moolank & Life Path", listOf(
-            ResultSection("Core Numbers", listOf(
+        val sections = mutableListOf(
+            ResultSection("Core Numbers (Vedic)", listOf(
                 ResultLine("Moolank (Driver)", "$m — ${planetRuler(m)}", true),
                 ResultLine("Bhagyank (Life Path)", "$b — ${planetRuler(b)}", true),
                 ResultLine("Success Number", "$s — ${planetRuler(s)}", true)
-            )),
-            ResultSection("How they are derived", listOf(
-                ResultLine("Moolank", "From birth day $day → $m. Shows who you are, how you think."),
-                ResultLine("Bhagyank", "Day+Month+Year reduced → $b. Shows why you are here."),
-                ResultLine("Success No.", "Day+Month reduced → $s. Shows how you achieve most.")
             ))
-        ))
+        )
+        // Server core numbers (authoritative) as an extra section.
+        val server = fetchServerNumerology()
+        (server?.get("coreNumbers") as? Map<String, Any>)?.let { core ->
+            sections.add(ResultSection("Server Core Numbers", listOf(
+                ResultLine("Life Path", numEntry(core, "lifePathNumber"), true),
+                ResultLine("Expression", numEntry(core, "expressionNumber")),
+                ResultLine("Soul Urge", numEntry(core, "soulUrgeNumber")),
+                ResultLine("Personality", numEntry(core, "personalityNumber")),
+                ResultLine("Birthday", numEntry(core, "birthdayNumber")),
+                ResultLine("Destiny", numEntry(core, "destinyNumber"))
+            )))
+        }
+        sections.add(ResultSection("How they are derived", listOf(
+            ResultLine("Moolank", "From birth day $day → $m. Shows who you are, how you think."),
+            ResultLine("Bhagyank", "Day+Month+Year reduced → $b. Shows why you are here."),
+            ResultLine("Success No.", "Day+Month reduced → $s. Shows how you achieve most.")
+        )))
+        return ToolResult("Moolank & Life Path", sections)
     }
 
-    private fun loshuResult(day: Int, month: Int, year: Int): ToolResult {
+    private suspend fun loshuResult(day: Int, month: Int, year: Int): ToolResult {
+        val server = fetchServerNumerology()
+        @Suppress("UNCHECKED_CAST")
+        val sGrid = server?.get("loshuGrid") as? Map<String, Any>
+        if (sGrid != null) {
+            val present = (sGrid["presentNumbers"] as? List<*>)?.joinToString(", ") ?: "—"
+            val absent = (sGrid["absentNumbers"] as? List<*>)?.joinToString(", ") ?: "—"
+            val arrows = (sGrid["arrows"] as? Map<String, Any>)
+                ?.filter { (_, v) -> v == true }?.keys?.joinToString(", ") ?: ""
+            return ToolResult("Lo Shu Grid", listOf(
+                ResultSection("Vedic Magic Square (server)", listOf(
+                    ResultLine("Present numbers", present, true),
+                    ResultLine("Absent numbers", absent, true)
+                )),
+                ResultSection("Arrows of strength", listOf(
+                    ResultLine("Present", arrows.ifBlank { "No complete arrows in this chart." }, true)
+                ))
+            ))
+        }
+        // Local fallback
         val grid = loShuGrid(day, month, year)
         val arrows = loShuArrows(grid)
         val gridLine = (1..9).joinToString(" ") { n -> "$n:${grid[n]}" }
@@ -174,17 +233,33 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
         ))
     }
 
-    private fun timeCyclesResult(day: Int, month: Int): ToolResult {
+    private suspend fun timeCyclesResult(day: Int, month: Int): ToolResult {
         val (td, tm, ty) = todayParts()
+        val server = fetchServerNumerology()
+        val sPy = (server?.get("personalYear") as? Map<*, *>)
+        val sPm = (server?.get("personalMonth") as? Map<*, *>)
+        val sPd = (server?.get("personalDay") as? Map<*, *>)
+        val pyLine = if (sPy != null)
+            ResultLine("Personal Year ($ty)", "${sPy["current"]} — ${(sPy["meaning"] as? String).orEmpty()}", true)
+        else {
+            val py = personalYear(day, month, ty)
+            ResultLine("Personal Year ($ty)", "$py — ${planetRuler(py)}", true)
+        }
+        val pmLine = if (sPm != null)
+            ResultLine("Personal Month", "${sPm["value"]} — ${(sPm["meaning"] as? String).orEmpty()}", true)
+        else {
+            val py = personalYear(day, month, ty); val pm = personalMonth(py, tm)
+            ResultLine("Personal Month", "$pm — ${planetRuler(pm)}", true)
+        }
+        val pdLine = if (sPd != null)
+            ResultLine("Personal Day (today)", "${sPd["value"]} — ${(sPd["meaning"] as? String).orEmpty()}", true)
+        else {
+            val py = personalYear(day, month, ty); val pm = personalMonth(py, tm); val pd = personalDay(pm, td)
+            ResultLine("Personal Day (today)", "$pd — ${planetRuler(pd)}", true)
+        }
         val py = personalYear(day, month, ty)
-        val pm = personalMonth(py, tm)
-        val pd = personalDay(pm, td)
         return ToolResult("Time Cycles", listOf(
-            ResultSection("Your current cycles", listOf(
-                ResultLine("Personal Year ($ty)", "$py — ${planetRuler(py)}", true),
-                ResultLine("Personal Month", "$pm — ${planetRuler(pm)}", true),
-                ResultLine("Personal Day (today)", "$pd — ${planetRuler(pd)}", true)
-            )),
+            ResultSection("Your current cycles", listOf(pyLine, pmLine, pdLine)),
             ResultSection("Next 12 months", (1..12).map { m ->
                 val v = personalMonth(py, m)
                 ResultLine("Month $m", "$v")
@@ -192,7 +267,7 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
         ))
     }
 
-    private fun karmicResult(day: Int, month: Int, year: Int): ToolResult {
+    private suspend fun karmicResult(day: Int, month: Int, year: Int): ToolResult {
         val debts = karmicDebts(day, month, year)
         val meanings = mapOf(
             13 to "13/4 — Hard work and discipline; shortcuts backfire.",
@@ -200,18 +275,35 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
             16 to "16/7 — Ego dismantled; rebuild on spiritual truth.",
             19 to "19/1 — Independence earned through self-reliance."
         )
-        return ToolResult("Karmic Debt", listOf(
+        val sections = mutableListOf(
             ResultSection("Karmic debt numbers", listOf(
                 *(if (debts.isEmpty()) arrayOf(ResultLine("Debts", "None found in this chart — a clear karmic slate.", true))
                 else debts.map { ResultLine("$it", meanings[it] ?: "", true) }.toTypedArray())
-            )),
-            ResultSection("Pinnacles (life peaks)", listOf(
-                ResultLine("1st Pinnacle", "${reduceNumber(month + day)} — early life"),
-                ResultLine("2nd Pinnacle", "${reduceNumber(day + year)} — middle life"),
-                ResultLine("3rd Pinnacle", "${reduceNumber(reduceNumber(month + day) + reduceNumber(day + year))} — prime years"),
-                ResultLine("4th Pinnacle", "${reduceNumber(month + year)} — later life")
             ))
-        ))
+        )
+        // Server karma numbers + challenges when available.
+        val server = fetchServerNumerology()
+        @Suppress("UNCHECKED_CAST")
+        val nameAnalysis = server?.get("nameAnalysis") as? Map<String, Any>
+        @Suppress("UNCHECKED_CAST")
+        val karmaNumbers = nameAnalysis?.get("karmaNumbers") as? List<*>
+        @Suppress("UNCHECKED_CAST")
+        val challenges = server?.get("challenges") as? List<Map<String, Any>>
+        if (!karmaNumbers.isNullOrEmpty() || !challenges.isNullOrEmpty()) {
+            val lines = mutableListOf<ResultLine>()
+            karmaNumbers?.forEach { k -> lines.add(ResultLine("Karma number", "$k", true)) }
+            challenges?.forEach { c ->
+                lines.add(ResultLine("Challenge ${c["number"]}", "${c["theme"]} (${c["years"]})"))
+            }
+            sections.add(ResultSection("Server Karmic Analysis", lines))
+        }
+        sections.add(ResultSection("Pinnacles (life peaks)", listOf(
+            ResultLine("1st Pinnacle", "${reduceNumber(month + day)} — early life"),
+            ResultLine("2nd Pinnacle", "${reduceNumber(day + year)} — middle life"),
+            ResultLine("3rd Pinnacle", "${reduceNumber(reduceNumber(month + day) + reduceNumber(day + year))} — prime years"),
+            ResultLine("4th Pinnacle", "${reduceNumber(month + year)} — later life")
+        )))
+        return ToolResult("Karmic Debt", sections)
     }
 
     private suspend fun compatResult(): ToolResult {
@@ -246,15 +338,25 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
         ))
     }
 
-    private fun luckyCalResult(day: Int, month: Int): ToolResult {
+    private suspend fun luckyCalResult(day: Int, month: Int): ToolResult {
         val m = moolank(day)
         val (td, tm, ty) = todayParts()
         val py = personalYear(day, month, ty)
+        val server = fetchServerNumerology()
+        @Suppress("UNCHECKED_CAST")
+        val luckyNumbers = (server?.get("luckyNumbers") as? List<*>)?.joinToString(", ")
+        @Suppress("UNCHECKED_CAST")
+        val luckyDays = (server?.get("luckyDays") as? List<*>)?.joinToString(", ")
+        @Suppress("UNCHECKED_CAST")
+        val luckyColors = (server?.get("luckyColors") as? List<*>)?.joinToString(", ")
+        val dayLines = mutableListOf(
+            ResultLine("Weekdays", luckyDays ?: luckyDays(m).joinToString(", "), true),
+            ResultLine("Dates", "Dates reducing to $m, ${reduceNumber(m * 2)} in any month")
+        )
+        if (!luckyNumbers.isNullOrBlank()) dayLines.add(ResultLine("Lucky numbers (server)", luckyNumbers, true))
+        if (!luckyColors.isNullOrBlank()) dayLines.add(ResultLine("Lucky colors (server)", luckyColors, true))
         return ToolResult("Lucky Calendar", listOf(
-            ResultSection("Lucky days", listOf(
-                ResultLine("Weekdays", luckyDays(m).joinToString(", "), true),
-                ResultLine("Dates", "Dates reducing to $m, ${reduceNumber(m * 2)} in any month")
-            )),
+            ResultSection("Lucky days", dayLines),
             ResultSection("This year ($ty)", listOf(
                 ResultLine("Personal Year", "$py — ${if (py in setOf(1, 3, 5, 6, 9)) "Favorable" else "Average"} energy"),
                 ResultLine("Best months", (1..12).filter { personalMonth(py, it) == m }.joinToString(", ").ifEmpty { "—" })

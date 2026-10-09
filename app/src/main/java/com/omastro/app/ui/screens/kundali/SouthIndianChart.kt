@@ -119,7 +119,7 @@ private fun SouthIndianCell(
             val glyph = planet.symbol.ifBlank { planetGlyphFallback(planet.name) }
             Text(
                 text = glyph + if (planet.isRetrograde()) " (R)" else "",
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center

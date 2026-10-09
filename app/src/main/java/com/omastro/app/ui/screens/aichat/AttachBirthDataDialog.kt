@@ -85,7 +85,7 @@ fun AttachBirthDataDialog(
             ) {
                 Text(
                     "Attach Birth Data",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
@@ -250,8 +250,8 @@ private fun AttachTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = SacredGold,
             unfocusedBorderColor = StarlightWhite.copy(alpha = 0.2f),
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
+            focusedTextColor = StarlightWhite,
+            unfocusedTextColor = StarlightWhite,
             focusedLabelColor = SacredGold,
             unfocusedLabelColor = StarlightWhite.copy(alpha = 0.55f),
             cursorColor = SacredGold

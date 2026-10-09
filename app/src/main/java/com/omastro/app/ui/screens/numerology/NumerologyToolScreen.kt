@@ -54,7 +54,7 @@ fun NumerologyToolScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(tool.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+                title = { Text(tool.title, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -99,7 +99,7 @@ private fun ToolForm(tool: NumerologyTool, vm: NumerologyToolViewModel) {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(text = tool.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(text = tool.title, color = StarlightWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text(text = tool.subtitle, color = TextSecondary, fontSize = 13.sp)
 
         CosmicCard(borderGold = true, modifier = Modifier.fillMaxWidth()) {
@@ -239,7 +239,7 @@ private fun ErrorView(message: String, onRetry: () -> Unit) {
     ) {
         Icon(Icons.Default.Warning, contentDescription = null, tint = InauspiciousRed, modifier = Modifier.size(48.dp))
         Spacer(modifier = Modifier.height(12.dp))
-        Text(message, color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Center)
+        Text(message, color = StarlightWhite, fontSize = 14.sp, textAlign = TextAlign.Center)
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onRetry,

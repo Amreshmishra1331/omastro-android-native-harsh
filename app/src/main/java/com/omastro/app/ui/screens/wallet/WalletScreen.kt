@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -94,10 +95,18 @@ fun WalletScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wallet", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Wallet", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        viewModel.refreshBalance()
+                        viewModel.refreshTransactions()
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = SacredGold)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CosmicDeepBlue)
@@ -152,7 +161,7 @@ fun WalletScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = "₹${String.format("%.2f", paidBalanceInr)}",
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -165,7 +174,7 @@ fun WalletScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = "₹${String.format("%.2f", bonusBalanceInr)}",
-                                    color = Color.White,
+                                    color = StarlightWhite,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -188,7 +197,7 @@ fun WalletScreen(
 
             // Recharge Packs Section
             item {
-                Text(text = "Recharge Packs", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Recharge Packs", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             items(viewModel.rechargePacks) { pack ->
@@ -201,7 +210,7 @@ fun WalletScreen(
 
             // Recent Transactions Section
             item {
-                Text(text = "Recent Transactions", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = "Recent Transactions", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             if (transactions.isEmpty()) {
@@ -245,7 +254,7 @@ private fun RechargePackCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "${pack.coins} Coins",
-                        color = Color.White,
+                        color = StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -300,7 +309,7 @@ private fun TransactionRow(tx: WalletTransaction) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = tx.description, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                Text(text = tx.description, color = StarlightWhite, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Text(text = tx.date, color = StarlightWhite.copy(alpha = 0.5f), fontSize = 11.sp)
             }
             val isCredit = tx.type == "credit"

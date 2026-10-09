@@ -153,6 +153,8 @@ class ConsultationViewModel : ViewModel() {
 
     private var timerJob: Job? = null
     private var tickJob: Job? = null
+    /** One-shot guard for the proactive low-balance warning per chat. */
+    private var lowBalanceWarned: Boolean = false
     private var idleJob: Job? = null
     private var deliveryJob: Job? = null
     private var greetingJob: Job? = null
@@ -525,6 +527,14 @@ class ConsultationViewModel : ViewModel() {
                     if (state.insufficient) {
                         // Mid-chat low balance -> hard close.
                         hardClose("Your wallet balance ran out. The chat has ended.")
+                    } else if (!lowBalanceWarned && state.walletCoversSec in 1..60) {
+                        // Proactive warning BEFORE the hard close: the wallet
+                        // covers ~1 minute or less of chat at the current rate.
+                        lowBalanceWarned = true
+                        appendSystemMessage(
+                            "Low balance: about ${state.walletCoversSec}s of chat time left. " +
+                                "Add money to continue without interruption."
+                        )
                     }
                 }.onFailure {
                     // Tick failed: pause billing display but keep chatting is unsafe —
@@ -638,6 +648,7 @@ class ConsultationViewModel : ViewModel() {
         chatSessionId = null
         aiSessionId = null
         chatContext = null
+        lowBalanceWarned = false
     }
 
     fun dismissAddMoney() {

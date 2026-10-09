@@ -33,7 +33,7 @@ import com.omastro.app.ui.theme.*
 
 @Composable
 internal fun KxSectionTitle(text: String) {
-    Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    Text(text, color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
 }
 
 @Composable
@@ -58,7 +58,7 @@ private fun KxLabelValue(label: String, value: String) {
             label, color = TextSecondary, fontSize = 12.sp,
             modifier = Modifier.width(110.dp)
         )
-        Text(value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Text(value, color = StarlightWhite, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
     }
 }
 
@@ -179,7 +179,7 @@ internal fun KxHousePlanetTable(houses: List<HouseInfo>, symbolFor: (String) -> 
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
-                            Text(p.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(p.name, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             Text(
                                 "$rashi · House $house" + if (p.deg.isNotBlank()) " · ${p.deg}" else "",
                                 color = TextSecondary, fontSize = 11.sp
@@ -224,7 +224,7 @@ internal fun KxReportState(
         state.error != null -> {
             CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = InauspiciousRed.copy(alpha = 0.4f)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text(state.error, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Text(state.error, color = StarlightWhite, fontSize = 13.sp, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onRetry,
@@ -276,7 +276,7 @@ internal fun KxJaiminiState(
         state.error != null -> {
             CosmicCard(modifier = Modifier.fillMaxWidth(), borderColor = InauspiciousRed.copy(alpha = 0.4f)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text(state.error, color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Text(state.error, color = StarlightWhite, fontSize = 13.sp, textAlign = TextAlign.Center)
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onRetry,
@@ -370,7 +370,7 @@ internal fun LazyListScope.birthInfoTab(kundali: KundaliResponse?) {
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text("Lucky Colour", color = TextSecondary, fontSize = 11.sp)
-                        Text(lucky.color, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(lucky.color, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -380,7 +380,7 @@ internal fun LazyListScope.birthInfoTab(kundali: KundaliResponse?) {
                     }
                     Column(modifier = Modifier.weight(2f)) {
                         Text("Lucky Gemstone", color = TextSecondary, fontSize = 11.sp)
-                        Text(lucky.gemstone, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(lucky.gemstone, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 }
             }
@@ -457,7 +457,7 @@ internal fun KxSaturnAlertCard(st: SaturnTransit) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     st.nameEn.ifBlank { "Saturn Transit Active" },
-                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp,
+                    color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -487,7 +487,7 @@ internal fun KxTransitsStrip(transits: Map<String, TransitInfo>) {
                             fontSize = 16.sp, fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(planet, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(planet, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         if (t.retro) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("(R)", color = NeutralBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -618,7 +618,7 @@ private fun KarakamshaContent(data: JaiminiData, chartStyle: String) {
             }
             KxLegendCard()
 
-            Text("House-by-House Analysis", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("House-by-House Analysis", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             houses.sortedBy { it.n }.forEach { h ->
                 CosmicCard(modifier = Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -629,7 +629,7 @@ private fun KarakamshaContent(data: JaiminiData, chartStyle: String) {
                         ) {
                             Text(
                                 "House ${h.n} · ${h.r?.en ?: ""}${if (!h.r?.hi.isNullOrBlank()) " (${h.r?.hi})" else ""}",
-                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp
                             )
                             if (h.isLg) {
                                 Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
@@ -755,7 +755,7 @@ internal fun LazyListScope.divisionalTab(
                 ) {
                     Text(
                         text = code,
-                        color = if (isSelected) CosmicDeepBlue else Color.White,
+                        color = if (isSelected) CosmicDeepBlue else StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -872,7 +872,7 @@ internal fun LazyListScope.sodasvargaTab(kundali: KundaliResponse?) {
                                 fontSize = 14.sp, fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(planet, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(planet, color = StarlightWhite, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         }
                         vargaCodes.forEach { code ->
                             val entry = sv[code]?.firstOrNull { it.name.equals(planet, ignoreCase = true) }
@@ -881,7 +881,7 @@ internal fun LazyListScope.sodasvargaTab(kundali: KundaliResponse?) {
                                     val rashi = entry?.rashi ?: ""
                                     Text(
                                         rashiGlyph(rashiNameToIndex(rashi)).takeIf { rashi.isNotBlank() } ?: "—",
-                                        color = if (rashi.isNotBlank()) Color.White else TextSecondary.copy(alpha = 0.4f),
+                                        color = if (rashi.isNotBlank()) StarlightWhite else TextSecondary.copy(alpha = 0.4f),
                                         fontSize = 15.sp, fontWeight = FontWeight.Bold
                                     )
                                     if (rashi.isNotBlank()) {
@@ -964,7 +964,7 @@ internal fun LazyListScope.planetsFullTab(kundali: KundaliResponse?) {
                     ) {
                         // Planet
                         Column(modifier = Modifier.width(118.dp).padding(horizontal = 4.dp)) {
-                            Text(planet.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(planet.name, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             val hi = planet.nameHi.ifBlank { planetHindiFallback(planet.name) }
                             if (hi.isNotBlank()) Text(hi, color = TextSecondary, fontSize = 10.sp)
                         }
@@ -977,23 +977,23 @@ internal fun LazyListScope.planetsFullTab(kundali: KundaliResponse?) {
                         }
                         // Sign
                         Column(modifier = Modifier.width(104.dp).padding(horizontal = 4.dp)) {
-                            Text(planet.rashi, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(planet.rashi, color = StarlightWhite, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             if (planet.rashiHi.isNotBlank()) Text(planet.rashiHi, color = TextSecondary, fontSize = 10.sp)
                         }
                         // Degree
                         Box(modifier = Modifier.width(76.dp).padding(horizontal = 4.dp)) {
-                            Text(planet.degreeFormatted(), color = Color.White, fontSize = 12.sp)
+                            Text(planet.degreeFormatted(), color = StarlightWhite, fontSize = 12.sp)
                         }
                         // DMS
                         Box(modifier = Modifier.width(96.dp).padding(horizontal = 4.dp)) {
                             Text(
                                 "${planet.deg}°${planet.min}'${planet.sec}\"",
-                                color = Color.White, fontSize = 12.sp
+                                color = StarlightWhite, fontSize = 12.sp
                             )
                         }
                         // Nakshatra
                         Box(modifier = Modifier.width(128.dp).padding(horizontal = 4.dp)) {
-                            Text(planet.nakshatra.ifBlank { "—" }, color = Color.White, fontSize = 12.sp)
+                            Text(planet.nakshatra.ifBlank { "—" }, color = StarlightWhite, fontSize = 12.sp)
                         }
                         // Pada
                         Box(modifier = Modifier.width(48.dp), contentAlignment = Alignment.Center) {
@@ -1001,7 +1001,7 @@ internal fun LazyListScope.planetsFullTab(kundali: KundaliResponse?) {
                         }
                         // Nakshatra lord
                         Box(modifier = Modifier.width(96.dp).padding(horizontal = 4.dp)) {
-                            Text(planet.nakshatraLord.ifBlank { "—" }, color = Color.White, fontSize = 12.sp)
+                            Text(planet.nakshatraLord.ifBlank { "—" }, color = StarlightWhite, fontSize = 12.sp)
                         }
                         // House
                         Box(modifier = Modifier.width(58.dp), contentAlignment = Alignment.Center) {
@@ -1009,11 +1009,11 @@ internal fun LazyListScope.planetsFullTab(kundali: KundaliResponse?) {
                         }
                         // D9 sign
                         Box(modifier = Modifier.width(96.dp).padding(horizontal = 4.dp)) {
-                            Text(planet.d9Rashi.ifBlank { "—" }, color = Color.White, fontSize = 12.sp)
+                            Text(planet.d9Rashi.ifBlank { "—" }, color = StarlightWhite, fontSize = 12.sp)
                         }
                         // D9 house
                         Box(modifier = Modifier.width(70.dp), contentAlignment = Alignment.Center) {
-                            Text(if (planet.d9House > 0) "${planet.d9House}" else "—", color = Color.White, fontSize = 12.sp)
+                            Text(if (planet.d9House > 0) "${planet.d9House}" else "—", color = StarlightWhite, fontSize = 12.sp)
                         }
                         // Status chips
                         Column(
@@ -1051,7 +1051,7 @@ private fun KxTableCell(text: String, widthDp: Int, isHeader: Boolean = false) {
     Box(modifier = Modifier.width(widthDp.dp).padding(horizontal = 4.dp)) {
         Text(
             text = text,
-            color = if (isHeader) SacredGold else Color.White,
+            color = if (isHeader) SacredGold else StarlightWhite,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
@@ -1161,11 +1161,11 @@ internal fun LazyListScope.shadbalTab(kundali: KundaliResponse?) {
                             Row(modifier = Modifier.width(100.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(planetGlyphFallback(planet), color = SacredGold, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(planet, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Text(planet, color = StarlightWhite, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             }
                             SHADBALA_COLS.forEach { (key, _) ->
                                 Box(modifier = Modifier.width(84.dp), contentAlignment = Alignment.Center) {
-                                    Text(anyToDisplay(m?.get(key)), color = Color.White, fontSize = 12.sp)
+                                    Text(anyToDisplay(m?.get(key)), color = StarlightWhite, fontSize = 12.sp)
                                 }
                             }
                             val total = (m?.get("total_rupa") as? Number)?.toDouble()
@@ -1208,7 +1208,7 @@ internal fun LazyListScope.shadbalTab(kundali: KundaliResponse?) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("House $house", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("House $house", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             val lord = anyToDisplay(m["lord"])
                             if (lord.isNotBlank()) Text("Lord: $lord", color = TextSecondary, fontSize = 11.sp)
                         }
@@ -1241,7 +1241,7 @@ internal fun LazyListScope.shadbalTab(kundali: KundaliResponse?) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(planetGlyphFallback(planet), color = SacredGold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(planet, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(planet, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                             Text(
                                 "${anyToDisplay(m["total"])} / ${anyToDisplay(m["out_of"])}",
@@ -1385,7 +1385,7 @@ internal fun LazyListScope.numerologyTab(
     item {
         CosmicCard(modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Inside the hub", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Inside the hub", color = StarlightWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 Text(
                     "Life Path, Destiny, Name, Mobile, Karmic, Lucky numbers, Lo Shu grid and more — each tool opens with your details pre-filled.",
                     color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp
@@ -1417,7 +1417,7 @@ private fun CharDashaContent(data: JaiminiData) {
         // Chara Karakas
         val karakas = data.karakas?.details
         if (karakas != null) {
-            Text("Chara Karakas — Seven Soul Significators", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("Chara Karakas — Seven Soul Significators", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             karakas.ordered().forEach { (label, k) ->
                 if (k != null && k.name.isNotBlank()) {
                     CosmicCard(modifier = Modifier.fillMaxWidth()) {
@@ -1430,7 +1430,7 @@ private fun CharDashaContent(data: JaiminiData) {
                                 Text(label, color = TextSecondary, fontSize = 11.sp)
                                 Text(
                                     "${planetGlyphFallback(k.name)} ${k.name}",
-                                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                    color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp
                                 )
                             }
                             Text(
@@ -1447,7 +1447,7 @@ private fun CharDashaContent(data: JaiminiData) {
         val curMD = data.curCharMD
         val curAD = data.curCharAD
         if (curMD != null && curMD.signEn.isNotBlank()) {
-            Text("Current Char Period", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("Current Char Period", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             CosmicCard(modifier = Modifier.fillMaxWidth(), borderGold = true) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1472,7 +1472,7 @@ private fun CharDashaContent(data: JaiminiData) {
         if (data.charDashas.isNotEmpty()) {
             Text(
                 "Char Mahadasha Sequence — ${data.charDashas.size} periods",
-                color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold
             )
             val curSign = curMD?.sign
             data.charDashas.forEach { cd ->
@@ -1480,7 +1480,7 @@ private fun CharDashaContent(data: JaiminiData) {
                     cd.startJD == curMD?.startJD && cd.endJD == curMD?.endJD
                 CosmicCard(
                     modifier = Modifier.fillMaxWidth(),
-                    borderColor = if (isCurrent) SacredGold else Color.White.copy(alpha = 0.08f)
+                    borderColor = if (isCurrent) SacredGold else StarlightWhite.copy(alpha = 0.08f)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1495,7 +1495,7 @@ private fun CharDashaContent(data: JaiminiData) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(cd.signEn, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(cd.signEn, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                     if (isCurrent) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
@@ -1530,14 +1530,14 @@ private fun CharDashaContent(data: JaiminiData) {
         if (data.charAntars.isNotEmpty()) {
             Text(
                 "Char Antardashas (current cycle)",
-                color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+                color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold
             )
             data.charAntars.forEach { ca ->
                 val isCurrent = curAD != null && ca.sign == curAD.sign &&
                     ca.startJD == curAD.startJD && ca.endJD == curAD.endJD
                 CosmicCard(
                     modifier = Modifier.fillMaxWidth(),
-                    borderColor = if (isCurrent) SacredGold else Color.White.copy(alpha = 0.08f)
+                    borderColor = if (isCurrent) SacredGold else StarlightWhite.copy(alpha = 0.08f)
                 ) {
                     KxCharDashaRow(
                         label = if (isCurrent) "${ca.signEn} — ACTIVE" else ca.signEn,
@@ -1560,7 +1560,7 @@ private fun KxCharDashaRow(label: String, cd: CharDasha) {
             Text(label, color = TextSecondary, fontSize = 10.sp)
             Text(
                 "${rashiGlyph(cd.sign + 1)} ${cd.signEn}",
-                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp
             )
         }
         Column(horizontalAlignment = Alignment.End) {
@@ -1616,7 +1616,7 @@ internal fun LazyListScope.faladeshTab(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(planet, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text(planet, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                 if (t.retro) {
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(color = NeutralBlue.copy(alpha = 0.16f), shape = RoundedCornerShape(6.dp)) {
@@ -1664,7 +1664,7 @@ internal fun LazyListScope.faladeshTab(
             ) {
                 Text(
                     "Want a personalised reading of this Faladesh?",
-                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp,
                     textAlign = TextAlign.Center
                 )
                 Text(
@@ -1794,7 +1794,7 @@ internal fun LazyListScope.remediesTab(kundali: KundaliResponse?) {
                     ) {
                         Text(
                             REMEDY_SUBTABS[i],
-                            color = if (isSelected) CosmicDeepBlue else Color.White,
+                            color = if (isSelected) CosmicDeepBlue else StarlightWhite,
                             fontWeight = FontWeight.Bold, fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                         )
@@ -1821,7 +1821,7 @@ private fun RemedyHeader(planetName: String, note: String) {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Column {
-            Text(planetName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(planetName, color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             if (note.isNotBlank()) Text(note, color = TextSecondary, fontSize = 11.sp)
         }
     }
@@ -1953,7 +1953,7 @@ private fun VedicUpayContent(kundali: KundaliResponse, planets: List<ApiPlanet>,
             CosmicCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     RemedyHeader(name, "Every ${r.day}")
-                    Text("Mantra: \"${r.mantra}\" — 108 times", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Mantra: \"${r.mantra}\" — 108 times", color = StarlightWhite, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         "Daan: ${r.daan}.",
                         color = StarlightWhite.copy(alpha = 0.85f), fontSize = 12.sp, lineHeight = 18.sp
@@ -1965,13 +1965,13 @@ private fun VedicUpayContent(kundali: KundaliResponse, planets: List<ApiPlanet>,
         val doshaRemedies = kundali.doshas.filter { it.active }
             .flatMap { d -> d.remedies.map { r -> d.name to r } }
         if (doshaRemedies.isNotEmpty()) {
-            Text("Dosha-specific Upay (from your chart analysis)", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text("Dosha-specific Upay (from your chart analysis)", color = StarlightWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             doshaRemedies.forEach { (doshaName, remedy) ->
                 CosmicCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         Text(doshaName, color = InauspiciousRed, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(remedy, color = Color.White, fontSize = 13.sp, lineHeight = 19.sp)
+                        Text(remedy, color = StarlightWhite, fontSize = 13.sp, lineHeight = 19.sp)
                     }
                 }
             }

@@ -80,8 +80,8 @@ fun DatePickerField(
             unfocusedBorderColor = TextSecondary.copy(alpha = 0.4f),
             focusedLabelColor = SacredGold,
             unfocusedLabelColor = TextSecondary,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
+            focusedTextColor = StarlightWhite,
+            unfocusedTextColor = StarlightWhite,
             cursorColor = SacredGold
         ),
         modifier = modifier
@@ -157,8 +157,8 @@ fun TimePickerField(
             unfocusedBorderColor = TextSecondary.copy(alpha = 0.4f),
             focusedLabelColor = SacredGold,
             unfocusedLabelColor = TextSecondary,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
+            focusedTextColor = StarlightWhite,
+            unfocusedTextColor = StarlightWhite,
             cursorColor = SacredGold
         ),
         modifier = modifier

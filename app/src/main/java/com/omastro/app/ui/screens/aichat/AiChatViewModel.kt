@@ -41,6 +41,8 @@ data class AiChatUiState(
     val attachments: List<BirthDataAttachment> = emptyList(),
     val quota: AiChatQuota = AiChatQuota(),
     val aiModel: AiModel = AiModel.LITE,
+    /** "en" | "hi" — sent as `language` with every message (website parity). */
+    val language: String = "en",
     val savedSessionId: String? = null,
     val isLoadingSessions: Boolean = false,
     val savedSessions: List<SavedChatSession> = emptyList()
@@ -70,6 +72,14 @@ class AiChatViewModel : ViewModel() {
         val mode = _selectedMode.value
         val flow = states.getValue(mode)
         flow.value = flow.value.copy(aiModel = model)
+    }
+
+    /** Sets the reply language for the current mode ("en" | "hi"). */
+    fun setLanguage(language: String) {
+        val lang = if (language == "hi") "hi" else "en"
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        flow.value = flow.value.copy(language = lang)
     }
 
     /**
@@ -132,7 +142,7 @@ class AiChatViewModel : ViewModel() {
                 context = context.ifBlank { null },
                 history = history,
                 aiModel = aiModel,
-                language = "en"
+                language = current.language
             ).onSuccess { response ->
                 sessionIds[mode] = response.sessionId
                 // Store chatContext and replay it on the next turn.
@@ -281,7 +291,7 @@ class AiChatViewModel : ViewModel() {
             sessionId = sessionId,
             title = title,
             mode = mode.persona,
-            language = "en",
+            language = states.getValue(mode).value.language,
             kundaliCtx = buildContext(mode).ifBlank { null },
             messages = history
         )

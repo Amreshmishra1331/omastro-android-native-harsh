@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,7 +69,7 @@ fun DrawerDialogHost(
         is DrawerDialog.ComingSoon -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text(dialog.feature, color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text(dialog.feature, color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
                     Text(
                         "This feature is coming soon to the app. Thank you for your patience.",
@@ -86,7 +88,7 @@ fun DrawerDialogHost(
         DrawerDialog.Privacy -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("Privacy & Disclaimers", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Privacy & Disclaimers", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
                     Text(PRIVACY_TEXT, color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
                 },
@@ -101,7 +103,7 @@ fun DrawerDialogHost(
         DrawerDialog.Terms -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("Terms of Service", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Terms of Service", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
                     Text(TERMS_TEXT, color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
                 },
@@ -114,23 +116,46 @@ fun DrawerDialogHost(
             )
         }
         DrawerDialog.Language -> {
+            val currentLang by com.omastro.app.data.local.LangPrefs.language.collectAsState()
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("App Language", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("App Language", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = true, onClick = {}, colors = RadioButtonDefaults.colors(selectedColor = SacredGold))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { com.omastro.app.data.local.LangPrefs.setLanguage("en") }
+                        ) {
+                            RadioButton(
+                                selected = currentLang == "en",
+                                onClick = { com.omastro.app.data.local.LangPrefs.setLanguage("en") },
+                                colors = RadioButtonDefaults.colors(selectedColor = SacredGold)
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("English", color = Color.White, fontSize = 14.sp)
+                            Text("English", color = StarlightWhite, fontSize = 14.sp)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = false, enabled = false, onClick = {}, colors = RadioButtonDefaults.colors(selectedColor = SacredGold))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { com.omastro.app.data.local.LangPrefs.setLanguage("hi") }
+                        ) {
+                            RadioButton(
+                                selected = currentLang == "hi",
+                                onClick = { com.omastro.app.data.local.LangPrefs.setLanguage("hi") },
+                                colors = RadioButtonDefaults.colors(selectedColor = SacredGold)
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text("हिन्दी", color = StarlightWhite.copy(alpha = 0.4f), fontSize = 14.sp)
-                                Text("Coming soon", color = SacredGold.copy(alpha = 0.7f), fontSize = 11.sp)
+                                Text("हिन्दी", color = StarlightWhite, fontSize = 14.sp)
+                                Text(
+                                    "Menus & navigation only (partial)",
+                                    color = SacredGold.copy(alpha = 0.7f),
+                                    fontSize = 11.sp
+                                )
                             }
                         }
                     }
@@ -146,7 +171,7 @@ fun DrawerDialogHost(
         DrawerDialog.LogoutConfirm -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("Log Out", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Log Out", color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
                     Text(
                         "Are you sure you want to log out of OmAstro AI?",
@@ -191,13 +216,14 @@ fun OmAstroDrawerContent(
     onNavigate: (String) -> Unit,
     onWalletClick: () -> Unit,
     onRateApp: () -> Unit,
+    onReportBug: () -> Unit,
     onLogout: () -> Unit,
     onComingSoon: (String) -> Unit,
     onShowDialog: (DrawerDialog) -> Unit
 ) {
     ModalDrawerSheet(
         drawerContainerColor = CosmicSurface,
-        drawerContentColor = Color.White,
+        drawerContentColor = StarlightWhite,
         modifier = Modifier.width(320.dp)
     ) {
         Column(
@@ -239,7 +265,7 @@ fun OmAstroDrawerContent(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = userName?.takeIf { it.isNotBlank() } ?: "Vedic Seeker",
-                            color = Color.White,
+                            color = StarlightWhite,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -292,6 +318,7 @@ fun OmAstroDrawerContent(
                 onNavigate = onNavigate,
                 onComingSoon = onComingSoon,
                 onRateApp = onRateApp,
+                onReportBug = onReportBug,
                 onShowDialog = onShowDialog
             ).forEach { (section, entries) ->
                 if (section != "Menu") {
@@ -356,8 +383,8 @@ private fun DrawerRow(entry: DrawerEntry, selected: Boolean) {
         label = {
             Column {
                 Text(
-                    entry.title,
-                    color = if (selected) SacredGold else Color.White,
+                    com.omastro.app.data.local.LangPrefs.label(entry.title),
+                    color = if (selected) SacredGold else StarlightWhite,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     fontSize = 14.sp
                 )
@@ -394,6 +421,7 @@ private fun drawerMenuEntries(
     onNavigate: (String) -> Unit,
     onComingSoon: (String) -> Unit,
     onRateApp: () -> Unit,
+    onReportBug: () -> Unit,
     onShowDialog: (DrawerDialog) -> Unit
 ): List<Pair<String, List<DrawerEntry>>> {
     fun nav(title: String, icon: ImageVector, route: String, subtitle: String? = null) =
@@ -419,9 +447,9 @@ private fun drawerMenuEntries(
             nav("Saved Kundalis", Icons.Default.Bookmarks, Screen.SavedCharts.route),
             DrawerEntry(
                 title = "AI Chat History",
-                subtitle = "Coming soon",
+                subtitle = "Saved conversations",
                 icon = Icons.Default.History,
-                onClick = { onComingSoon("AI Chat History") }
+                onClick = { onNavigate(Screen.AiChat.HISTORY_ROUTE) }
             ),
             nav("Activity History", Icons.Default.ReceiptLong, Screen.Wallet.route, "Transactions"),
             DrawerEntry(
@@ -440,7 +468,7 @@ private fun drawerMenuEntries(
         "Preferences" to listOf(
             DrawerEntry(
                 title = "Language",
-                subtitle = "English · हिन्दी coming soon",
+                subtitle = "English · हिन्दी (partial)",
                 icon = Icons.Default.Language,
                 onClick = { onShowDialog(DrawerDialog.Language) }
             )
@@ -458,9 +486,9 @@ private fun drawerMenuEntries(
             ),
             DrawerEntry(
                 title = "Report a Bug",
-                subtitle = "Coming soon",
+                subtitle = "Email support",
                 icon = Icons.Default.BugReport,
-                onClick = { onComingSoon("Report a Bug") }
+                onClick = { onReportBug() }
             )
         )
     )

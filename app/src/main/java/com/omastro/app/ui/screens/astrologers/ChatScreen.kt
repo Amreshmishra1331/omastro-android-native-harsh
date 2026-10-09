@@ -140,12 +140,12 @@ fun ChatScreen(
                     ) {
                         Text(
                             text = sessionError ?: "",
-                            color = Color.White,
+                            color = StarlightWhite,
                             fontSize = 13.sp,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(onClick = { viewModel.clearSessionError() }) {
-                            Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = StarlightWhite, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -208,7 +208,7 @@ fun ChatScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = timerText,
-                                color = Color.White,
+                                color = StarlightWhite,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -339,7 +339,7 @@ private fun ChatHeader(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = astro?.name ?: "Astrologer",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -421,7 +421,7 @@ private fun AstroBubble(text: String) {
         ) {
             Text(
                 text = text,
-                color = Color.White,
+                color = StarlightWhite,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
             )
@@ -517,8 +517,8 @@ private fun ChatComposer(
                     focusedContainerColor = CosmicCharcoal,
                     unfocusedContainerColor = CosmicCharcoal,
                     disabledContainerColor = CosmicCharcoal,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = StarlightWhite,
+                    unfocusedTextColor = StarlightWhite,
                     disabledTextColor = StarlightWhite.copy(alpha = 0.4f),
                     cursorColor = SacredGold,
                     focusedIndicatorColor = Color.Transparent,
@@ -596,7 +596,7 @@ private fun RateConsentDialog(
             }
         },
         containerColor = CosmicNavy,
-        titleContentColor = Color.White,
+        titleContentColor = StarlightWhite,
         textContentColor = StarlightWhite.copy(alpha = 0.85f)
     )
 }
@@ -627,7 +627,7 @@ private fun BirthAttachDialog(
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
                     "Attach Birth Details",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
@@ -663,7 +663,7 @@ private fun BirthAttachDialog(
                         ) {
                             Text(
                                 text = label,
-                                color = if (selected) CosmicDeepBlue else Color.White,
+                                color = if (selected) CosmicDeepBlue else StarlightWhite,
                                 fontWeight = FontWeight.SemiBold,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(vertical = 10.dp)
@@ -763,8 +763,8 @@ private fun BirthAttachDialog(
 private fun dialogFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = SacredGold,
     unfocusedBorderColor = CosmicBorder,
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White,
+    focusedTextColor = StarlightWhite,
+    unfocusedTextColor = StarlightWhite,
     focusedLabelColor = SacredGold,
     unfocusedLabelColor = StarlightWhite.copy(alpha = 0.6f),
     cursorColor = SacredGold
@@ -808,7 +808,7 @@ private fun AddMoneyDialog(
             }
         },
         containerColor = CosmicNavy,
-        titleContentColor = Color.White,
+        titleContentColor = StarlightWhite,
         textContentColor = StarlightWhite.copy(alpha = 0.85f)
     )
 }
@@ -838,7 +838,7 @@ private fun ReviewDialog(
             ) {
                 Text(
                     "Rate your chat with $astroName",
-                    color = Color.White,
+                    color = StarlightWhite,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     textAlign = TextAlign.Center

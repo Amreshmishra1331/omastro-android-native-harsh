@@ -20,14 +20,24 @@ data class GunaDetail(
     @SerializedName("description") val description: String
 )
 
+/**
+ * Sentinel defaults (-1 / blank) are DELIBERATE: if the server omits a key,
+ * Gson fills the Kotlin default — and a plausible-looking default like 28.5/79%
+ * would display as a real verdict. The screen treats any sentinel as
+ * "no real data" and shows an error state instead. Never display sentinels.
+ */
 data class MatchmakingResponse(
-    @SerializedName("success") val success: Boolean = true,
-    @SerializedName("total_score") val totalScore: Double = 28.5,
-    @SerializedName("max_score") val maxScore: Double = 36.0,
-    @SerializedName("percentage") val percentage: Int = 79,
-    @SerializedName("verdict") val verdict: String = "Highly Auspicious Match",
-    @SerializedName("manglik_boy") val manglikBoy: String = "Non-Manglik",
-    @SerializedName("manglik_girl") val manglikGirl: String = "Non-Manglik",
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("total_score") val totalScore: Double = -1.0,
+    @SerializedName("max_score") val maxScore: Double = -1.0,
+    @SerializedName("percentage") val percentage: Int = -1,
+    @SerializedName("verdict") val verdict: String = "",
+    @SerializedName("manglik_boy") val manglikBoy: String = "",
+    @SerializedName("manglik_girl") val manglikGirl: String = "",
     @SerializedName("gunas") val gunas: List<GunaDetail> = emptyList(),
-    @SerializedName("conclusion") val conclusion: String = "Planetary harmony indicates excellent spiritual, mental, and physical compatibility."
-)
+    @SerializedName("conclusion") val conclusion: String = ""
+) {
+    /** True only when the server returned a real, complete score block. */
+    val hasRealData: Boolean
+        get() = success && totalScore >= 0 && maxScore > 0 && percentage >= 0 && verdict.isNotBlank()
+}
