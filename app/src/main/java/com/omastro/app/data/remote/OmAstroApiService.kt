@@ -80,11 +80,11 @@ interface OmAstroApiService {
         @Body request: GocharRequest
     ): Response<GocharResponse>
 
-    // Astrologers
+    // Astrologers — real envelope: {"success":true,"data":{"astrologers":[...]}}
     @GET("astrologers")
     suspend fun getAstrologers(
         @Query("category") category: String? = null
-    ): Response<List<Astrologer>>
+    ): Response<AstrologersResponse>
 
     @GET("astrologers/chat/history")
     suspend fun getChatHistory(
@@ -177,9 +177,10 @@ interface OmAstroApiService {
     ): Response<Map<String, Any>>
 
     // Geocode place search (city autocomplete for birth places)
-    @POST("geocode/search")
+    // Backend: GET /geocode/search?q=<query> -> {success, data: {results: [...]}}
+    @GET("geocode/search")
     suspend fun searchPlaces(
-        @Body request: GeocodeSearchRequest
+        @Query("q") query: String
     ): Response<GeocodeSearchResponse>
 
     // Muhurat (auspicious dates for life events)
@@ -219,35 +220,42 @@ data class CloseChatRequest(
     @SerializedName("session_id") val sessionId: String? = null
 )
 
-// Geocode place search models (POST /geocode/search)
-data class GeocodeSearchRequest(
-    @SerializedName("query") val query: String
-)
-
+// Geocode place search models (GET /geocode/search?q=)
+// Real response: {"success":true,"data":{"results":[{"name","country","state","display","lat","lon","tz"}]}}
 data class GeocodePlace(
     @SerializedName("name") val name: String,
     @SerializedName("lat") val lat: Double,
     @SerializedName("lon") val lon: Double,
     @SerializedName("country") val country: String? = null,
-    @SerializedName("state") val state: String? = null
+    @SerializedName("state") val state: String? = null,
+    @SerializedName("display") val display: String? = null,
+    @SerializedName("tz") val tz: Double? = null
 ) {
-    /** Human-readable display name: "City, State, Country" (parts that exist). */
+    /** Human-readable display name: prefers server "display", falls back to "City, State, Country". */
     val displayName: String
-        get() = listOfNotNull(name, state, country)
-            .filter { it.isNotBlank() }
-            .distinct()
-            .joinToString(", ")
+        get() = display?.takeIf { it.isNotBlank() }
+            ?: listOfNotNull(name, state, country)
+                .filter { it.isNotBlank() }
+                .distinct()
+                .joinToString(", ")
 }
+
+data class GeocodeSearchData(
+    @SerializedName("results") val results: List<GeocodePlace> = emptyList()
+)
 
 data class GeocodeSearchResponse(
     @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: GeocodeSearchData? = null,
+    // Legacy flat keys (kept for tolerance)
     @SerializedName("places") val places: List<GeocodePlace> = emptyList(),
     @SerializedName("results") val results: List<GeocodePlace>? = null,
     @SerializedName("message") val message: String? = null
 ) {
-    /** Accepts either "places" or "results" envelope keys. */
+    /** Accepts data.results (real), or legacy flat "places"/"results" keys. */
     val allPlaces: List<GeocodePlace>
-        get() = if (places.isNotEmpty()) places else (results ?: emptyList())
+        get() = data?.results?.takeIf { it.isNotEmpty() }
+            ?: if (places.isNotEmpty()) places else (results ?: emptyList())
 }
 
 // Saved Charts models (GET/POST/DELETE /me/charts)

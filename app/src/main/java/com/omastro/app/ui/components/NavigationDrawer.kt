@@ -403,7 +403,8 @@ private fun drawerMenuEntries(
     return listOf(
         "Menu" to listOf(
             nav("Dashboard", Icons.Default.Home, Screen.Home.route),
-            nav("AI Chat", Icons.Default.Chat, Screen.AiChat.route, "General · Divine · Mundane"),
+            nav("AI Chat", Icons.Default.Chat, Screen.AiChat.route, "General · Mundane"),
+            nav("Divine Chat", Icons.Default.Spa, Screen.DivineChat.route, "Spiritual guidance"),
             nav("Janam Kundali", Icons.Default.AutoAwesome, Screen.Kundali.route),
             nav("Rashifal", Icons.Default.WbSunny, Screen.Horoscope.route),
             nav("Panchang", Icons.Default.CalendarToday, Screen.Panchang.route),

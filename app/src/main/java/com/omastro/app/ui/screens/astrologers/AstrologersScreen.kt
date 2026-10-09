@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.omastro.app.data.model.Astrologer
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.GradientButton
@@ -86,26 +87,35 @@ private fun AstrologerListItem(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar & Online indicator
+            // Avatar & Online indicator — real photo from server
             Box(modifier = Modifier.size(64.dp)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                        .background(CosmicNavy),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Filled.Person, contentDescription = "Astrologer", tint = SacredGold, modifier = Modifier.size(28.dp))
-                }
-                if (astro.isOnline) {
+                if (astro.img.isNotBlank()) {
+                    AsyncImage(
+                        model = astro.img,
+                        contentDescription = astro.name,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(CosmicNavy)
+                    )
+                } else {
                     Box(
                         modifier = Modifier
-                            .size(14.dp)
-                            .align(Alignment.BottomEnd)
+                            .fillMaxSize()
                             .clip(CircleShape)
-                            .background(Color(0xFF4CAF50))
-                    )
+                            .background(CosmicNavy),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Person, contentDescription = "Astrologer", tint = SacredGold, modifier = Modifier.size(28.dp))
+                    }
                 }
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(if (astro.online) Color(0xFF4CAF50) else Color(0xFF9E9E9E))
+                )
             }
 
             Spacer(modifier = Modifier.width(14.dp))
@@ -117,15 +127,18 @@ private fun AstrologerListItem(
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
-                Text(
-                    text = astro.title,
-                    color = MysticPurple,
-                    fontSize = 12.sp,
-                    maxLines = 1
-                )
+                val spec = astro.specialisations.take(2).joinToString(", ")
+                if (spec.isNotBlank()) {
+                    Text(
+                        text = spec,
+                        color = MysticPurple,
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${astro.experienceYears} yrs exp • ${astro.languages.joinToString(", ")}",
+                    text = "${astro.experience} yrs exp • ${astro.languages.joinToString(", ")}",
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 11.sp
                 )
@@ -139,7 +152,7 @@ private fun AstrologerListItem(
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = "${astro.rating} (${astro.totalConsultations} calls)",
+                        text = "${astro.rating} (${astro.reviews} reviews)",
                         color = SacredGold,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -151,7 +164,7 @@ private fun AstrologerListItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "₹${astro.pricePerMin}/min",
+                    text = astro.displayRate,
                     color = RadiantAmber,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp

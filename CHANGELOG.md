@@ -4,6 +4,23 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-09] — FIX: Astrologers blank + Divine Chat separated
+
+### Broken / missing
+- **Astrologers screen was blank**: Two compounding bugs. (1) `OmAstroApiService.getAstrologers()` declared `Response<List<Astrologer>>` but the real API returns an envelope `{"success":true,"data":{"astrologers":[...]}}` — Retrofit/Gson threw on parsing so the list never populated. (2) Even past the envelope, every field name was wrong: `title` vs real (none — uses `specialisations`), `speciality` vs `specialisations`, `experience_years` vs `experience`, `price_per_min` vs `rate_paise`/`rate_label`, `total_consultations` vs `reviews`, `is_online` vs `online`, `avatar_url` vs `img`. Verified live: `curl /wp-json/omastro/v1/astrologers` returns the envelope with fields id/name/slug/img/rating/reviews/experience/specialisations/languages/about/online/rate_paise/rate_label/gender.
+- **Divine Chat was buried inside AI Chat**: the website has three separate sections (AI Chat, Divine Chat, Astrologers) but the app only exposed AI Chat with an in-screen mode switcher. No dedicated Divine entry point existed.
+
+### Removed
+- Old `Astrologer` fields (`title`, `speciality`, `experience_years`, `price_per_min`, `total_consultations`, `is_online`, `avatar_url`) replaced with real API fields.
+
+### Added
+- **Real astrologer model**: `Astrologer` now matches the production API exactly; new `AstrologersResponse`/`AstrologersData` envelope types; `displayRate` derives "₹5/min" from server `rate_label` with paise fallback.
+- **Repository unwraps the envelope**: `ConsultationRepository.getAstrologers()` reads `body.data.astrologers` and surfaces the server's `message` on failure.
+- **Photos**: astrologer cards (Astrologers screen + Dashboard carousel) now load the real `img` photo via Coil, with person-icon fallback; online dot uses real `online` flag.
+- **Divine Chat section**: new `Screen.DivineChat` route + `DivineChatScreen` (locked to the Divine persona, mode switcher hidden); `AiChatScreen` gained an optional `lockedMode` parameter; drawer menu now lists "AI Chat", "Divine Chat", and "Astrologers" as three separate entries, matching the website.
+
+---
+
 ## [2026-10-09] — FIX: Google Sign-In error 10 (DEVELOPER_ERROR) — stable debug keystore + setup docs
 
 ### Broken / missing

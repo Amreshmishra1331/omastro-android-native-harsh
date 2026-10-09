@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import androidx.navigation.NavController
 import com.omastro.app.data.model.Astrologer
 import com.omastro.app.ui.components.CosmicCard
@@ -559,12 +560,22 @@ private fun AstrologerCard(
                         .background(CosmicNavy),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Filled.Person,
-                        contentDescription = null,
-                        tint = SacredGold,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    if (astrologer.img.isNotBlank()) {
+                        AsyncImage(
+                            model = astrologer.img,
+                            contentDescription = astrologer.name,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.Person,
+                            contentDescription = null,
+                            tint = SacredGold,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -589,7 +600,7 @@ private fun AstrologerCard(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = " · ${astrologer.experienceYears} yrs",
+                            text = " · ${astrologer.experience} yrs",
                             color = StarlightWhite.copy(alpha = 0.6f),
                             fontSize = 11.sp
                         )
@@ -598,7 +609,7 @@ private fun AstrologerCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = astrologer.speciality.take(2).joinToString(", "),
+                text = astrologer.specialisations.take(2).joinToString(", "),
                 color = MysticPurple,
                 fontSize = 11.sp,
                 maxLines = 1,
@@ -611,12 +622,12 @@ private fun AstrologerCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "₹${astrologer.pricePerMin}/min",
+                    text = "${astrologer.displayRate}",
                     color = RadiantAmber,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp
                 )
-                if (astrologer.isOnline) {
+                if (astrologer.online) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier

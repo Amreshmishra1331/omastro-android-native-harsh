@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.data.remote.GeocodePlace
-import com.omastro.app.data.remote.GeocodeSearchRequest
 import com.omastro.app.ui.theme.SacredGold
 import com.omastro.app.ui.theme.StarlightWhite
 import com.omastro.app.ui.theme.TextSecondary
@@ -29,10 +28,10 @@ import kotlinx.coroutines.launch
 /**
  * Place search field with debounced autocomplete.
  *
- * Type a city name -> queries POST /geocode/search (debounced ~400ms) ->
+ * Type a city name -> queries GET /geocode/search?q= (debounced ~400ms) ->
  * dropdown shows matching places -> tap one to select.
  *
- * On selection, [onPlaceSelected] receives the place (name, lat, lon).
+ * On selection, [onPlaceSelected] receives the place (name, lat, lon, tz).
  * The text field keeps the place display name; manual editing clears the
  * selection so the user can type a new query.
  *
@@ -78,7 +77,7 @@ fun PlaceSearchField(
             isSearching = true
             searchError = null
             try {
-                val res = ApiClient.apiService.searchPlaces(GeocodeSearchRequest(text.trim()))
+                val res = ApiClient.apiService.searchPlaces(text.trim())
                 val body = res.body()
                 if (res.isSuccessful && body != null && body.success) {
                     places = body.allPlaces

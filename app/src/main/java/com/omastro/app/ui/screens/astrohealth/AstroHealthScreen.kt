@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.DatePickerField
+import com.omastro.app.ui.components.TimePickerField
 import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.theme.*
 
@@ -140,8 +142,8 @@ private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
         CosmicCard(borderGold = true, modifier = Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HealthField(name, viewModel::setName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
-                HealthField(dob, viewModel::setDob, "Date of Birth", "YYYY-MM-DD", KeyboardType.Number)
-                HealthField(tob, viewModel::setTob, "Time of Birth", "HH:MM 24-hour", KeyboardType.Number)
+                DatePickerField(dob, viewModel::setDob, "Date of Birth")
+                TimePickerField(tob, viewModel::setTob, "Time of Birth")
                 PlaceSearchField(
                     value = place,
                     onValueChange = viewModel::setPlace,

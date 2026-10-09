@@ -109,8 +109,14 @@ private val modeSuggestions: Map<AiChatMode, List<String>> = mapOf(
 fun AiChatScreen(
     onBack: () -> Unit,
     onMenuClick: (() -> Unit)? = null,
-    viewModel: AiChatViewModel = viewModel()
+    viewModel: AiChatViewModel = viewModel(),
+    lockedMode: AiChatMode? = null
 ) {
+    // When locked to a specific mode (e.g. Divine Chat section), pre-select it
+    // and hide the mode switcher.
+    LaunchedEffect(lockedMode) {
+        if (lockedMode != null) viewModel.selectMode(lockedMode)
+    }
     val selectedMode by viewModel.selectedMode.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     var inputText by remember { mutableStateOf("") }
@@ -217,10 +223,14 @@ fun AiChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            ModeSegmentedControl(
-                selected = selectedMode,
-                onSelect = { viewModel.selectMode(it) }
-            )
+            // Hide the mode switcher when locked to a single mode
+            // (e.g. the dedicated Divine Chat section).
+            if (lockedMode == null) {
+                ModeSegmentedControl(
+                    selected = selectedMode,
+                    onSelect = { viewModel.selectMode(it) }
+                )
+            }
 
             if (uiState.messages.isEmpty() && !uiState.isTyping) {
                 ChatEmptyState(

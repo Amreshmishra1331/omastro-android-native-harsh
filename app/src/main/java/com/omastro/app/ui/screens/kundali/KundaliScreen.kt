@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.*
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.DatePickerField
+import com.omastro.app.ui.components.TimePickerField
 import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.components.PlanetMark
 import com.omastro.app.ui.components.VedicDiamondChart
@@ -294,10 +296,19 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
         }
 
         FormSectionCard(title = "Date & Time of Birth") {
-            BirthField(dob, viewModel::setBirthDob, "Date of Birth", "YYYY-MM-DD  e.g. 1995-08-15", KeyboardType.Number)
-            BirthField(tob, viewModel::setBirthTob, "Time of Birth", "HH:MM 24-hour  e.g. 08:30", KeyboardType.Number)
+            DatePickerField(
+                apiDate = dob,
+                onDateChange = viewModel::setBirthDob,
+                label = "Date of Birth"
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            TimePickerField(
+                displayTime = tob,
+                onTimeChange = viewModel::setBirthTob,
+                label = "Time of Birth"
+            )
             Text(
-                text = "Use 24-hour format. If the exact time is unknown, leave 12:00 and note it — predictions will be approximate.",
+                text = "Tap the fields to pick date and time. If the exact time is unknown, leave 12:00 PM — predictions will be approximate.",
                 color = TextSecondary,
                 fontSize = 11.sp,
                 lineHeight = 16.sp

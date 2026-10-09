@@ -182,6 +182,12 @@ class MainActivity : ComponentActivity() {
                                 onMenuClick = openDrawer
                             )
                         }
+                        composable(Screen.DivineChat.route) {
+                            com.omastro.app.ui.screens.aichat.DivineChatScreen(
+                                onBack = { navController.popBackStack() },
+                                onMenuClick = openDrawer
+                            )
+                        }
                         composable(Screen.Panchang.route) {
                             PanchangScreen(onBack = { navController.popBackStack() })
                         }

@@ -22,10 +22,13 @@ class ConsultationRepository(
         return try {
             val res = api.getAstrologers(category)
             val body = res.body()
-            if (res.isSuccessful && body != null) {
-                Result.success(body)
+            // Real envelope: {"success":true,"data":{"astrologers":[...]}}
+            val list = body?.data?.astrologers.orEmpty()
+            if (res.isSuccessful && body != null && body.success) {
+                Result.success(list)
             } else {
-                Result.failure(IOException("Failed to load astrologers: HTTP ${res.code()}"))
+                val msg = body?.message ?: "Failed to load astrologers: HTTP ${res.code()}"
+                Result.failure(IOException(msg))
             }
         } catch (e: Exception) {
             Result.failure(e)

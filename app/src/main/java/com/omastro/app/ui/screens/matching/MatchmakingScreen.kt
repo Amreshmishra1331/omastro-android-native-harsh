@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.GunaDetail
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.components.DatePickerField
+import com.omastro.app.ui.components.TimePickerField
 import com.omastro.app.ui.components.PlaceSearchField
 import com.omastro.app.ui.theme.*
 
@@ -148,8 +150,12 @@ fun MatchmakingScreen(
                     item { BirthInputField("Full Name", boyName, { boyName = it }) }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            BirthInputField("Date of Birth (YYYY-MM-DD)", boyDob, { boyDob = it }, Modifier.weight(1f))
-                            BirthInputField("Time (HH:MM)", boyTob, { boyTob = it }, Modifier.weight(1f))
+                            Box(Modifier.weight(1f)) {
+                                DatePickerField(boyDob, { boyDob = it }, "Date of Birth")
+                            }
+                            Box(Modifier.weight(1f)) {
+                                TimePickerField(boyTob, { boyTob = it }, "Time")
+                            }
                         }
                     }
                     item {
@@ -170,8 +176,12 @@ fun MatchmakingScreen(
                     item { BirthInputField("Full Name", girlName, { girlName = it }) }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            BirthInputField("Date of Birth (YYYY-MM-DD)", girlDob, { girlDob = it }, Modifier.weight(1f))
-                            BirthInputField("Time (HH:MM)", girlTob, { girlTob = it }, Modifier.weight(1f))
+                            Box(Modifier.weight(1f)) {
+                                DatePickerField(girlDob, { girlDob = it }, "Date of Birth")
+                            }
+                            Box(Modifier.weight(1f)) {
+                                TimePickerField(girlTob, { girlTob = it }, "Time")
+                            }
                         }
                     }
                     item {

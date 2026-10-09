@@ -162,8 +162,12 @@ fun GocharScreen(
                     item { GocharInputField("Full Name", name, { name = it }) }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            GocharInputField("Date of Birth (YYYY-MM-DD)", dob, { dob = it }, Modifier.weight(1f))
-                            GocharInputField("Time (HH:MM)", tob, { tob = it }, Modifier.weight(1f))
+                            Box(Modifier.weight(1f)) {
+                                DatePickerField(dob, { dob = it }, "Date of Birth")
+                            }
+                            Box(Modifier.weight(1f)) {
+                                TimePickerField(tob, { tob = it }, "Time")
+                            }
                         }
                     }
                     item {
@@ -224,11 +228,10 @@ fun GocharScreen(
                         )
                     }
                     item {
-                        GocharInputField(
-                            "Transit Date (YYYY-MM-DD)",
+                        DatePickerField(
                             transitDate,
                             { transitDate = it },
-                            supportingText = "The date for which planetary transits are computed"
+                            "Transit Date"
                         )
                     }
 
