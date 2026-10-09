@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import android.Manifest
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -40,7 +41,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -75,6 +81,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.model.AiModel
 import com.omastro.app.data.model.ChatMessage
+import com.omastro.app.data.model.PhotoContextAttachment
+import com.omastro.app.data.model.VisionAnalysis
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicDeepBlue
 import com.omastro.app.ui.theme.CosmicNavy
@@ -136,6 +144,52 @@ fun AiChatScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // ---- Voice typing + photo attach + voice mode (world-class additions) ----
+    val voiceInput = rememberVoiceInputManager()
+    var isListening by remember { mutableStateOf(false) }
+    var showPhotoDialog by remember { mutableStateOf(false) }
+    var photoResult by remember { mutableStateOf<Pair<VisionAnalysis, String>?>(null) }
+    val voiceModeOn by VoiceModePrefs.enabled
+    val ttsSpeaking by VoiceModeManager.isSpeaking
+    val micPermission = rememberPermissionRequest(
+        permission = Manifest.permission.RECORD_AUDIO,
+        title = "Microphone access",
+        rationale = "Voice typing converts your speech into text for the chat. The microphone is only used while you tap the mic button."
+    )
+    voiceInput.onListeningChange = { isListening = it }
+    voiceInput.onResult = { text ->
+        inputText = if (inputText.isBlank()) text else "${inputText.trim()} $text"
+    }
+    voiceInput.onError = { msg ->
+        scope.launch { snackbarHostState.showSnackbar(msg) }
+    }
+
+    // Handoff from Palmistry / Vastu / photo screens: attach parsed facts.
+    LaunchedEffect(Unit) {
+        if (viewModel.consumePendingPhotoContext()) {
+            snackbarHostState.showSnackbar("Photo analysis attached. Ask anything about it.")
+        }
+    }
+
+    // Voice mode: speak each new AI reply aloud.
+    val lastSpokenId = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(uiState.messages, voiceModeOn) {
+        if (voiceModeOn) {
+            val lastAi = uiState.messages.lastOrNull { !it.isUser }
+            if (lastAi != null && lastAi.id != lastSpokenId.value && !uiState.isTyping) {
+                lastSpokenId.value = lastAi.id
+                VoiceModeManager.speak(lastAi.message, uiState.language)
+            }
+        } else {
+            VoiceModeManager.stop()
+        }
+    }
+    // Stop speech when leaving the screen.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { VoiceModeManager.stop() }
+    }
 
     fun sendCurrent() {
         if (inputText.isNotBlank() && !uiState.isTyping) {
@@ -204,6 +258,23 @@ fun AiChatScreen(
                             limit = uiState.quota.limit
                         )
                     }
+                    // Voice mode: spoken AI replies (persisted toggle)
+                    IconButton(onClick = {
+                        VoiceModePrefs.setEnabled(!voiceModeOn)
+                        if (!voiceModeOn) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Voice mode on. AI replies will be read aloud.")
+                            }
+                        }
+                    }) {
+                        Icon(
+                            if (ttsSpeaking) Icons.Default.Stop
+                            else if (voiceModeOn) Icons.Default.VolumeUp
+                            else Icons.Default.VolumeOff,
+                            contentDescription = if (voiceModeOn) "Voice mode on" else "Voice mode off",
+                            tint = if (voiceModeOn) SacredGold else StarlightWhite.copy(alpha = 0.55f)
+                        )
+                    }
                     // Saved chats
                     IconButton(onClick = {
                         viewModel.loadSavedSessions()
@@ -251,6 +322,11 @@ fun AiChatScreen(
                     attachments = uiState.attachments,
                     onRemove = { viewModel.removeAttachment(it) }
                 )
+                // Attached photo-analysis chips (vision / palmistry / vastu)
+                PhotoAttachmentChips(
+                    attachments = uiState.photoAttachments,
+                    onRemove = { viewModel.removePhotoAttachment(it) }
+                )
                 if (uiState.messages.isNotEmpty() && !uiState.isTyping) {
                     InlineSuggestionStrip(
                         suggestions = modeSuggestions.getValue(selectedMode).take(3),
@@ -262,6 +338,17 @@ fun AiChatScreen(
                     onValueChange = { inputText = it },
                     onSend = ::sendCurrent,
                     onAttachClick = { showAttachDialog = true },
+                    onMicClick = {
+                        if (isListening) {
+                            voiceInput.stopListening()
+                        } else {
+                            micPermission.request(context) { granted ->
+                                if (granted) voiceInput.startListening(uiState.language)
+                            }
+                        }
+                    },
+                    isListening = isListening,
+                    onPhotoClick = { showPhotoDialog = true },
                     enabled = !uiState.isTyping
                 )
             }
@@ -337,6 +424,60 @@ fun AiChatScreen(
                 scope.launch {
                     snackbarHostState.showSnackbar("Birth data attached. It will be sent with your next message.")
                 }
+            }
+        )
+    }
+
+    // Photo analysis dialog (camera / gallery / file → AI vision)
+    if (showPhotoDialog) {
+        PhotoAttachDialog(
+            onDismiss = { showPhotoDialog = false },
+            onAnalyzed = { analysis, fileName ->
+                showPhotoDialog = false
+                photoResult = analysis to fileName
+            },
+            onError = { msg ->
+                showPhotoDialog = false
+                scope.launch { snackbarHostState.showSnackbar(msg) }
+            }
+        )
+    }
+
+    // Photo analysis result: show analysis + offer to attach parsed facts
+    val result = photoResult
+    if (result != null) {
+        PhotoAnalysisResultDialog(
+            analysis = result.first,
+            fileName = result.second,
+            onDismiss = { photoResult = null },
+            onAttachToChat = {
+                val block = result.first.toContextBlock(result.second)
+                if (block.isNotBlank()) {
+                    viewModel.attachPhotoContext(
+                        PhotoContextAttachment(
+                            label = result.second,
+                            contextBlock = block
+                        )
+                    )
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Photo analysis attached. Ask anything about it.")
+                    }
+                }
+                photoResult = null
+            },
+            onAskNow = {
+                // Attach + immediately ask a follow-up in chat
+                val block = result.first.toContextBlock(result.second)
+                if (block.isNotBlank()) {
+                    viewModel.attachPhotoContext(
+                        PhotoContextAttachment(
+                            label = result.second,
+                            contextBlock = block
+                        )
+                    )
+                }
+                photoResult = null
+                inputText = "Tell me more about this photo analysis."
             }
         )
     }
@@ -635,6 +776,9 @@ private fun ChatInputBar(
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
     onAttachClick: () -> Unit,
+    onMicClick: () -> Unit,
+    isListening: Boolean,
+    onPhotoClick: () -> Unit,
     enabled: Boolean
 ) {
     Surface(
@@ -710,6 +854,53 @@ private fun ChatInputBar(
                 )
             )
             Spacer(modifier = Modifier.width(10.dp))
+            // Voice typing (mic) — SpeechRecognizer, en/hi
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isListening) SacredGold.copy(alpha = 0.35f)
+                        else StarlightWhite.copy(alpha = 0.08f)
+                    )
+                    .border(
+                        1.dp,
+                        SacredGold.copy(alpha = 0.3f),
+                        CircleShape
+                    )
+                    .clickable(enabled = enabled) { onMicClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = if (isListening) "Stop listening" else "Voice typing",
+                    tint = if (isListening) SacredGold else StarlightWhite.copy(alpha = 0.8f),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            // Photo analysis (camera / gallery / file → AI vision)
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(StarlightWhite.copy(alpha = 0.08f))
+                    .border(
+                        1.dp,
+                        SacredGold.copy(alpha = 0.3f),
+                        CircleShape
+                    )
+                    .clickable(enabled = enabled) { onPhotoClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PhotoCamera,
+                    contentDescription = "Analyze a photo",
+                    tint = SacredGold,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             val canSend = value.isNotBlank() && enabled
             Box(
                 modifier = Modifier

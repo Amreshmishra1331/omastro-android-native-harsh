@@ -10,6 +10,9 @@ class OmAstroApp : Application() {
         super.onCreate()
         ThemePrefs.init(this)
         com.omastro.app.data.local.LangPrefs.init(this)
+        // Voice mode (spoken AI replies) — prefs + TTS engine
+        com.omastro.app.ui.screens.aichat.VoiceModePrefs.init(this)
+        com.omastro.app.ui.screens.aichat.VoiceModeManager.init(this)
         // Initialize Firebase Cloud Messaging token synchronization
         try {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->

@@ -331,6 +331,22 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() }
                             )
                         }
+                        composable(Screen.Palmistry.route) {
+                            com.omastro.app.ui.screens.palmistry.PalmistryScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenAiChat = {
+                                    navController.navigate(Screen.AiChat.route)
+                                }
+                            )
+                        }
+                        composable(Screen.Vastu.route) {
+                            com.omastro.app.ui.screens.vastu.VastuScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenAiChat = {
+                                    navController.navigate(Screen.AiChat.route)
+                                }
+                            )
+                        }
                         composable(Screen.Auth.route) {
                             AuthScreen(
                                 onLoginSuccess = {

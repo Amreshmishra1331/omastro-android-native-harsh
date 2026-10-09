@@ -4,6 +4,31 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — World-class differentiators: voice, photo AI, palmistry, Vastu
+
+NEW features beyond the website (backend: `POST /vastu/*`, `POST /ai/vision`, `POST /palmistry/analyze` — live on production, documented in `workspace/vastu-vision-api.md`).
+
+### Added
+1. **Voice typing in AI chat** (`VoiceSpeech.kt`, `AiChatScreen.kt`): mic button in the chat input bar → Android SpeechRecognizer (en-IN / hi-IN per chat language) → transcribed text appended to the input. RECORD_AUDIO permission with rationale dialog + graceful denial state. Listening state shown on the mic button.
+2. **Voice mode — spoken AI replies** (`VoiceSpeech.kt`): speaker toggle in the AI chat header → Android TextToSpeech reads each new AI reply aloud (markdown stripped; hi-IN voice when chat language is Hindi). Tapping the toggle while speaking stops it. Toggle persisted via `VoiceModePrefs`; TTS engine initialized in `OmAstroApp.onCreate`, stopped on screen exit.
+3. **Photo attach in AI chat** (`PhotoAttachDialog.kt`, `PhotoAnalysisResultDialog.kt`): camera button in the input bar → chooser (Take Photo / Gallery / File) → preview + question field → `POST /ai/vision` multipart upload → result dialog with analysis text + "Attach to Chat" / "Ask AI" actions. CAMERA + READ_MEDIA_IMAGES permissions with rationale dialogs. `parsed_facts` attached as chat context via new `PhotoContextAttachment` (blue chips, same mechanism as birth-data chips) — follow-up questions reference the photo. Cross-screen handoff via `PendingPhotoContextHolder` (consumed once on chat open).
+4. **Palmistry screen** (`ui/screens/palmistry/PalmistryScreen.kt`): photo guidance tips, left/right hand selector, camera/gallery capture → `POST /palmistry/analyze` → rich result (hand summary hero, full reading, lines with quality badges, mounts, key observations, guidance, "unclear in photo" honesty section, disclaimer) + "Ask AI About This" (attaches `parsed_facts` as chat context, opens AI chat). New `Screen.Palmistry` route + drawer entry ("Palmistry — AI palm reading").
+5. **Vastu Shastra screen** (`ui/screens/vastu/VastuScreen.kt`): two modes —
+   - **Manual**: facing direction, entrance pada 1–32 with live devata/verdict helper (from `GET /vastu/reference`), plot shape/dimensions, slope/road/water/tank/septic/staircase direction pickers, dynamic room list (20 types × 9 directions) → `POST /vastu/analyze`.
+   - **House-Map Photo**: camera/gallery → `POST /vastu/analyze-photo` → full analysis.
+   - **Results**: 0–100 score dial with grade, dosha counts by severity, dosha cards (title, severity badge, detail, classical rule cited, non-demolition remedies), placement verdict rows, disclaimer. "Ask AI" attaches the analysis summary as chat context. New `Screen.Vastu` route + drawer entry ("Vastu Shastra — Home-energy analysis").
+6. **VisionRepository** (`data/repository/VisionRepository.kt`): all 5 new endpoints with defensive parsing, honest error mapping (401 → sign-in prompt, 429 → rate-limit message, 422 → clearer-photo guidance).
+
+### Changed
+- `AndroidManifest.xml`: added RECORD_AUDIO, CAMERA, READ_MEDIA_IMAGES, READ_EXTERNAL_STORAGE (maxSdk 32).
+- `OmAstroApiService.kt`: 5 new Retrofit methods (3 multipart).
+- `AiChatViewModel.kt`: `photoAttachments` in UI state, included in `buildContext()`; `attachPhotoContext` / `removePhotoAttachment` / `consumePendingPhotoContext`.
+
+### Removed
+- Nothing.
+
+---
+
 ## [2026-10-09] — A-to-Z audit fixes (all 17 confirmed issues + missing features)
 
 ### Fixed confirmed issues

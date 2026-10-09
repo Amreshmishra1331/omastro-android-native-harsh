@@ -7,6 +7,8 @@ import com.omastro.app.data.model.AiModel
 import com.omastro.app.data.model.BirthDataAttachment
 import com.omastro.app.data.model.ChatHistoryTurn
 import com.omastro.app.data.model.ChatMessage
+import com.omastro.app.data.model.PendingPhotoContextHolder
+import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.model.SaveChatRequest
 import com.omastro.app.data.model.SavedChatSession
 import com.omastro.app.data.model.buildBirthDataContext
@@ -39,6 +41,8 @@ data class AiChatUiState(
     val isTyping: Boolean = false,
     val error: String? = null,
     val attachments: List<BirthDataAttachment> = emptyList(),
+    /** Photo/vision parsed-facts attachments (palmistry, photo analysis, vastu). */
+    val photoAttachments: List<PhotoContextAttachment> = emptyList(),
     val quota: AiChatQuota = AiChatQuota(),
     val aiModel: AiModel = AiModel.LITE,
     /** "en" | "hi" — sent as `language` with every message (website parity). */
@@ -84,13 +88,18 @@ class AiChatViewModel : ViewModel() {
 
     /**
      * Builds the context string for the next message:
-     * attachment blocks + the server-returned chatContext (replayed verbatim).
+     * attachment blocks + photo parsed-facts + the server-returned
+     * chatContext (replayed verbatim).
      */
     private fun buildContext(mode: AiChatMode): String {
         val state = states.getValue(mode).value
         val attachmentCtx = buildBirthDataContext(state.attachments)
+        val photoCtx = state.photoAttachments
+            .map { it.contextBlock }
+            .filter { it.isNotBlank() }
+            .joinToString("\n\n")
         val stored = chatContexts[mode]
-        return listOf(attachmentCtx, stored.orEmpty())
+        return listOf(attachmentCtx, photoCtx, stored.orEmpty())
             .filter { it.isNotBlank() }
             .joinToString("\n\n")
     }
@@ -223,6 +232,45 @@ class AiChatViewModel : ViewModel() {
         val mode = _selectedMode.value
         val flow = states.getValue(mode)
         flow.value = flow.value.copy(attachments = emptyList())
+    }
+
+    // ------------------------------------------------------------------
+    // Photo / vision context attachments
+    // ------------------------------------------------------------------
+
+    /**
+     * Attaches photo parsed-facts as chat context (same mechanism as
+     * Attach Birth Data). Follow-up questions will reference the photo.
+     */
+    fun attachPhotoContext(attachment: PhotoContextAttachment) {
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        val exists = flow.value.photoAttachments.any { it.id == attachment.id }
+        if (!exists) {
+            flow.value = flow.value.copy(
+                photoAttachments = flow.value.photoAttachments + attachment
+            )
+        }
+    }
+
+    /** Removes a photo attachment by id. */
+    fun removePhotoAttachment(id: String) {
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        flow.value = flow.value.copy(
+            photoAttachments = flow.value.photoAttachments.filter { it.id != id }
+        )
+    }
+
+    /**
+     * Consumes a pending photo context handed off from another screen
+     * (Palmistry, Vastu, photo analysis). Called when the chat opens.
+     * @return true if a context was attached.
+     */
+    fun consumePendingPhotoContext(): Boolean {
+        val pending = PendingPhotoContextHolder.consume() ?: return false
+        attachPhotoContext(pending)
+        return true
     }
 
     fun clearError() {

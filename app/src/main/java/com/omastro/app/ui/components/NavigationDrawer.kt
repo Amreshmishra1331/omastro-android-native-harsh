@@ -439,6 +439,8 @@ private fun drawerMenuEntries(
             nav("Kundali Milan", Icons.Default.Favorite, Screen.Matchmaking.route),
             nav("Astrologers", Icons.Default.SupportAgent, Screen.Astrologers.route),
             nav("Numerology", Icons.Default.Calculate, Screen.Numerology.route),
+            nav("Palmistry", Icons.Default.PanTool, Screen.Palmistry.route, "AI palm reading"),
+            nav("Vastu Shastra", Icons.Default.HomeWork, Screen.Vastu.route, "Home-energy analysis"),
             nav("Gochar", Icons.Default.Public, Screen.Gochar.route, "Planetary transits"),
             nav("Muhurat", Icons.Default.Schedule, Screen.Muhurat.route, "Auspicious timings")
         ),

@@ -29,6 +29,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object SavedCharts : Screen("saved_charts", "Saved Charts", Icons.Default.Bookmarks)
     object Gochar : Screen("gochar", "Gochar", Icons.Default.Public)
     object Muhurat : Screen("muhurat", "Muhurat", Icons.Default.Schedule)
+    object Palmistry : Screen("palmistry", "Palmistry", Icons.Default.PanTool)
+    object Vastu : Screen("vastu", "Vastu Shastra", Icons.Default.HomeWork)
     object Auth : Screen("auth", "Sign In") {
         /** Opens the auth screen directly in forgot-password mode. */
         const val FORGOT_ROUTE = "auth/forgot"

@@ -8,6 +8,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Voice typing (SpeechRecognizer) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Photo analysis: camera + gallery/file picking -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
     <application
         android:name=".OmAstroApp"
         android:allowBackup="true"

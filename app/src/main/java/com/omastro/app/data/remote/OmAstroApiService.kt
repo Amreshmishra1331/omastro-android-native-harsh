@@ -285,6 +285,46 @@ interface OmAstroApiService {
     suspend fun deleteChart(
         @Path("id") chartId: String
     ): Response<Map<String, Any>>
+
+    // ------------------------------------------------------------------
+    // Vastu Shastra engine + Vision / Photo AI (NEW world-class systems)
+    // ------------------------------------------------------------------
+
+    /** POST /vastu/analyze — classical Vastu analysis from manual inputs (auth). */
+    @POST("vastu/analyze")
+    suspend fun analyzeVastu(
+        @Body request: com.omastro.app.data.model.VastuAnalyzeRequest
+    ): Response<Map<String, Any>>
+
+    /** GET /vastu/reference — directions, pada chart, ideal placements (public). */
+    @GET("vastu/reference")
+    suspend fun getVastuReference(): Response<Map<String, Any>>
+
+    /** POST /vastu/analyze-photo — house-map photo → vision parse → engine (auth, multipart). */
+    @Multipart
+    @POST("vastu/analyze-photo")
+    suspend fun analyzeVastuPhoto(
+        @Part photo: MultipartBody.Part,
+        @Part("notes") notes: okhttp3.RequestBody? = null
+    ): Response<Map<String, Any>>
+
+    /** POST /ai/vision — image + question → Gemini vision analysis + parsed_facts (auth, multipart). */
+    @Multipart
+    @POST("ai/vision")
+    suspend fun analyzeVision(
+        @Part image: MultipartBody.Part,
+        @Part("question") question: okhttp3.RequestBody,
+        @Part("context") context: okhttp3.RequestBody? = null
+    ): Response<Map<String, Any>>
+
+    /** POST /palmistry/analyze — palm photo → structured reading (auth, multipart). */
+    @Multipart
+    @POST("palmistry/analyze")
+    suspend fun analyzePalmistry(
+        @Part image: MultipartBody.Part,
+        @Part("hand") hand: okhttp3.RequestBody? = null,
+        @Part("notes") notes: okhttp3.RequestBody? = null
+    ): Response<Map<String, Any>>
 }
 
 // (Astrologer chat session models now live in

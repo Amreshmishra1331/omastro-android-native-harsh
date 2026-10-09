@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omastro.app.data.model.BirthDataAttachment
+import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.remote.GeocodePlace
 import com.omastro.app.ui.components.DatePickerField
 import com.omastro.app.ui.components.PlaceSearchField
@@ -304,6 +306,78 @@ fun AttachmentChips(
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = { onRemove(index) },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Remove",
+                        tint = StarlightWhite.copy(alpha = 0.6f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+    }
+}
+
+/**
+ * Chips row showing attached photo-analysis contexts (vision / palmistry /
+ * vastu parsed facts), each removable. Same mechanism as birth-data chips.
+ */
+@Composable
+fun PhotoAttachmentChips(
+    attachments: List<PhotoContextAttachment>,
+    onRemove: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (attachments.isEmpty()) return
+    Column(modifier = modifier.fillMaxWidth()) {
+        attachments.forEach { attachment ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 3.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF4A90D9).copy(alpha = 0.12f))
+                    .border(
+                        1.dp,
+                        Color(0xFF4A90D9).copy(alpha = 0.35f),
+                        RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Image,
+                        contentDescription = null,
+                        tint = Color(0xFF4A90D9),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            "Photo analysis",
+                            color = Color(0xFF7FB5E8),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            attachment.label,
+                            color = StarlightWhite.copy(alpha = 0.55f),
+                            fontSize = 11.5.sp,
+                            maxLines = 1
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = { onRemove(attachment.id) },
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
