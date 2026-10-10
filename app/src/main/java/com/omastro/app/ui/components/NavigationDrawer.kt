@@ -446,9 +446,9 @@ private fun drawerMenuEntries(
             ),
             DrawerEntry(
                 title = "Refer & Earn",
-                subtitle = "Coming soon",
+                subtitle = "Earnings & history",
                 icon = Icons.Default.CardGiftcard,
-                onClick = { onComingSoon("Refer & Earn") }
+                onClick = { onNavigate(Screen.ReferEarn.route) }
             ),
             DrawerEntry(
                 title = "Rate this App",

@@ -300,7 +300,13 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToAuth = { navController.navigate(Screen.Auth.route) },
                                 onNavigateToWallet = { navController.navigate(Screen.Wallet.route) },
                                 onNavigateToSavedCharts = { navController.navigate(Screen.SavedCharts.route) },
+                                onNavigateToRefer = { navController.navigate(Screen.ReferEarn.route) },
                                 onMenuClick = openDrawer
+                            )
+                        }
+                        composable(Screen.ReferEarn.route) {
+                            com.omastro.app.ui.screens.refer.ReferEarnScreen(
+                                onBack = { navController.popBackStack() }
                             )
                         }
                         composable(Screen.AstroHealth.route) {

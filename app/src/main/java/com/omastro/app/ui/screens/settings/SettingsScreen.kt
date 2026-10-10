@@ -32,6 +32,7 @@ fun SettingsScreen(
     onNavigateToAuth: () -> Unit,
     onNavigateToWallet: () -> Unit,
     onNavigateToSavedCharts: () -> Unit = {},
+    onNavigateToRefer: () -> Unit = {},
     onMenuClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -41,6 +42,7 @@ fun SettingsScreen(
     val walletBalanceInr by AppContainer.walletRepository.walletBalanceInr.collectAsState()
 
     var showDisclaimerDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var drawerDialog by remember { mutableStateOf<DrawerDialog?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -153,6 +155,29 @@ fun SettingsScreen(
                 }
             }
 
+            // ============ ACCOUNT ============
+            item {
+                Text(W.t("settings_account_title"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+            item {
+                CosmicCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDeleteAccountDialog = true }
+                ) {
+                    // No account-deletion REST endpoint exists on the server (verified
+                    // against the live wp-json/omastro/v1 index): deletion is completed
+                    // on the website's /delete-account/ page, opened via browser from
+                    // the confirm dialog below. The app never fakes deletion.
+                    SettingsRow(
+                        icon = Icons.Default.Delete,
+                        title = W.t("Delete Account"),
+                        subtitle = W.t("delete_acct_sub"),
+                        tint = Color(0xFFFF5252)
+                    )
+                }
+            }
+
             // ============ MY ASTROLOGY ============
             item {
                 Text(W.t("My Astrology"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -179,7 +204,7 @@ fun SettingsScreen(
                 CosmicCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { drawerDialog = DrawerDialog.ComingSoon(W.t("Refer & Earn")) }
+                        .clickable { onNavigateToRefer() }
                 ) {
                     SettingsRow(
                         icon = Icons.Default.CardGiftcard,
@@ -331,6 +356,53 @@ fun SettingsScreen(
         }
     }
 
+    // Delete Account confirm dialog — honest: the app has no deletion REST
+    // endpoint, so it opens the website's /delete-account/ page (HTTP 200,
+    // verified live 2026-10-10). The app never fakes deletion.
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = {
+                Text(
+                    W.t("Delete Account"),
+                    color = Color(0xFFFF5252),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    W.t("delete_acct_body"),
+                    color = StarlightWhite.copy(alpha = 0.75f),
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteAccountDialog = false
+                        val webIntent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.omastroai.com/delete-account/")
+                        )
+                        try { context.startActivity(webIntent) } catch (e: Exception) { /* no browser */ }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF5252),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(W.t("delete_acct_open"))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) {
+                    Text(W.t("Cancel"), color = SacredGold)
+                }
+            },
+            containerColor = CosmicDeepBlue
+        )
+    }
+
     // Privacy & Astrological Disclaimers dialog
     if (showDisclaimerDialog) {
         AlertDialog(
@@ -370,7 +442,8 @@ fun SettingsScreen(
 private fun SettingsRow(
     icon: ImageVector,
     title: String,
-    subtitle: String? = null
+    subtitle: String? = null,
+    tint: Color = SacredGold
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -378,10 +451,15 @@ private fun SettingsRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            Icon(icon, contentDescription = null, tint = SacredGold, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(title, color = StarlightWhite, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                Text(
+                    title,
+                    color = if (tint == SacredGold) StarlightWhite else tint,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp
+                )
                 subtitle?.let {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(it, color = StarlightWhite.copy(alpha = 0.55f), fontSize = 12.sp)

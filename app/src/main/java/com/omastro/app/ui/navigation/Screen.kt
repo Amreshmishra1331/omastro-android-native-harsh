@@ -21,6 +21,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     }
     object Wallet : Screen("wallet", "Wallet", Icons.Default.AccountBalanceWallet)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+    /** Refer & Earn — real referral-credit data filtered from GET /wallet/transactions. */
+    object ReferEarn : Screen("refer_earn", "Refer & Earn", Icons.Default.CardGiftcard)
     object AstroHealth : Screen("astro_health", "Astro Health", Icons.Default.HealthAndSafety)
     object Numerology : Screen("numerology", "Numerology", Icons.Default.Calculate)
     object NumerologyTool : Screen("numerology_tool/{toolId}", "Numerology Tool") {

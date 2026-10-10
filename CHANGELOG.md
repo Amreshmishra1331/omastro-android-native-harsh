@@ -4,6 +4,21 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Audit Loop Cycle 7: Delete Account (honest website handoff) + Refer & Earn (real wallet data)
+
+### Added — Delete Account (store-review requirement)
+**Before:** Settings had no account-deletion option at all.
+**Verification:** The live `wp-json/omastro/v1` index (queried 2026-10-10, no auth needed) exposes NO account-deletion route — the only `/me` routes are `GET /me`, `/me/charts`, `DELETE /me/charts/{id}`, `/me/chat-quota`. There is no REST endpoint the app could call, so an in-app deletion flow would have been fake.
+**After:** Settings → new "Account" section → "Delete Account" (bilingual red row: "Delete Account" / "खाता हटाएं") opens a bilingual confirm dialog warning that deletion permanently removes the profile, saved kundalis, chat history and wallet data, and stating honestly that the app cannot delete the account itself — deletion is completed on the OmAstro website. "Open Website" / "वेबसाइट खोलें" opens `https://www.omastroai.com/delete-account/` (HTTP 200, verified live 2026-10-10) in the browser; Cancel dismisses. Nothing is faked: no endpoint call, no local data wipe masquerading as deletion.
+
+### Added — Refer & Earn (real referral credits)
+**Before:** The drawer and the Settings "Rewards" section both showed a "Coming soon" placeholder for Refer & Earn.
+**Verification:** Like iOS's `ReferEarnView`, no dedicated referral REST route exists; referral data is only visible as referral-type entries in `GET /wallet/transactions`.
+**After:** New `ReferEarnScreen` + `ReferEarnViewModel` (`ui/screens/refer/`, route `refer_earn`): fetches the last 100 wallet transactions, filters entries whose description/type contains "referral", totals the credit amounts (paise → ₹), and shows an earnings card, a bilingual "how it works" explainer (referral invitations not exposed by the API yet), and a per-transaction list. Loading, bilingual error-with-retry, and an honest empty state ("no referral earnings yet") — never fake referral numbers. The drawer "Refer & Earn" entry now navigates to the real screen (subtitle "Earnings & history") and the Settings Rewards row navigates too; the `ComingSoon` placeholder is gone. New `refer_*` / `delete_acct_*` EN+HI string keys in `FeatureStrings.kt`; `settings_refer_sub` updated to "Referral credits & history" / "रेफरल क्रेडिट और हिस्ट्री".
+
+### Not verifiable without a device
+Screen rendering on a real device, the referral filter against a real account that has referral credits, and the browser handoff from the Delete Account confirm dialog.
+
 ## [2026-10-10] — Audit Loop Cycle 5: bilingual sweep (Rashifal/Panchang/Prashna/Matching/Settings/Notifications) + Kundali PDF export
 
 ### Fixed — Rashifal (Horoscope) bilingual gaps
