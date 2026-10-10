@@ -4,9 +4,9 @@ import android.content.Context
 import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
 import android.print.PageRange
+import android.print.PdfLayoutCallback
+import android.print.PdfWriteCallback
 import android.print.PrintAttributes
-import android.print.PrintDocumentAdapter
-import android.print.PrintDocumentInfo
 import android.view.View
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -65,42 +65,34 @@ suspend fun renderHtmlToPdfFile(context: Context, html: String, filename: String
                                 ParcelFileDescriptor.MODE_CREATE or
                                 ParcelFileDescriptor.MODE_TRUNCATE
                         )
-                        adapter.onLayout(null, attrs, null,
-                            object : PrintDocumentAdapter.LayoutResultCallback() {
-                                override fun onLayoutFinished(info: PrintDocumentInfo, changed: Boolean) {
-                                    adapter.onWrite(
-                                        arrayOf(PageRange.ALL_PAGES), pfd, CancellationSignal(),
-                                        object : PrintDocumentAdapter.WriteResultCallback() {
-                                            override fun onWriteFinished(pages: Array<PageRange>) {
-                                                pfd.closeQuietly()
-                                                webView.destroy()
-                                                if (!cont.isCompleted) cont.resume(outFile)
-                                            }
-                                            override fun onWriteFailed(error: CharSequence?) {
-                                                pfd.closeQuietly()
-                                                webView.destroy()
-                                                if (!cont.isCompleted) cont.resumeWithException(
-                                                    IOException("PDF write failed: ${error ?: "unknown"}")
-                                                )
-                                            }
-                                            override fun onWriteCancelled() {
-                                                pfd.closeQuietly()
-                                                webView.destroy()
-                                                if (!cont.isCompleted) cont.resumeWithException(
-                                                    CancellationException("PDF write cancelled")
-                                                )
-                                            }
+                        fun fail(e: Exception) {
+                            pfd.closeQuietly()
+                            try { webView.destroy() } catch (_: Exception) {}
+                            if (!cont.isCompleted) cont.resumeWithException(e)
+                        }
+                        adapter.onLayout(null, attrs, null, PdfLayoutCallback(
+                            onFinished = { _, _ ->
+                                adapter.onWrite(
+                                    arrayOf(PageRange.ALL_PAGES), pfd, CancellationSignal(),
+                                    PdfWriteCallback(
+                                        onFinished = {
+                                            pfd.closeQuietly()
+                                            webView.destroy()
+                                            if (!cont.isCompleted) cont.resume(outFile)
+                                        },
+                                        onFailed = { error ->
+                                            fail(IOException("PDF write failed: ${error ?: "unknown"}"))
+                                        },
+                                        onCancelled = {
+                                            fail(CancellationException("PDF write cancelled"))
                                         }
                                     )
-                                }
-                                override fun onLayoutFailed(error: CharSequence?) {
-                                    pfd.closeQuietly()
-                                    webView.destroy()
-                                    if (!cont.isCompleted) cont.resumeWithException(
-                                        IOException("PDF layout failed: ${error ?: "unknown"}")
-                                    )
-                                }
-                            }, null)
+                                )
+                            },
+                            onFailed = { error ->
+                                fail(IOException("PDF layout failed: ${error ?: "unknown"}"))
+                            }
+                        ), null)
                     } catch (e: Exception) {
                         try { webView.destroy() } catch (_: Exception) {}
                         if (!cont.isCompleted) cont.resumeWithException(e)
