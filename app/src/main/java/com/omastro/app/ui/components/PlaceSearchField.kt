@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.data.remote.GeocodePlace
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.SacredGold
 import com.omastro.app.ui.theme.StarlightWhite
 import com.omastro.app.ui.theme.TextSecondary
@@ -169,7 +170,7 @@ fun PlaceSearchField(
                                 strokeWidth = 2.dp,
                                 color = SacredGold
                             )
-                            Text("Searching places...", color = TextSecondary, fontSize = 13.sp)
+                            Text(W.t("Searching places..."), color = TextSecondary, fontSize = 13.sp)
                         }
                     }
                     searchError != null -> {

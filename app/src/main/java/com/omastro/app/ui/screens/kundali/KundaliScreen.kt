@@ -79,17 +79,17 @@ fun KundaliScreen(
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = SacredGold)
+                            Icon(Icons.Default.Menu, contentDescription = W.t("Menu"), tint = SacredGold)
                         }
                     } else {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
+                            Icon(Icons.Default.ArrowBack, contentDescription = W.t("back"), tint = SacredGold)
                         }
                     }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSavedCharts) {
-                        Icon(Icons.Default.Bookmarks, contentDescription = "Saved charts", tint = SacredGold)
+                        Icon(Icons.Default.Bookmarks, contentDescription = W.t("Saved charts"), tint = SacredGold)
                     }
                     if (hasData) {
                         IconButton(onClick = {
@@ -98,10 +98,10 @@ fun KundaliScreen(
                             saveSuccess = false
                             showSaveDialog = true
                         }) {
-                            Icon(Icons.Default.BookmarkAdd, contentDescription = "Save this chart", tint = SacredGold)
+                            Icon(Icons.Default.BookmarkAdd, contentDescription = W.t("Save this chart"), tint = SacredGold)
                         }
                         IconButton(onClick = { viewModel.editBirthDetails() }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit birth details", tint = SacredGold)
+                            Icon(Icons.Default.Edit, contentDescription = W.t("Edit birth details"), tint = SacredGold)
                         }
                     }
                 },
@@ -121,7 +121,7 @@ fun KundaliScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(color = SacredGold)
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text("Computing your Kundali…", color = TextSecondary, fontSize = 14.sp)
+                            Text(W.t("Computing your Kundali…"), color = TextSecondary, fontSize = 14.sp)
                         }
                     }
                 }
@@ -137,7 +137,7 @@ fun KundaliScreen(
                         Icon(Icons.Default.Warning, contentDescription = null, tint = InauspiciousRed, modifier = Modifier.size(48.dp))
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = error ?: "Something went wrong.",
+                            text = error ?: W.t("vision_err_failed"),
                             color = StarlightWhite,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center
@@ -152,7 +152,7 @@ fun KundaliScreen(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(onClick = { viewModel.editBirthDetails() }) {
-                            Text("Edit birth details", color = SacredGoldLight)
+                            Text(W.t("Edit birth details"), color = SacredGoldLight)
                         }
                     }
                 }
@@ -169,7 +169,7 @@ fun KundaliScreen(
             text = {
                 Column {
                     Text(
-                        "Give this chart a name to find it later in Saved Charts.",
+                        W.t("Give this chart a name to find it later in Saved Charts."),
                         fontSize = 14.sp,
                         color = TextSecondary
                     )
@@ -188,7 +188,7 @@ fun KundaliScreen(
                     }
                     if (saveSuccess) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Chart saved.", color = SacredGold, fontSize = 13.sp)
+                        Text(W.t("Chart saved."), color = SacredGold, fontSize = 13.sp)
                     }
                 }
             },
@@ -197,7 +197,7 @@ fun KundaliScreen(
                     onClick = {
                         val req = lastRequest ?: return@TextButton
                         if (saveName.trim().isEmpty()) {
-                            saveError = "Please enter a name for this chart."
+                            saveError = W.t("Please enter a name for this chart.")
                             return@TextButton
                         }
                         isSaving = true
@@ -211,7 +211,7 @@ fun KundaliScreen(
                                 }
                                 .onFailure { err ->
                                     isSaving = false
-                                    saveError = err.message ?: "Could not save chart."
+                                    saveError = err.message ?: W.t("Could not save chart.")
                                 }
                         }
                     },
@@ -229,7 +229,7 @@ fun KundaliScreen(
                     onClick = { showSaveDialog = false },
                     enabled = !isSaving
                 ) {
-                    Text("Cancel")
+                    Text(W.t("Cancel"))
                 }
             }
         )
@@ -270,13 +270,13 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "Janam Kundali",
+            text = W.t("Janam Kundali"),
             color = StarlightWhite,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Enter birth details exactly as on record. The chart is computed on our servers using the Lahiri ayanamsa.",
+            text = W.t("Enter birth details exactly as on record. The chart is computed on our servers using the Lahiri ayanamsa."),
             color = TextSecondary,
             fontSize = 13.sp,
             lineHeight = 19.sp
@@ -311,12 +311,12 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
         }
 
         FormSectionCard(title = W.t("Personal Details")) {
-            BirthField(name, viewModel::setBirthName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
+            BirthField(name, viewModel::setBirthName, W.t("Full Name"), W.t("e.g. Rahul Sharma"), KeyboardType.Text)
             Spacer(modifier = Modifier.height(4.dp))
             Text(W.t("Gender"), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("male" to "Male", "female" to "Female", "other" to "Other").forEach { (value, label) ->
+                listOf("male" to W.t("Male"), "female" to W.t("Female"), "other" to W.t("Other")).forEach { (value, label) ->
                     val selected = gender == value
                     Surface(
                         shape = RoundedCornerShape(10.dp),
@@ -339,27 +339,27 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
             }
         }
 
-        FormSectionCard(title = "Date & Time of Birth") {
+        FormSectionCard(title = W.t("Date & Time of Birth")) {
             DatePickerField(
                 apiDate = dob,
                 onDateChange = viewModel::setBirthDob,
-                label = "Date of Birth"
+                label = W.t("Date of Birth")
             )
             Spacer(modifier = Modifier.height(12.dp))
             TimePickerField(
                 displayTime = tob,
                 onTimeChange = viewModel::setBirthTob,
-                label = "Time of Birth"
+                label = W.t("Time of Birth")
             )
             Text(
-                text = "Tap the fields to pick date and time. If the exact time is unknown, leave 12:00 PM — predictions will be approximate.",
+                text = W.t("Tap the fields to pick date and time. If the exact time is unknown, leave 12:00 PM — predictions will be approximate."),
                 color = TextSecondary,
                 fontSize = 11.sp,
                 lineHeight = 16.sp
             )
         }
 
-        FormSectionCard(title = "Place of Birth") {
+        FormSectionCard(title = W.t("Place of Birth")) {
             PlaceSearchField(
                 value = place,
                 onValueChange = viewModel::setBirthPlace,
@@ -367,19 +367,19 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
                     viewModel.setBirthLat(selected.lat.toString())
                     viewModel.setBirthLon(selected.lon.toString())
                 },
-                label = "Birth City",
-                placeholder = "Type city name, e.g. Jaipur"
+                label = W.t("Birth City"),
+                placeholder = W.t("Type city name, e.g. Jaipur")
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(modifier = Modifier.weight(1f)) {
-                    BirthField(lat, viewModel::setBirthLat, "Latitude", "e.g. 26.9124", KeyboardType.Number)
+                    BirthField(lat, viewModel::setBirthLat, W.t("Latitude"), W.t("e.g. 26.9124"), KeyboardType.Number)
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    BirthField(lon, viewModel::setBirthLon, "Longitude", "e.g. 75.7873", KeyboardType.Number)
+                    BirthField(lon, viewModel::setBirthLon, W.t("Longitude"), W.t("e.g. 75.7873"), KeyboardType.Number)
                 }
             }
             Text(
-                text = "Select your birth city above to auto-fill coordinates, or enter them manually.",
+                text = W.t("Select your birth city above to auto-fill coordinates, or enter them manually."),
                 color = TextSecondary,
                 fontSize = 11.sp
             )
@@ -811,7 +811,7 @@ internal fun LazyListScope.chartsTab(
                                     fontSize = 13.sp
                                 )
                                 Text(
-                                    W.tf("kundali_lord_fmt", h.lord) + if (h.sav > 0) "  ·  ${h.sav} bindus" else "",
+                                    W.tf("kundali_lord_fmt", h.lord) + if (h.sav > 0) W.tf("kund_bindus_short_fmt", h.sav) else "",
                                     color = TextSecondary,
                                     fontSize = 11.sp
                                 )
@@ -933,7 +933,7 @@ private fun LazyListScope.dashaTab(
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
                         Text(
-                            "ACTIVE",
+                            W.t("ACTIVE"),
                             color = CosmicDeepBlue,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
@@ -942,25 +942,25 @@ private fun LazyListScope.dashaTab(
                     }
                 }
                 dasha.currentMahadasha?.let { md ->
-                    DashaChainRow("Mahadasha", md.planet, "${md.start} → ${md.end}", "${md.years} years")
+                    DashaChainRow(W.t("Mahadasha"), md.planet, "${md.start} → ${md.end}", W.tf("dash_years_fmt", md.years))
                 }
                 dasha.currentAntardasha?.let { ad ->
-                    DashaChainRow("Antardasha", ad.planet, "${ad.start} → ${ad.end}", null)
+                    DashaChainRow(W.t("Antardasha"), ad.planet, "${ad.start} → ${ad.end}", null)
                 }
                 dasha.currentPratyantar?.let { pd ->
-                    DashaChainRow("Pratyantardasha", pd.planet, "${pd.start} → ${pd.end}", null)
+                    DashaChainRow(W.t("Pratyantardasha"), pd.planet, "${pd.start} → ${pd.end}", null)
                 }
                 dasha.currentSookshma?.let { sd ->
-                    DashaChainRow("Sookshmadasha", sd.planet, "${sd.start} → ${sd.end}", null)
+                    DashaChainRow(W.t("Sookshmadasha"), sd.planet, "${sd.start} → ${sd.end}", null)
                 }
                 dasha.currentPrana?.let { pr ->
-                    DashaChainRow("Pranadasha", pr.planet, "${pr.start} → ${pr.end}", null)
+                    DashaChainRow(W.t("Pranadasha"), pr.planet, "${pr.start} → ${pr.end}", null)
                 }
                 dasha.currentAdi?.let { ad2 ->
-                    DashaChainRow("Adidasha", ad2.planet, "${ad2.start} → ${ad2.end}", null)
+                    DashaChainRow(W.t("Adidasha"), ad2.planet, "${ad2.start} → ${ad2.end}", null)
                 }
                 dasha.currentDeha?.let { dh ->
-                    DashaChainRow("Dehadasha", dh.planet, "${dh.start} → ${dh.end}", null)
+                    DashaChainRow(W.t("Dehadasha"), dh.planet, "${dh.start} → ${dh.end}", null)
                 }
             }
         }
@@ -1077,13 +1077,13 @@ private fun ExpandableDashaNode(
         node.prana, node.adi, node.deha
     ).firstOrNull { it.isNotEmpty() } ?: emptyList()
     val levelLabel = when (level) {
-        0 -> "Mahadasha"
-        1 -> "Antardasha"
-        2 -> "Pratyantardasha"
-        3 -> "Sookshmadasha"
-        4 -> "Pranadasha"
-        5 -> "Adidasha"
-        else -> "Dehadasha"
+        0 -> W.t("Mahadasha")
+        1 -> W.t("Antardasha")
+        2 -> W.t("Pratyantardasha")
+        3 -> W.t("Sookshmadasha")
+        4 -> W.t("Pranadasha")
+        5 -> W.t("Adidasha")
+        else -> W.t("Dehadasha")
     }
     val isCurrent = currentChain.getOrNull(level)?.let { current ->
         node.planet.equals(current, ignoreCase = true)
@@ -1123,7 +1123,7 @@ private fun ExpandableDashaNode(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(color = SacredGold, shape = RoundedCornerShape(6.dp)) {
                                         Text(
-                                            "ACTIVE",
+                                            W.t("ACTIVE"),
                                             color = CosmicDeepBlue,
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
@@ -1141,7 +1141,7 @@ private fun ExpandableDashaNode(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (node.years > 0) {
-                            Text("${node.years}y", color = RadiantAmber, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(W.tf("dash_years_short_fmt", node.years), color = RadiantAmber, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                         if (children.isNotEmpty()) {
                             Icon(
@@ -1222,7 +1222,7 @@ private fun LazyListScope.yogasTab(
                 if (yoga.prediction.isNotBlank()) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        "Phal: ${yoga.prediction.substringBefore("|").trim()}",
+                        W.tf("kund_phal_fmt", yoga.prediction.substringBefore("|").trim()),
                         color = RadiantAmber,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -1322,7 +1322,7 @@ private fun LazyListScope.doshasTab(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                if (dosha.active) "Active" else "Not Active",
+                                if (dosha.active) W.t("Active") else W.t("Not Active"),
                                 color = if (dosha.active) InauspiciousRed else AuspiciousGreen,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1339,7 +1339,7 @@ private fun LazyListScope.doshasTab(
                 }
                 if (dosha.prediction.isNotBlank()) {
                     Text(
-                        "Phal: ${dosha.prediction}",
+                        W.tf("kund_phal_fmt", dosha.prediction),
                         color = RadiantAmber,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -1348,7 +1348,7 @@ private fun LazyListScope.doshasTab(
                 }
                 if (dosha.remedies.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("Upay (Remedies)", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(W.t("Upay (Remedies)"), color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     dosha.remedies.forEachIndexed { index, remedy ->
                         Row(verticalAlignment = Alignment.Top) {
                             Text("${index + 1}. ", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -1430,9 +1430,9 @@ private fun LazyListScope.ashtakavargaTab(
     }
     items(rows.sortedBy { it.house }) { row ->
         val strength = when {
-            row.points >= 30 -> "Strong" to Color(0xFF10B981)
-            row.points >= 25 -> "Average" to Color(0xFFFF9933)
-            else -> "Weak" to InauspiciousRed
+            row.points >= 30 -> W.t("Strong") to Color(0xFF10B981)
+            row.points >= 25 -> W.t("Average") to Color(0xFFFF9933)
+            else -> W.t("Weak") to InauspiciousRed
         }
         CosmicCard(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -1442,14 +1442,14 @@ private fun LazyListScope.ashtakavargaTab(
             ) {
                 Column {
                     Text(
-                        "House ${row.house} · ${row.rashi}",
+                        W.tf("kund_house_fmt", row.house, row.rashi),
                         color = StarlightWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
                     Text(strength.first, color = strength.second, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Text("${row.points}", color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(W.tf("kund_bindus_fmt", row.points), color = SacredGold, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
         }
     }

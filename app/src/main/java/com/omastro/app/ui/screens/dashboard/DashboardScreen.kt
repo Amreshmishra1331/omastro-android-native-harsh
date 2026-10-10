@@ -114,7 +114,7 @@ fun DashboardScreen(
                     IconButton(onClick = onMenuClick) {
                         Icon(
                             imageVector = Icons.Default.Menu,
-                            contentDescription = "Menu",
+                            contentDescription = W.t("Menu"),
                             tint = SacredGold,
                             modifier = Modifier.size(26.dp)
                         )
@@ -132,7 +132,7 @@ fun DashboardScreen(
                     if (avatarUrl.isNotBlank()) {
                         AsyncImage(
                             model = avatarUrl,
-                            contentDescription = "Avatar",
+                            contentDescription = W.t("Avatar"),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
@@ -176,7 +176,7 @@ fun DashboardScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = "Wallet",
+                            contentDescription = W.t("Wallet"),
                             tint = SacredGold,
                             modifier = Modifier.size(16.dp)
                         )
@@ -195,7 +195,7 @@ fun DashboardScreen(
                     IconButton(onClick = { navController.navigate(Screen.Notifications.route) }) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications",
+                            contentDescription = W.t("Notifications"),
                             tint = SacredGold,
                             modifier = Modifier.size(26.dp)
                         )
@@ -352,21 +352,25 @@ fun DashboardScreen(
 
 // ============ TAB DEFINITIONS ============
 
-enum class DashTab(val title: String) {
-    HOME("Home"),
-    ACTIVITY("Activity"),
-    PROFILE("Profile"),
-    PASSWORD("Password"),
-    PLAN("Plan"),
-    BILLING("Billing"),
-    ACCOUNT("Account")
+enum class DashTab(val key: String) {
+    HOME("dash_tab_home"),
+    ACTIVITY("dash_tab_activity"),
+    PROFILE("dash_tab_profile"),
+    PASSWORD("dash_tab_password"),
+    PLAN("dash_tab_plan"),
+    BILLING("dash_tab_billing"),
+    ACCOUNT("dash_tab_account");
+
+    val title: String get() = W.t(key)
 }
 
-enum class ActivitySubTab(val title: String) {
-    KUNDALI("Kundali"),
-    CHATS("Chats"),
-    WALLET("Wallet"),
-    STATS("Stats")
+enum class ActivitySubTab(val key: String) {
+    KUNDALI("dash_sub_kundali"),
+    CHATS("dash_sub_chats"),
+    WALLET("dash_sub_wallet"),
+    STATS("dash_sub_stats");
+
+    val title: String get() = W.t(key)
 }
 
 @Composable
@@ -490,7 +494,7 @@ private fun HomeTabContent(
                     colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                 ) {
                     Text(
-                        text = "Add Money",
+                        text = W.t("Add Money"),
                         color = CosmicDeepBlue,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
@@ -612,7 +616,7 @@ private fun HomeTabContent(
 
         // Recent Kundalis
         Text(
-            text = "Recent Kundalis",
+            text = W.t("Recent Kundalis"),
             color = StarlightWhite,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold
@@ -620,7 +624,7 @@ private fun HomeTabContent(
         if (isLoading) {
             CosmicCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Loading...",
+                    text = W.t("Loading..."),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
@@ -630,7 +634,7 @@ private fun HomeTabContent(
         } else if (savedCharts.isEmpty()) {
             CosmicCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "No kundalis yet",
+                    text = W.t("No kundalis yet"),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
@@ -748,7 +752,7 @@ private fun SavedChartRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = chart.name.ifBlank { "Kundali" },
+                    text = chart.name.ifBlank { W.t("Kundali") },
                     color = StarlightWhite,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
@@ -773,7 +777,7 @@ private fun SavedChartRow(
             }
             Icon(
                 imageVector = Icons.Default.PlayArrow,
-                contentDescription = "Open",
+                contentDescription = W.t("Open"),
                 tint = SacredGold
             )
         }
@@ -820,7 +824,7 @@ private fun ActivityTabContent(
         when (subTab) {
             ActivitySubTab.KUNDALI -> {
                 Text(
-                    text = "${savedCharts.size} Kundalis",
+                    text = W.tf("dash_count_kundalis", savedCharts.size),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -832,7 +836,7 @@ private fun ActivityTabContent(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "No kundalis yet",
+                                text = W.t("No kundalis yet"),
                                 color = StarlightWhite.copy(alpha = 0.6f),
                                 fontSize = 14.sp
                             )
@@ -841,7 +845,7 @@ private fun ActivityTabContent(
                                 onClick = { onKundaliClick("") },
                                 colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                             ) {
-                                Text("Make Kundali", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                                Text(W.t("Make Kundali"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -862,7 +866,7 @@ private fun ActivityTabContent(
             }
             ActivitySubTab.CHATS -> {
                 Text(
-                    text = "${aiChats.size} Chats",
+                    text = W.tf("dash_count_chats", aiChats.size),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -874,7 +878,7 @@ private fun ActivityTabContent(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "No saved chats",
+                                text = W.t("No saved chats"),
                                 color = StarlightWhite.copy(alpha = 0.6f),
                                 fontSize = 14.sp
                             )
@@ -883,7 +887,7 @@ private fun ActivityTabContent(
                                 onClick = onChatClick,
                                 colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                             ) {
-                                Text("Start Chat", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                                Text(W.t("Start Chat"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -912,7 +916,7 @@ private fun ActivityTabContent(
                                 IconButton(onClick = { onDeleteChat(chat.id) }) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
+                                        contentDescription = W.t("Delete"),
                                         tint = Color(0xFFE53935),
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -925,7 +929,7 @@ private fun ActivityTabContent(
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
                     ) {
-                        Text("Clear All Chats")
+                        Text(W.t("Clear All Chats"))
                     }
                 }
             }
@@ -979,7 +983,7 @@ private fun ActivityTabContent(
                 if (transactions.isEmpty()) {
                     CosmicCard(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "No transactions yet",
+                            text = W.t("No transactions yet"),
                             color = StarlightWhite.copy(alpha = 0.6f),
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,
@@ -999,12 +1003,12 @@ private fun ActivityTabContent(
                 ) {
                     StatCard(
                         value = "${savedCharts.size}",
-                        label = "Kundalis",
+                        label = W.t("dash_stat_kundalis"),
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
                         value = "${aiChats.size}",
-                        label = "Total Chats",
+                        label = W.t("dash_stat_chats"),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1014,12 +1018,12 @@ private fun ActivityTabContent(
                 ) {
                     StatCard(
                         value = "₹${String.format("%.0f", totalInr)}",
-                        label = "Wallet Balance",
+                        label = W.t("dash_stat_wallet"),
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
                         value = "${transactions.size}",
-                        label = "Transactions",
+                        label = W.t("dash_stat_txns"),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1129,7 +1133,7 @@ private fun ProfileTabContent(
             if (avatarUrl.isNotBlank()) {
                 AsyncImage(
                     model = avatarUrl,
-                    contentDescription = "Avatar",
+                    contentDescription = W.t("Avatar"),
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
@@ -1144,9 +1148,9 @@ private fun ProfileTabContent(
             }
         }
 
-        ProfileField(label = "Full Name", value = displayName)
-        ProfileField(label = "Username", value = username.ifBlank { "—" })
-        ProfileField(label = "Email", value = email.ifBlank { "—" })
+        ProfileField(label = W.t("Full Name"), value = displayName)
+        ProfileField(label = W.t("Username"), value = username.ifBlank { "—" })
+        ProfileField(label = W.t("Email"), value = email.ifBlank { "—" })
     }
 }
 
@@ -1186,7 +1190,7 @@ private fun PasswordTabContent(
         CosmicCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Current Email",
+                    text = W.t("Current Email"),
                     color = Color(0xFF1E88E5),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -1203,7 +1207,7 @@ private fun PasswordTabContent(
         OutlinedTextField(
             value = currentPassword,
             onValueChange = { currentPassword = it },
-            label = { Text("Current Password", color = StarlightWhite.copy(alpha = 0.6f)) },
+            label = { Text(W.t("Current Password"), color = StarlightWhite.copy(alpha = 0.6f)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
@@ -1218,7 +1222,7 @@ private fun PasswordTabContent(
         OutlinedTextField(
             value = newPassword,
             onValueChange = { newPassword = it },
-            label = { Text("New Password (8+ chars)", color = StarlightWhite.copy(alpha = 0.6f)) },
+            label = { Text(W.t("New Password (8+ chars)"), color = StarlightWhite.copy(alpha = 0.6f)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
@@ -1233,7 +1237,7 @@ private fun PasswordTabContent(
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { Text("Confirm New Password", color = StarlightWhite.copy(alpha = 0.6f)) },
+            label = { Text(W.t("Confirm New Password"), color = StarlightWhite.copy(alpha = 0.6f)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),
@@ -1249,7 +1253,7 @@ private fun PasswordTabContent(
         // /wp-json/omastro/v1 has forgot-password / reset-password-otp / set-password
         // but no change-password route). Honest flow: send a reset link instead.
         Text(
-            text = "Password change is handled via a secure reset link sent to your email.",
+            text = W.t("Password change is handled via a secure reset link sent to your email."),
             color = StarlightWhite.copy(alpha = 0.6f),
             fontSize = 12.sp,
             lineHeight = 18.sp,
@@ -1262,11 +1266,11 @@ private fun PasswordTabContent(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
         ) {
-            Text("Send Password Reset Link", color = StarlightWhite, fontWeight = FontWeight.Bold)
+            Text(W.t("Send Password Reset Link"), color = StarlightWhite, fontWeight = FontWeight.Bold)
         }
 
         Text(
-            text = "Forgot password? Use reset link",
+            text = W.t("Forgot password? Use reset link"),
             color = StarlightWhite.copy(alpha = 0.6f),
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
@@ -1310,7 +1314,7 @@ private fun PlanTabContent(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Add money to wallet to start chatting",
+                        text = W.t("Add money to wallet to start chatting"),
                         color = StarlightWhite.copy(alpha = 0.6f),
                         fontSize = 12.sp
                     )
@@ -1360,7 +1364,7 @@ private fun BillingTabContent(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "MY WALLET",
+                        text = W.t("MY WALLET"),
                         color = StarlightWhite.copy(alpha = 0.9f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -1374,13 +1378,13 @@ private fun BillingTabContent(
                         fontWeight = FontWeight.Black
                     )
                     Text(
-                        text = "Total Balance",
+                        text = W.t("Total Balance"),
                         color = StarlightWhite.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Paid: ₹${String.format("%.2f", paidInr)} · Bonus: ₹${String.format("%.2f", bonusInr)}",
+                        text = W.tf("dash_paid_bonus_fmt", "₹${String.format("%.2f", paidInr)}", "₹${String.format("%.2f", bonusInr)}"),
                         color = StarlightWhite.copy(alpha = 0.8f),
                         fontSize = 11.sp
                     )
@@ -1399,7 +1403,7 @@ private fun BillingTabContent(
 
         // Transaction history
         Text(
-            text = "Transaction History",
+            text = W.t("Transaction History"),
             color = StarlightWhite,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold
@@ -1408,7 +1412,7 @@ private fun BillingTabContent(
         if (transactions.isEmpty()) {
             CosmicCard(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "No transactions yet",
+                    text = W.t("No transactions yet"),
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
@@ -1436,14 +1440,14 @@ private fun AccountTabContent(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Danger Zone",
+                    text = W.t("Danger Zone"),
                     color = Color(0xFFE53935),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Deleting your account will permanently remove all your data, kundalis, and chat history. This cannot be undone.",
+                    text = W.t("Deleting your account will permanently remove all your data, kundalis, and chat history. This cannot be undone."),
                     color = StarlightWhite.copy(alpha = 0.7f),
                     fontSize = 13.sp,
                     lineHeight = 20.sp
@@ -1453,7 +1457,7 @@ private fun AccountTabContent(
                 // so no delete button is shown — a fake button would be dishonest.
                 // Account deletion is handled via the website support channel.
                 Text(
-                    text = "To delete your account, please contact support via the website. In-app deletion will appear here once the server supports it.",
+                    text = W.t("To delete your account, please contact support via the website. In-app deletion will appear here once the server supports it."),
                     color = StarlightWhite.copy(alpha = 0.5f),
                     fontSize = 12.sp,
                     lineHeight = 18.sp
@@ -1479,13 +1483,13 @@ private fun AccountTabContent(
             ) {
                 Icon(
                     imageVector = Icons.Default.Logout,
-                    contentDescription = "Logout",
+                    contentDescription = W.t("Logout"),
                     tint = Color(0xFFE53935),
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Logout",
+                    text = W.t("Logout"),
                     color = StarlightWhite,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
@@ -1505,13 +1509,13 @@ private fun AccountTabContent(
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
+                    contentDescription = W.t("Settings"),
                     tint = SacredGold,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Settings",
+                    text = W.t("Settings"),
                     color = StarlightWhite,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium

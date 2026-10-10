@@ -4,6 +4,26 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Audit Loop Cycle 2: Dashboard + Kundali + Vastu bilingual gap sweep
+
+### Fixed (bilingual gaps — hardcoded English-only strings)
+**Before:** `DashboardScreen` had ~40 hardcoded English strings: tab pills (Home/Activity/Profile/Password/Plan/Billing/Account), sub-tabs (Kundali/Chats/Wallet/Stats), "Add Money" buttons, "Recent Kundalis", "Loading...", "No kundalis yet", "Make Kundali", "No saved chats", "Start Chat", "Clear All Chats", "No transactions yet", stats labels, Profile tab labels ("Full Name"/"Username"/"Email"), Password tab labels/hints, Plan tab hint, Billing hero ("MY WALLET"/"Total Balance"/"Paid: … · Bonus: …"), Account tab ("Danger Zone", deletion notices, "Logout", "Settings"), chart-row fallback "Kundali", and icon content descriptions ("Menu"/"Wallet"/"Notifications"/"Avatar"/"Open"/"Delete").
+**After:** All wrapped in `W.t()`/`W.tf()` with 90+ new Hindi translations in `FeatureStrings.kt`. `DashTab`/`ActivitySubTab` enums now expose `title` via `W.t(key)` so the pills auto-switch with the Settings language. Quick-action titles were already bilingual via `LangPrefs.label()` — verified, untouched.
+
+**Before:** `KundaliScreen` birth form had hardcoded English: section intros, gender options (Male/Female/Other), "Date & Time of Birth"/"Date of Birth"/"Time of Birth", time-unknown hint, "Place of Birth"/"Birth City"/place hint, "Latitude"/"Longitude" + example placeholders, "Computing your Kundali…", "Edit birth details", save-dialog strings ("Give this chart a name…", "Chart saved.", name-empty/saved-failed errors, "Cancel"), and header icon content descriptions.
+**After:** All wrapped in `W.t()` with Hindi translations. Gender options and field labels auto-switch EN/हिन्दी.
+
+**Before:** Kundali Dasha tab hardcoded "ACTIVE" badges, level names (Mahadasha…Dehadasha), "N years"/"Ny", Yogas/Doshas "Phal:"/"Upay (Remedies)", "Active"/"Not Active" chips, Ashtakavarga "Strong"/"Average"/"Weak", "House N · …" and "bindus" labels; Karakamsha "House N · …"; Saturn alert fallback "Saturn Transit Active"; `VastuScreen` pada line hardcoded the English word "Pada".
+**After:** All wrapped in `W.t()`/`W.tf()` with Hindi translations. AI-context builders (`KxAskAiCard` labels like "Kundali · Dasha") intentionally left in English — they are prompt context for the AI, not user-facing UI.
+
+### Verified-OK (no changes needed)
+- PalmistryScreen / FaceReadingScreen: every button traced — camera, gallery, Analyze (multipart via `VisionRepository.analyzePalmistry/analyzeFaceReading` with `image` part + `hand`/`notes`/`lang` parts), Retake, "Ask AI" (full reading → `PendingPhotoContextHolder` → AI chat), history icon → ReadingHistory, back → popBackStack. All text bilingual; loading spinner + refusal cards + API-error text + 402 Add-Money dialog all present; refusals never saved to history; share button hides on refusals.
+- VastuScreen: Manual/Photo tabs switch + reset; compass button opens real magnetometer + CameraX overlay (heading, granularity 4/8/10/16, stamped photo → photo tab); room add/remove; photo upload → `/vastu/analyze-photo` multipart (`photo` + `notes` + `lang`); null-score dial shows "insufficient data" honestly; no fake scores.
+- Navigation: all `onBack` → `popBackStack()`; `onOpenAiChat` → `Screen.AiChat`; `onOpenHistory` → `Screen.ReadingHistory`; `onOpenWallet` → `Screen.Wallet`; dashboard cards → Vastu/Palmistry/FaceReading/Numerology/AstroHealth/MyData routes — every route registered in `Screen.kt`.
+- No mock data, no emojis anywhere in the five screens; no dead buttons found.
+
+---
+
 ## [2026-10-10] — Vision billing FREE + Kundali retry + chart delete wiring
 
 ### Changed (user directive: vision analyses are FREE)

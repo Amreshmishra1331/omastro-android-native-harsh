@@ -512,7 +512,7 @@ private fun VastuManualForm(
             if (padaInfo != null) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "Pada ${padaInfo.pada}: ${padaInfo.devata} (${padaInfo.direction}) — ${padaInfo.verdict}",
+                    W.tf("vastu_pada_fmt", W.t("vastu_pada_word"), padaInfo.pada, padaInfo.devata, padaInfo.direction, padaInfo.verdict),
                     color = SacredGold,
                     fontSize = 12.5.sp
                 )

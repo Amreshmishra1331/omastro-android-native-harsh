@@ -665,7 +665,7 @@ internal fun KxSaturnAlertCard(st: SaturnTransit) {
                 Text("♄", color = InauspiciousRed, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    st.nameEn.ifBlank { "Saturn Transit Active" },
+                    st.nameEn.ifBlank { W.t("Saturn Transit Active") },
                     color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -938,7 +938,7 @@ private fun KarakamshaContent(data: JaiminiData, chartStyle: String) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "House ${h.n} · ${h.r?.en ?: ""}${if (!h.r?.hi.isNullOrBlank()) " (${h.r?.hi})" else ""}",
+                                W.tf("kund_house_list_fmt", h.n, h.r?.en ?: "", if (!h.r?.hi.isNullOrBlank()) " (${h.r?.hi})" else ""),
                                 color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp
                             )
                             if (h.isLg) {
