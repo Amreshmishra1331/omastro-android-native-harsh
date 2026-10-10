@@ -97,6 +97,19 @@ interface OmAstroApiService {
         @Body request: PrashnaRequest
     ): Response<PrashnaResponse>
 
+    /**
+     * Kundali PDF export — POST /pdf/export (public; live-verified 2026-10-10:
+     * rest-api.php:198, kg_rest_pdf_export). Envelope:
+     * {"success":true,"data":{"html":"...","filename":"...pdf"}} — the html is
+     * the server's official mPDF-ready Kundali report (Hindi when
+     * language=hi); the device renders it into a real PDF via
+     * [com.omastro.app.ui.share.renderHtmlToPdfFile].
+     */
+    @POST("pdf/export")
+    suspend fun exportKundaliPdf(
+        @Body request: PdfExportRequest
+    ): Response<PdfExportEnvelope>
+
     // Astrologers — real envelope: {"success":true,"data":{"astrologers":[...]}}
     @GET("astrologers")
     suspend fun getAstrologers(

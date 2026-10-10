@@ -4,6 +4,43 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Audit Loop Cycle 5: bilingual sweep (Rashifal/Panchang/Prashna/Matching/Settings/Notifications) + Kundali PDF export
+
+### Fixed — Rashifal (Horoscope) bilingual gaps
+**Before:** `HoroscopeScreen` was English-only: title "Rashifal", "Select Your Sign", banner subtext, sign grid names ("Aries"…), "Ruler: Mars" labels, period tabs (Daily/Weekly/Monthly/Yearly), "View Rashifal", "Reading the stars…", "Rashifal Unavailable", "Lord: Sun", "Change", title card ("Leo — Daily Rashifal", "Lahiri Ayanamsa · Live transit computation", "OVERALL"), "Saturn Transit Alert"/"Active", "COSMIC GUIDANCE", "LIFE AREA ENERGIES", "Lucky Signs" cell labels (Number/Color/Direction/Gem/Lucky Time), "Vedic Remedies", "CURRENT PLANETARY PERIOD" (Mahadasha/Antardasha/Dominant), and the ViewModel's connection-error fallback.
+**After:** All wrapped in `W.t()`/`W.tf()` with ~35 new HI/EN keys (`rashifal_*` in FeatureStrings). Sign names use the model's `hindiName` in Hindi mode; planet rulers use `planetHindiFallback()`. Period tabs resolve via `W.t("rashifal_period_$period")` (the English-only `periodLabels` map was removed from the ViewModel). Server-driven content (summaries, scores, area labels/text, remedies text, transit names/descriptions) is data — untouched.
+
+### Fixed — Panchang bilingual gaps
+**Before:** `PanchangScreen` was English-only: banner ("PANCHANG", "Tithi · Vara · Nakshatra · Yoga · Karana"), controls ("DATE", "Change", "TIMEZONE", "IST +5:30 (India)", "Get Panchang"), sunrise/sunset line, "Panchang Details"/"Hora — Planetary Hours"/"Calendar" headers, all detail labels (Tithi/Nakshatra/Yoga/Karana/Paksha/Weekday/Amanta Month/Purnimanta Month/Moonsign/Sunsign), "Starts:"/"Ends:", "· upto", "Day Hora"/"Night Hora", "Hora data unavailable for this date.", "NOW" badge, "Samvat"/"Pravishte", "Panchang Unavailable", "No Panchang data available."
+**After:** All wrapped in `W.t()`/`W.tf()` with ~35 new HI/EN keys (`panch_*`). Server-driven values (tithi/nakshatra names, dates, times) are data — untouched.
+
+### Fixed — Prashna Kundali bilingual gaps
+**Before:** Cycle-4 Prashna screen left "Casting the prashna chart…", the place placeholder "Type city name, e.g. Jaipur", and result meta lines "Time: …"/"Location: …"/"House N"/"Deg …"/"Retrograde…" in English only.
+**After:** All via new `prashna_*` HI/EN keys. Server-driven analysis text (verdict/summary/factors/yogas/remedies) is data — untouched.
+
+### Fixed — Matching (Kundali Milan) bilingual gaps
+**Before:** `MatchmakingScreen` was English-only: title "Kundali Milan (Ashtakoota)", "Calculating compatibility…", "Calculation Failed"/"An unexpected error occurred.", intro copy, "GROOM (VARA) DETAILS"/"BRIDE (KANYA) DETAILS", all form labels ("Full Name"/"Date of Birth"/"Time"/"Place of Birth"/"Type city name, e.g. Jaipur"), "Incomplete server response" card, "% Overall Compatibility", "GROOM (VARA)"/"BRIDE (KANYA)" cards, "8 Koota Analysis (36 Gunas)", "SYNTHESIS & RECOMMENDATION".
+**After:** All via ~20 new HI/EN keys (`match_*`). Server-driven verdict/conclusion/guna names/descriptions are data — untouched.
+
+### Fixed — Settings bilingual gaps
+**Before:** `SettingsScreen` was English-only: "Settings & Profile", "Vedic Seeker", "Sign in for synced reports", "Wallet balance: ₹…"/"Current balance: ₹…", "Your saved birth charts", "Invite friends, earn rewards", "App Language"/"English · हिन्दी", "Dark — Cosmic Night"/"Light — Temple Gold", "Support & Feedback", "Rate Us on Google Play Store"/"Your feedback helps us grow", "Report a Bug"/"Email support", "Privacy & Astrological Disclaimers", "Terms of Service", "100% Native Android · Vedic AI Engine", snackbar texts, the bug-report email subject/body, and the privacy-disclaimer dialog.
+**After:** All via ~25 new HI/EN keys (`settings_*`). Shared drawer dialogs (`DrawerDialogHost` in NavigationDrawer.kt) also bilingual now: coming-soon body, "App Language", language subtitle, privacy & terms texts (the old English-only `PRIVACY_TEXT`/`TERMS_TEXT` constants deleted; content identical, now in `dialog_privacy_text`/`dialog_terms_text`). The "Refer & Earn" coming-soon dialog passes the already-bilingual `W.t("Refer & Earn")` title.
+
+### Fixed — Notifications bilingual gaps
+**Before:** Clear-all dialog title "Clear all notifications?"/"This permanently deletes all notifications." and the fallback title "Notification" were English-only.
+**After:** Via new `notif_*` HI/EN keys. Notification titles/messages/times are server data — untouched.
+
+No per-screen language toggles were added anywhere — everything follows the global Settings language via `W.t()`.
+
+### Added — Kundali PDF export (server-verified endpoint, real PDF)
+**Before:** The app had no way to export a Kundali report; the website generates Kundali PDFs server-side via mPDF.
+**After:** Endpoint verified on the production server (2026-10-10, live-probed with curl): `POST /wp-json/omastro/v1/pdf/export` (`kundali-v7_7-fixed/includes/rest-api.php:198`, `kg_rest_pdf_export`, public — no auth needed) accepts name/gender/dob/tob_hr/tob_mn/lat/lon/tz/place/language/ayanamsa and returns the server's official mPDF-ready report HTML + filename (Hindi report when `language=hi` — verified). A new "Export PDF" top-bar button on the Kundali screen (bilingual label, only when a chart is displayed) calls the endpoint with the current chart's birth data, then renders the official HTML into a real A4 PDF on-device via the WebView print framework (`ui/share/PdfExportUtil.kt`, no print dialog) and opens the system share sheet with the PDF via FileProvider. The report language follows the app's global language; the export uses tz 5.5 — the same default the /kundali chart computation uses — so the PDF matches the chart on screen. New files: `data/remote/PdfExport.kt` (models), `ui/share/PdfExportUtil.kt`; new `OmAstroApiService.exportKundaliPdf`, `AstroRepository.exportKundaliPdf` (blank-HTML responses fail loudly, never a fake PDF), `KundaliViewModel.exportPdf` + `KundaliPdfState` (Idle/Loading/Ready/Error), bilingual loading/error dialogs. Errors show the server message or a bilingual fallback; the share sheet opens only on a successfully written file. (The raw PDF-binary flow `admin-ajax.php?action=kg_export_pdf_file` needs a WP nonce the app cannot obtain, so it is not app-callable — the REST HTML + on-device render is the honest equivalent.)
+
+### Not verifiable without a device
+PDF rendering on a real device (WebView print-adapter path; endpoint contract verified via curl only), and the Hindi/English UI switch on a real screen.
+
+---
+
 ## [2026-10-10] — Audit Loop Cycle 4: missed-items fixes (Gochar/Matching/Password/Prashna/Wallet)
 
 ### Fixed — Gochar "New Delhi" silent fallback

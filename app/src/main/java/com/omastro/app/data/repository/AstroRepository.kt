@@ -6,6 +6,8 @@ import com.omastro.app.data.remote.GocharRequest
 import com.omastro.app.data.remote.GocharResponse
 import com.omastro.app.data.remote.PrashnaRequest
 import com.omastro.app.data.remote.PrashnaResponse
+import com.omastro.app.data.remote.PdfExportPayload
+import com.omastro.app.data.remote.PdfExportRequest
 import com.omastro.app.data.remote.OmAstroApiService
 import java.io.IOException
 
@@ -133,6 +135,29 @@ class AstroRepository(
                 Result.success(body)
             } else {
                 Result.failure(IOException("Prashna Kundali request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Kundali PDF report HTML — the server's official mPDF-ready report
+     * (POST /pdf/export; envelope {success, data:{html, filename}}).
+     * Honesty: a blank/empty HTML payload is treated as a failure — the app
+     * never generates a PDF from empty or invented content.
+     */
+    suspend fun exportKundaliPdf(request: PdfExportRequest): Result<PdfExportPayload> {
+        return try {
+            val res = api.exportKundaliPdf(request)
+            val body = res.body()
+            val data = body?.data
+            if (res.isSuccessful && body != null && body.success && data != null && data.html.isNotBlank()) {
+                Result.success(data)
+            } else if (res.isSuccessful && body != null) {
+                Result.failure(IOException(body.message ?: "PDF export failed: empty server response"))
+            } else {
+                Result.failure(IOException("PDF export failed: HTTP ${res.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

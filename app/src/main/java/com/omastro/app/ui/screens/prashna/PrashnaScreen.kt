@@ -68,7 +68,7 @@ fun PrashnaScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = SacredGold)
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Casting the prashna chart…", color = StarlightWhite, fontSize = 13.sp)
+                        Text(W.t("prashna_loading"), color = StarlightWhite, fontSize = 13.sp)
                     }
                 }
             }
@@ -190,7 +190,7 @@ fun PrashnaScreen(
                                 lon = p.lon
                             },
                             label = W.t("prashna_place_label"),
-                            placeholder = "Type city name, e.g. Jaipur"
+                            placeholder = W.t("prashna_place_ph")
                         )
                         Text(
                             text = W.t("prashna_place_note"),
@@ -279,8 +279,8 @@ fun PrashnaScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                                 listOfNotNull(
-                                    (data["prashn_time"] as? String)?.let { "Time: $it" },
-                                    (data["location"] as? String)?.let { "Location: $it" }
+                                    (data["prashn_time"] as? String)?.let { W.tf("prashna_time_fmt", it) },
+                                    (data["location"] as? String)?.let { W.tf("prashna_location_fmt", it) }
                                 ).forEach {
                                     Text(it, color = TextSecondary, fontSize = 12.sp)
                                 }
@@ -364,9 +364,9 @@ fun PrashnaScreen(
                                         )
                                         Spacer(modifier = Modifier.height(6.dp))
                                         listOfNotNull(
-                                            (planet["house"] as? Number)?.let { "House ${it.toInt()}" },
-                                            (planet["deg"] as? String)?.let { "Deg $it" },
-                                            (planet["retro"] as? String)?.takeIf { it.isNotBlank() }?.let { "Retrograde$it" }
+                                            (planet["house"] as? Number)?.let { W.tf("prashna_house_fmt", it.toInt()) },
+                                            (planet["deg"] as? String)?.let { W.tf("prashna_deg_fmt", it) },
+                                            (planet["retro"] as? String)?.takeIf { it.isNotBlank() }?.let { W.tf("prashna_retro_fmt", it) }
                                         ).forEach {
                                             Text(it, color = TextSecondary, fontSize = 12.sp)
                                         }

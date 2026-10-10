@@ -3,4 +3,6 @@
      Cards are rendered to cacheDir/shared_cards/ and shared via content URI. -->
 <paths>
     <cache-path name="shared_cards" path="shared_cards/" />
+    <!-- Kundali PDF exports rendered by PdfExportUtil (ui/share). -->
+    <cache-path name="pdf_exports" path="pdf_exports/" />
 </paths>

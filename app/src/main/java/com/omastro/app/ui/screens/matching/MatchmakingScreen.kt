@@ -56,7 +56,7 @@ fun MatchmakingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Kundali Milan (Ashtakoota)", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("match_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -73,7 +73,7 @@ fun MatchmakingScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = SacredGold)
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Calculating compatibility...", color = StarlightWhite, fontSize = 13.sp)
+                        Text(W.t("match_loading"), color = StarlightWhite, fontSize = 13.sp)
                     }
                 }
             }
@@ -87,14 +87,14 @@ fun MatchmakingScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Calculation Failed",
+                            text = W.t("match_failed"),
                             color = StarlightWhite,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = errorMessage ?: "An unexpected error occurred.",
+                            text = errorMessage ?: W.t("match_failed_sub"),
                             color = StarlightWhite.copy(alpha = 0.7f),
                             fontSize = 14.sp
                         )
@@ -133,14 +133,14 @@ fun MatchmakingScreen(
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "Enter birth details to check compatibility",
+                                        text = W.t("match_intro"),
                                         color = StarlightWhite,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Provide accurate birth information for both partners for a precise Ashtakoota Guna Milan analysis.",
+                                        text = W.t("match_intro_sub"),
                                         color = StarlightWhite.copy(alpha = 0.7f),
                                         fontSize = 13.sp,
                                         lineHeight = 20.sp
@@ -152,11 +152,11 @@ fun MatchmakingScreen(
 
                     // Groom details
                     item {
-                        Text("GROOM (VARA) DETAILS", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        Text(W.t("match_groom"), color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
                     item {
                         BirthInputField(
-                            "Full Name", boyName,
+                            W.t("match_full_name"), boyName,
                             { boyName = it; fieldErrors = fieldErrors - "boyName"; formError = null },
                             isError = fieldErrors.contains("boyName")
                         )
@@ -164,10 +164,10 @@ fun MatchmakingScreen(
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Box(Modifier.weight(1f)) {
-                                DatePickerField(boyDob, { boyDob = it; fieldErrors = fieldErrors - "boyDob"; formError = null }, "Date of Birth")
+                                DatePickerField(boyDob, { boyDob = it; fieldErrors = fieldErrors - "boyDob"; formError = null }, W.t("match_dob"))
                             }
                             Box(Modifier.weight(1f)) {
-                                TimePickerField(boyTob, { boyTob = it; fieldErrors = fieldErrors - "boyTob"; formError = null }, "Time")
+                                TimePickerField(boyTob, { boyTob = it; fieldErrors = fieldErrors - "boyTob"; formError = null }, W.t("match_tob"))
                             }
                         }
                     }
@@ -176,8 +176,8 @@ fun MatchmakingScreen(
                             value = boyPob,
                             onValueChange = { boyPob = it; fieldErrors = fieldErrors - "boyPob"; formError = null },
                             onPlaceSelected = { fieldErrors = fieldErrors - "boyPob"; formError = null /* server geocodes the place name */ },
-                            label = "Place of Birth",
-                            placeholder = "Type city name, e.g. Jaipur"
+                            label = W.t("match_pob"),
+                            placeholder = W.t("match_pob_ph")
                         )
                         if (fieldErrors.contains("boyPob")) {
                             Text(
@@ -192,11 +192,11 @@ fun MatchmakingScreen(
                     // Bride details
                     item {
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("BRIDE (KANYA) DETAILS", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        Text(W.t("match_bride"), color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
                     item {
                         BirthInputField(
-                            "Full Name", girlName,
+                            W.t("match_full_name"), girlName,
                             { girlName = it; fieldErrors = fieldErrors - "girlName"; formError = null },
                             isError = fieldErrors.contains("girlName")
                         )
@@ -204,10 +204,10 @@ fun MatchmakingScreen(
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Box(Modifier.weight(1f)) {
-                                DatePickerField(girlDob, { girlDob = it; fieldErrors = fieldErrors - "girlDob"; formError = null }, "Date of Birth")
+                                DatePickerField(girlDob, { girlDob = it; fieldErrors = fieldErrors - "girlDob"; formError = null }, W.t("match_dob"))
                             }
                             Box(Modifier.weight(1f)) {
-                                TimePickerField(girlTob, { girlTob = it; fieldErrors = fieldErrors - "girlTob"; formError = null }, "Time")
+                                TimePickerField(girlTob, { girlTob = it; fieldErrors = fieldErrors - "girlTob"; formError = null }, W.t("match_tob"))
                             }
                         }
                     }
@@ -216,8 +216,8 @@ fun MatchmakingScreen(
                             value = girlPob,
                             onValueChange = { girlPob = it; fieldErrors = fieldErrors - "girlPob"; formError = null },
                             onPlaceSelected = { fieldErrors = fieldErrors - "girlPob"; formError = null /* server geocodes the place name */ },
-                            label = "Place of Birth",
-                            placeholder = "Type city name, e.g. Jaipur"
+                            label = W.t("match_pob"),
+                            placeholder = W.t("match_pob_ph")
                         )
                         if (fieldErrors.contains("girlPob")) {
                             Text(
@@ -292,14 +292,14 @@ fun MatchmakingScreen(
                             CosmicCard(modifier = Modifier.fillMaxWidth()) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "Incomplete server response",
+                                        text = W.t("match_incomplete"),
                                         color = SacredGold,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "The server did not return a complete compatibility score. Please try again.",
+                                        text = W.t("match_incomplete_sub"),
                                         color = StarlightWhite.copy(alpha = 0.7f),
                                         fontSize = 14.sp,
                                         textAlign = TextAlign.Center
@@ -346,7 +346,7 @@ fun MatchmakingScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "${res.percentage}% Overall Compatibility",
+                                    text = W.tf("match_compat_fmt", res.percentage),
                                     color = MysticPurple,
                                     fontSize = 13.sp
                                 )
@@ -362,14 +362,14 @@ fun MatchmakingScreen(
                         ) {
                             CosmicCard(modifier = Modifier.weight(1f)) {
                                 Column {
-                                    Text("GROOM (VARA)", color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(W.t("match_groom_short"), color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(res.manglikBoy, color = StarlightWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                             CosmicCard(modifier = Modifier.weight(1f)) {
                                 Column {
-                                    Text("BRIDE (KANYA)", color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(W.t("match_bride_short"), color = SacredGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(res.manglikGirl, color = StarlightWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
@@ -380,7 +380,7 @@ fun MatchmakingScreen(
                     // Ashtakoota Guna Breakdown
                     item {
                         Text(
-                            text = "8 Koota Analysis (36 Gunas)",
+                            text = W.t("match_koota_title"),
                             color = StarlightWhite,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
@@ -398,7 +398,7 @@ fun MatchmakingScreen(
                             borderColor = SacredGold.copy(alpha = 0.5f)
                         ) {
                             Column {
-                                Text("SYNTHESIS & RECOMMENDATION", color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                                Text(W.t("match_synthesis"), color = SacredGold, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = res.conclusion,

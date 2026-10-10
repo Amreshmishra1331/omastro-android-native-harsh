@@ -37,25 +37,6 @@ sealed interface DrawerDialog {
     object LogoutConfirm : DrawerDialog
 }
 
-private const val PRIVACY_TEXT =
-    "Astrological Disclaimer:\n\n" +
-    "The astrological readings, predictions, and guidance provided by OmAstro AI are based on " +
-    "traditional Vedic astrology principles and are intended for informational and entertainment " +
-    "purposes only. They should not be considered as professional advice for legal, medical, " +
-    "financial, or personal decisions.\n\n" +
-    "Privacy:\n\n" +
-    "Your birth details and personal information are used solely to generate astrological " +
-    "calculations. We do not share your personal data with third parties without your consent. " +
-    "Your authentication tokens are stored securely using encrypted storage on your device."
-
-private const val TERMS_TEXT =
-    "Terms of Service\n\n" +
-    "The complete Terms of Service governing the use of OmAstro AI are published on our website " +
-    "(omastroai.com). An in-app terms page is coming soon.\n\n" +
-    "By using this app you agree to use astrological guidance responsibly and understand that " +
-    "readings are for guidance and entertainment purposes. Paid consultations with astrologers " +
-    "are billed per minute from your wallet balance as displayed before each session."
-
 /**
  * Renders the AlertDialog for a [DrawerDialog]. Used by MainActivity (drawer) and SettingsScreen.
  */
@@ -73,14 +54,14 @@ fun DrawerDialogHost(
                 title = { Text(dialog.feature, color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
                     Text(
-                        "This feature is coming soon to the app. Thank you for your patience.",
+                        W.t("dialog_coming_soon"),
                         color = StarlightWhite.copy(alpha = 0.8f),
                         fontSize = 13.sp
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = onDismiss) {
-                        Text("OK", color = SacredGold, fontWeight = FontWeight.Bold)
+                        Text(W.t("OK"), color = SacredGold, fontWeight = FontWeight.Bold)
                     }
                 },
                 containerColor = CosmicNavy
@@ -89,13 +70,13 @@ fun DrawerDialogHost(
         DrawerDialog.Privacy -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("Privacy & Disclaimers", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("settings_disclaimer_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
-                    Text(PRIVACY_TEXT, color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
+                    Text(W.t("dialog_privacy_text"), color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
                 },
                 confirmButton = {
                     TextButton(onClick = onDismiss) {
-                        Text("Close", color = SacredGold, fontWeight = FontWeight.Bold)
+                        Text(W.t("Close"), color = SacredGold, fontWeight = FontWeight.Bold)
                     }
                 },
                 containerColor = CosmicNavy
@@ -104,13 +85,13 @@ fun DrawerDialogHost(
         DrawerDialog.Terms -> {
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("Terms of Service", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("settings_terms_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
-                    Text(TERMS_TEXT, color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
+                    Text(W.t("dialog_terms_text"), color = StarlightWhite.copy(alpha = 0.8f), fontSize = 13.sp)
                 },
                 confirmButton = {
                     TextButton(onClick = onDismiss) {
-                        Text("Close", color = SacredGold, fontWeight = FontWeight.Bold)
+                        Text(W.t("Close"), color = SacredGold, fontWeight = FontWeight.Bold)
                     }
                 },
                 containerColor = CosmicNavy
@@ -120,7 +101,7 @@ fun DrawerDialogHost(
             val currentLang by com.omastro.app.data.local.LangPrefs.language.collectAsState()
             AlertDialog(
                 onDismissRequest = onDismiss,
-                title = { Text("App Language", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("settings_lang_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
                         Row(
@@ -153,7 +134,7 @@ fun DrawerDialogHost(
                             Column {
                                 Text("हिन्दी", color = StarlightWhite, fontSize = 14.sp)
                                 Text(
-                                    "Menus, voice, photo, Palmistry & Vastu",
+                                    W.t("dialog_lang_sub"),
                                     color = SacredGold.copy(alpha = 0.7f),
                                     fontSize = 11.sp
                                 )

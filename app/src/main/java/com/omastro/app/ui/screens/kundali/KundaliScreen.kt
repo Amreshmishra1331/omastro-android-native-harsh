@@ -25,6 +25,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.*
@@ -48,10 +51,12 @@ fun KundaliScreen(
     onMenuClick: (() -> Unit)? = null,
     viewModel: KundaliViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val hasData by viewModel.hasData.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.errorMessage.collectAsState()
     val lastRequest by viewModel.lastRequest.collectAsState()
+    val pdfState by viewModel.pdfState.collectAsState()
     // Recompose on Settings language change so W.t() strings (Ask AI cards) switch live.
     val lang by LangPrefs.language.collectAsState()
 
@@ -69,6 +74,29 @@ fun KundaliScreen(
             viewModel.loadStoredKundali(id)
         } ?: com.omastro.app.ui.navigation.PendingChartHolder.consume()?.let { chart ->
             viewModel.loadSavedChart(chart)
+        }
+    }
+
+    // Cycle 5: PDF export — when the report is ready, open the system share
+    // sheet with the real PDF (content authored entirely by the server).
+    LaunchedEffect(pdfState) {
+        val s = pdfState
+        if (s is KundaliPdfState.Ready) {
+            try {
+                val uri = FileProvider.getUriForFile(
+                    context, "${context.packageName}.fileprovider", s.file
+                )
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/pdf"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    putExtra(Intent.EXTRA_SUBJECT, W.t("kundali_pdf_share_title"))
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(send, W.t("kundali_pdf_share_title")))
+            } catch (_: Exception) {
+                // No share target / FileProvider hiccup — stay silent, dialog state resets below.
+            }
+            viewModel.resetPdfState()
         }
     }
 
@@ -92,6 +120,12 @@ fun KundaliScreen(
                         Icon(Icons.Default.Bookmarks, contentDescription = W.t("Saved charts"), tint = SacredGold)
                     }
                     if (hasData) {
+                        // Cycle 5: export the current chart as a real PDF via
+                        // POST /wp-json/omastro/v1/pdf/export (server report HTML
+                        // rendered to PDF on-device, then shared).
+                        IconButton(onClick = { viewModel.exportPdf(context) }) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = W.t("kundali_pdf_export"), tint = SacredGold)
+                        }
                         IconButton(onClick = {
                             saveName = lastRequest?.name ?: ""
                             saveError = null
@@ -506,6 +540,47 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
                     Text(W.t("history_cancel"))
                 }
             }
+        )
+    }
+
+    // --- Cycle 5: PDF export progress / error dialogs (bilingual) ---
+    if (pdfState is KundaliPdfState.Loading) {
+        AlertDialog(
+            onDismissRequest = { /* block dismissal while rendering */ },
+            title = { Text(W.t("kundali_pdf_export"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = SacredGold, modifier = Modifier.size(28.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        W.t("kundali_pdf_loading"),
+                        fontSize = 13.sp,
+                        color = StarlightWhite.copy(alpha = 0.8f)
+                    )
+                }
+            },
+            confirmButton = {},
+            containerColor = CosmicNavy
+        )
+    }
+    val pdfError = (pdfState as? KundaliPdfState.Error)?.message
+    if (pdfError != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.resetPdfState() },
+            title = { Text(W.t("kundali_pdf_export"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    pdfError.ifBlank { W.t("kundali_pdf_failed") },
+                    fontSize = 13.sp,
+                    color = StarlightWhite.copy(alpha = 0.8f)
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resetPdfState() }) {
+                    Text(W.t("OK"), color = SacredGold, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = CosmicNavy
         )
     }
 }

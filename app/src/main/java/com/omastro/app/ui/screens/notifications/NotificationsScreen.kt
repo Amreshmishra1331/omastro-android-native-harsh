@@ -144,8 +144,8 @@ fun NotificationsScreen(
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
-            title = { Text("Clear all notifications?", color = StarlightWhite) },
-            text = { Text("This permanently deletes all notifications.", color = StarlightWhite.copy(alpha = 0.7f)) },
+            title = { Text(W.t("notif_clear_title"), color = StarlightWhite) },
+            text = { Text(W.t("notif_clear_body"), color = StarlightWhite.copy(alpha = 0.7f)) },
             confirmButton = {
                 TextButton(onClick = {
                     showClearConfirm = false
@@ -176,7 +176,7 @@ private fun NotificationRow(notification: AppNotification, onClick: () -> Unit) 
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = notification.title.ifBlank { "Notification" },
+                    text = notification.title.ifBlank { W.t("notif_fallback") },
                     color = StarlightWhite,
                     fontSize = 14.sp,
                     fontWeight = if (notification.isRead) FontWeight.Medium else FontWeight.Bold

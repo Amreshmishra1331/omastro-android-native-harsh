@@ -51,9 +51,9 @@ fun SettingsScreen(
             coroutineScope.launch {
                 val reviewed = AppContainer.requestInAppReviewUseCase.launchReview(activity)
                 if (reviewed) {
-                    snackbarHostState.showSnackbar("Thank you for rating OmAstro!")
+                    snackbarHostState.showSnackbar(W.t("settings_snack_rated"))
                 } else {
-                    snackbarHostState.showSnackbar("Play Store review flow initiated.")
+                    snackbarHostState.showSnackbar(W.t("settings_snack_review"))
                 }
             }
         }
@@ -62,7 +62,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings & Profile", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("settings_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
@@ -95,7 +95,7 @@ fun SettingsScreen(
                     ) {
                         Column {
                             Text(
-                                text = user?.name?.takeIf { it.isNotBlank() } ?: "Vedic Seeker",
+                                text = user?.name?.takeIf { it.isNotBlank() } ?: W.t("settings_seeker"),
                                 color = StarlightWhite,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
@@ -103,14 +103,14 @@ fun SettingsScreen(
                             Text(
                                 text = user?.email?.takeIf { it.isNotBlank() }
                                     ?: user?.phone?.takeIf { it.isNotBlank() }
-                                    ?: "Sign in for synced reports",
+                                    ?: W.t("settings_signin_sub"),
                                 color = StarlightWhite.copy(alpha = 0.6f),
                                 fontSize = 12.sp
                             )
                             if (user != null) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Wallet balance: ₹${String.format("%.2f", walletBalanceInr)}",
+                                    text = W.tf("settings_wallet_fmt", String.format("%.2f", walletBalanceInr)),
                                     color = SacredGold,
                                     fontWeight = FontWeight.Medium,
                                     fontSize = 12.sp
@@ -148,7 +148,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.AccountBalanceWallet,
                         title = W.t("Wallet Balance & Add Money"),
-                        subtitle = "Current balance: ₹${String.format("%.2f", walletBalanceInr)}"
+                        subtitle = W.tf("settings_wallet_sub_fmt", String.format("%.2f", walletBalanceInr))
                     )
                 }
             }
@@ -166,7 +166,7 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Default.Bookmarks,
                         title = W.t("Saved Kundalis"),
-                        subtitle = "Your saved birth charts"
+                        subtitle = W.t("settings_saved_sub")
                     )
                 }
             }
@@ -179,12 +179,12 @@ fun SettingsScreen(
                 CosmicCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { drawerDialog = DrawerDialog.ComingSoon("Refer & Earn") }
+                        .clickable { drawerDialog = DrawerDialog.ComingSoon(W.t("Refer & Earn")) }
                 ) {
                     SettingsRow(
                         icon = Icons.Default.CardGiftcard,
                         title = W.t("Refer & Earn"),
-                        subtitle = "Invite friends, earn rewards"
+                        subtitle = W.t("settings_refer_sub")
                     )
                 }
             }
@@ -201,8 +201,8 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.Language,
-                        title = "App Language",
-                        subtitle = "English · हिन्दी"
+                        title = W.t("settings_lang_title"),
+                        subtitle = W.t("settings_lang_sub")
                     )
                 }
             }
@@ -223,7 +223,7 @@ fun SettingsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(W.t("Appearance"), color = StarlightWhite, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                             Text(
-                                if (isDarkTheme) "Dark — Cosmic Night" else "Light — Temple Gold",
+                                if (isDarkTheme) W.t("settings_dark") else W.t("settings_light"),
                                 color = StarlightWhite.copy(alpha = 0.6f),
                                 fontSize = 12.sp
                             )
@@ -242,7 +242,7 @@ fun SettingsScreen(
 
             // ============ SUPPORT & FEEDBACK ============
             item {
-                Text("Support & Feedback", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(W.t("settings_support"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -252,8 +252,8 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.Star,
-                        title = "Rate Us on Google Play Store",
-                        subtitle = "Your feedback helps us grow"
+                        title = W.t("settings_rate_title"),
+                        subtitle = W.t("settings_rate_sub")
                     )
                 }
             }
@@ -264,10 +264,10 @@ fun SettingsScreen(
                         .clickable {
                             val bugIntent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
                                 data = android.net.Uri.parse("mailto:support@omastroai.com")
-                                putExtra(android.content.Intent.EXTRA_SUBJECT, "OmAstro App Bug Report")
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, W.t("settings_bug_mail_subject"))
                                 putExtra(
                                     android.content.Intent.EXTRA_TEXT,
-                                    "Describe the issue:\n"
+                                    W.t("settings_bug_mail_body")
                                 )
                             }
                             try { context.startActivity(bugIntent) } catch (e: Exception) { /* no email app */ }
@@ -275,8 +275,8 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.BugReport,
-                        title = "Report a Bug",
-                        subtitle = "Email support"
+                        title = W.t("settings_bug_title"),
+                        subtitle = W.t("settings_bug_sub")
                     )
                 }
             }
@@ -288,7 +288,7 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.Security,
-                        title = "Privacy & Astrological Disclaimers"
+                        title = W.t("settings_privacy_title")
                     )
                 }
             }
@@ -300,7 +300,7 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.Description,
-                        title = "Terms of Service"
+                        title = W.t("settings_terms_title")
                     )
                 }
             }
@@ -319,7 +319,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            "100% Native Android · Vedic AI Engine",
+                            W.t("settings_about_line2"),
                             color = SacredGold.copy(alpha = 0.7f),
                             fontSize = 11.sp
                         )
@@ -337,17 +337,14 @@ fun SettingsScreen(
             onDismissRequest = { showDisclaimerDialog = false },
             title = {
                 Text(
-                    "Privacy & Disclaimers",
+                    W.t("settings_disclaimer_title"),
                     color = StarlightWhite,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    "Astrological Disclaimer:\n\n" +
-                    "The astrological readings, predictions, and guidance provided by OmAstro AI are based on traditional Vedic astrology principles and are intended for informational and entertainment purposes only. They should not be considered as professional advice for legal, medical, financial, or personal decisions.\n\n" +
-                    "Privacy:\n\n" +
-                    "Your birth details and personal information are used solely to generate astrological calculations. We do not share your personal data with third parties without your consent. Your authentication tokens are stored securely using encrypted storage on your device.",
+                    W.t("settings_disclaimer_text"),
                     color = StarlightWhite.copy(alpha = 0.8f),
                     fontSize = 13.sp
                 )

@@ -24,11 +24,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.HoroscopeSign
 import com.omastro.app.data.model.RashifalArea
 import com.omastro.app.data.model.RashifalData
 import com.omastro.app.data.model.SaturnTransit
+import com.omastro.app.data.model.planetHindiFallback
 import com.omastro.app.ui.components.CosmicCard
+import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.theme.*
 
 private val MaroonBanner = Color(0xFF5C0B0B)
@@ -46,11 +49,13 @@ fun HoroscopeScreen(
     val horoscope by viewModel.horoscope.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val lang by LangPrefs.language.collectAsState()
+    val hi = lang == "hi"
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rashifal", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("rashifal_title"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
@@ -80,7 +85,7 @@ fun HoroscopeScreen(
                 item { RashifalBanner() }
                 item {
                     Text(
-                        text = "Select Your Sign",
+                        text = W.t("rashifal_select_sign"),
                         color = SacredGold,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -141,13 +146,13 @@ fun HoroscopeScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
-                                        text = "${sign.symbol} ${sign.name}",
+                                        text = "${sign.symbol} ${signDisplayName(sign, hi)}",
                                         color = StarlightWhite,
                                         fontSize = 17.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Lord: ${sign.ruler}",
+                                        text = W.tf("rashifal_lord_fmt", signRulerName(sign, hi)),
                                         color = StarlightWhite.copy(alpha = 0.65f),
                                         fontSize = 13.sp
                                     )
@@ -158,7 +163,7 @@ fun HoroscopeScreen(
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = SacredGold),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, SacredGold.copy(alpha = 0.5f))
                             ) {
-                                Text("Change", fontSize = 13.sp)
+                                Text(W.t("rashifal_change"), fontSize = 13.sp)
                             }
                         }
                     }
@@ -171,7 +176,7 @@ fun HoroscopeScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         viewModel.periods.forEach { period ->
-                            val label = viewModel.periodLabels[period] ?: period
+                            val label = W.t("rashifal_period_$period")
                             PeriodTab(
                                 label = label,
                                 isSelected = selectedPeriod == period,
@@ -193,7 +198,7 @@ fun HoroscopeScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                         ) {
                             Text(
-                                "View Rashifal",
+                                W.t("rashifal_view"),
                                 color = CosmicDeepBlue,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
@@ -216,7 +221,7 @@ fun HoroscopeScreen(
                                     CircularProgressIndicator(color = SacredGold)
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
-                                        "Reading the stars...",
+                                        W.t("rashifal_loading"),
                                         color = StarlightWhite.copy(alpha = 0.6f),
                                         fontSize = 13.sp
                                     )
@@ -229,7 +234,7 @@ fun HoroscopeScreen(
                             CosmicCard(modifier = Modifier.fillMaxWidth()) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        "Rashifal Unavailable",
+                                        W.t("rashifal_unavailable"),
                                         color = StarlightWhite,
                                         fontSize = 17.sp,
                                         fontWeight = FontWeight.Bold
@@ -246,7 +251,7 @@ fun HoroscopeScreen(
                                         onClick = { viewModel.retry() },
                                         colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                                     ) {
-                                        Text("Retry", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                                        Text(W.t("Retry"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -254,7 +259,7 @@ fun HoroscopeScreen(
                     }
                     horoscope != null -> {
                         val h = horoscope!!
-                        item { RashifalTitleCard(sign = sign, data = h, periodLabel = viewModel.periodLabels[selectedPeriod] ?: selectedPeriod) }
+                        item { RashifalTitleCard(sign = sign, data = h, periodLabel = W.t("rashifal_period_$selectedPeriod"), hi = hi) }
                         h.saturnTransit?.takeIf { it.active }?.let { transit ->
                             item { SaturnAlertCard(transit = transit) }
                         }
@@ -304,7 +309,7 @@ private fun RashifalBanner() {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Select your sign and read detailed horoscope",
+                text = W.t("rashifal_banner_sub"),
                 color = StarlightWhite.copy(alpha = 0.85f),
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
@@ -320,6 +325,7 @@ private fun RashifalBanner() {
 private fun SignGridCard(sign: HoroscopeSign, isSelected: Boolean, onClick: () -> Unit) {
     val borderColor = if (isSelected) SacredGold else CosmicBorder
     val borderWidth = if (isSelected) 2.dp else 1.dp
+    val hi = LangPrefs.language.collectAsState().value == "hi"
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
@@ -340,7 +346,7 @@ private fun SignGridCard(sign: HoroscopeSign, isSelected: Boolean, onClick: () -
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = sign.name,
+            text = signDisplayName(sign, hi),
             color = StarlightWhite,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
@@ -349,7 +355,7 @@ private fun SignGridCard(sign: HoroscopeSign, isSelected: Boolean, onClick: () -
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-            text = "Ruler: ${sign.ruler}",
+            text = W.tf("rashifal_ruler_fmt", signRulerName(sign, hi)),
             color = StarlightWhite.copy(alpha = 0.55f),
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
@@ -390,8 +396,16 @@ private fun PeriodTab(label: String, isSelected: Boolean, modifier: Modifier = M
 // ---------------------------------------------------------------------------
 // Result: title card with OVERALL x/10
 // ---------------------------------------------------------------------------
+/** Bilingual sign display name (global Settings language). */
+private fun signDisplayName(sign: HoroscopeSign, hi: Boolean): String =
+    if (hi) sign.hindiName.ifBlank { sign.name } else sign.name
+
+/** Bilingual ruler (planet lord) name. */
+private fun signRulerName(sign: HoroscopeSign, hi: Boolean): String =
+    if (hi) planetHindiFallback(sign.ruler).ifBlank { sign.ruler } else sign.ruler
+
 @Composable
-private fun RashifalTitleCard(sign: HoroscopeSign, data: RashifalData, periodLabel: String) {
+private fun RashifalTitleCard(sign: HoroscopeSign, data: RashifalData, periodLabel: String, hi: Boolean) {
     val overall = data.scores["overall"]
     CosmicCard(
         modifier = Modifier.fillMaxWidth(),
@@ -404,7 +418,7 @@ private fun RashifalTitleCard(sign: HoroscopeSign, data: RashifalData, periodLab
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "${sign.name} — $periodLabel Rashifal",
+                    text = W.tf("rashifal_title_fmt", signDisplayName(sign, hi), periodLabel),
                     color = SacredGold,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
@@ -412,7 +426,7 @@ private fun RashifalTitleCard(sign: HoroscopeSign, data: RashifalData, periodLab
                 Spacer(modifier = Modifier.height(4.dp))
                 if (data.summary.isNotBlank()) {
                     Text(
-                        text = "Lahiri Ayanamsa · Live transit computation",
+                        text = W.t("rashifal_lahiri_note"),
                         color = StarlightWhite.copy(alpha = 0.55f),
                         fontSize = 11.sp
                     )
@@ -421,7 +435,7 @@ private fun RashifalTitleCard(sign: HoroscopeSign, data: RashifalData, periodLab
             if (overall != null) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "OVERALL",
+                        text = W.t("rashifal_overall"),
                         color = StarlightWhite.copy(alpha = 0.6f),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
@@ -455,7 +469,7 @@ private fun SaturnAlertCard(transit: SaturnTransit) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = transit.nameEn.ifBlank { "Saturn Transit Alert" },
+                text = transit.nameEn.ifBlank { W.t("rashifal_saturn_alert") },
                 color = Color(0xFFFF8A80),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -466,7 +480,7 @@ private fun SaturnAlertCard(transit: SaturnTransit) {
                 color = Color(0xFFE53935).copy(alpha = 0.2f)
             ) {
                 Text(
-                    text = "Active",
+                    text = W.t("rashifal_active"),
                     color = Color(0xFFFF8A80),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
@@ -494,7 +508,7 @@ private fun RashifalSummaryCard(summary: String) {
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Text(
-                text = "COSMIC GUIDANCE",
+                text = W.t("rashifal_cosmic_guidance"),
                 color = SacredGold,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -524,7 +538,7 @@ private fun CategoryScoresCard(areas: Map<String, RashifalArea>) {
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(
-                text = "LIFE AREA ENERGIES",
+                text = W.t("rashifal_life_energies"),
                 color = SacredGold,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -549,7 +563,7 @@ private fun CategoryScoreRow(area: RashifalArea) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = area.label.ifBlank { "Energy" },
+                text = area.label.ifBlank { W.t("rashifal_energy_fallback") },
                 color = StarlightWhite,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold
@@ -606,21 +620,21 @@ private fun LuckySignsCard(sign: HoroscopeSign, data: RashifalData) {
             .padding(16.dp)
     ) {
         Text(
-            text = "Lucky Signs",
+            text = W.t("rashifal_lucky_signs"),
             color = SacredGold,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
-            LuckyCell(label = "Number", value = "${lucky.number}", modifier = Modifier.weight(1f))
-            LuckyCell(label = "Color", value = lucky.color, modifier = Modifier.weight(1f))
-            LuckyCell(label = "Direction", value = lucky.direction, modifier = Modifier.weight(1f))
+            LuckyCell(label = W.t("rashifal_luck_number"), value = "${lucky.number}", modifier = Modifier.weight(1f))
+            LuckyCell(label = W.t("rashifal_luck_color"), value = lucky.color, modifier = Modifier.weight(1f))
+            LuckyCell(label = W.t("rashifal_luck_direction"), value = lucky.direction, modifier = Modifier.weight(1f))
         }
         Spacer(modifier = Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth()) {
-            LuckyCell(label = "Gem", value = lucky.gem, modifier = Modifier.weight(1f))
-            LuckyCell(label = "Lucky Time", value = lucky.time, modifier = Modifier.weight(1f))
+            LuckyCell(label = W.t("rashifal_luck_gem"), value = lucky.gem, modifier = Modifier.weight(1f))
+            LuckyCell(label = W.t("rashifal_luck_time"), value = lucky.time, modifier = Modifier.weight(1f))
         }
     }
 }
@@ -660,7 +674,7 @@ private fun RemediesCard(remedies: List<String>) {
             .padding(16.dp)
     ) {
         Text(
-            text = "Vedic Remedies",
+            text = W.t("rashifal_remedies"),
             color = Color(0xFF90CAF9),
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
@@ -696,7 +710,7 @@ private fun DashaStripCard(dashaMd: String, dashaAd: String, primaryName: String
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Text(
-                text = "CURRENT PLANETARY PERIOD",
+                text = W.t("rashifal_current_period"),
                 color = SacredGold,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
@@ -707,9 +721,9 @@ private fun DashaStripCard(dashaMd: String, dashaAd: String, primaryName: String
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                DashaCell("Mahadasha", dashaMd)
-                DashaCell("Antardasha", dashaAd)
-                if (primaryName.isNotBlank()) DashaCell("Dominant", primaryName)
+                DashaCell(W.t("rashifal_mahadasha"), dashaMd)
+                DashaCell(W.t("rashifal_antardasha"), dashaAd)
+                if (primaryName.isNotBlank()) DashaCell(W.t("rashifal_dominant"), primaryName)
             }
         }
     }

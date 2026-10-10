@@ -1,19 +1,26 @@
 package com.omastro.app.ui.screens.kundali
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.JaiminiData
 import com.omastro.app.data.model.KundaliRequest
 import com.omastro.app.data.model.KundaliResponse
 import com.omastro.app.data.model.ReportData
+import com.omastro.app.data.remote.PdfExportRequest
 import com.omastro.app.data.repository.MyDataRepository
 import com.omastro.app.di.AppContainer
 import com.omastro.app.ui.i18n.W
+import com.omastro.app.ui.share.renderHtmlToPdfFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * The 23 website-parity Kundali tabs, in website order.
@@ -36,6 +43,20 @@ data class JaiminiUiState(
     val data: JaiminiData? = null,
     val error: String? = null
 )
+
+/**
+ * Export-to-PDF state for the currently displayed chart.
+ *
+ * Flow: POST /wp-json/omastro/v1/pdf/export (server computes the official
+ * report HTML) → [renderHtmlToPdfFile] converts that HTML to real PDF bytes
+ * on-device → Ready(file) → the screen opens the system share sheet.
+ */
+sealed interface KundaliPdfState {
+    data object Idle : KundaliPdfState
+    data object Loading : KundaliPdfState
+    data class Ready(val file: File, val filename: String) : KundaliPdfState
+    data class Error(val message: String) : KundaliPdfState
+}
 
 /**
  * Kundali workbench state.
@@ -304,6 +325,74 @@ class KundaliViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    // --- Kundali PDF export -------------------------------------------
+
+    private val _pdfState = MutableStateFlow<KundaliPdfState>(KundaliPdfState.Idle)
+    val pdfState: StateFlow<KundaliPdfState> = _pdfState.asStateFlow()
+
+    fun resetPdfState() {
+        _pdfState.value = KundaliPdfState.Idle
+    }
+
+    /**
+     * Exports the currently displayed chart to a real PDF.
+     *
+     * The server (POST /pdf/export) recomputes the official Kundali report
+     * HTML from the chart's birth data; the device renders that HTML into PDF
+     * bytes via [renderHtmlToPdfFile]. The report language follows the app's
+     * global Settings language (hi → Hindi report).
+     *
+     * tz note: the app's /kundali request never sends a tz, so the server
+     * computes the chart with its 5.5 default; the export uses the same 5.5 so
+     * the PDF matches the chart on screen.
+     */
+    fun exportPdf(context: Context) {
+        val req = _lastRequest.value
+        if (req == null) {
+            _pdfState.value = KundaliPdfState.Error(W.t("kundali_pdf_no_chart"))
+            return
+        }
+        if (req.lat.isNaN() || req.lon.isNaN()) {
+            _pdfState.value = KundaliPdfState.Error(W.t("kundali_pdf_failed"))
+            return
+        }
+        if (_pdfState.value == KundaliPdfState.Loading) return
+        _pdfState.value = KundaliPdfState.Loading
+        viewModelScope.launch {
+            val lang = if (LangPrefs.language.value == "hi") "hi" else "en"
+            val result = withContext(Dispatchers.IO) {
+                AppContainer.astroRepository.exportKundaliPdf(
+                    PdfExportRequest(
+                        name = req.name,
+                        gender = req.gender.ifBlank { "male" },
+                        dob = req.dob,
+                        tobHr = req.tobHr,
+                        tobMn = req.tobMn,
+                        lat = req.lat,
+                        lon = req.lon,
+                        tz = 5.5,
+                        place = req.pob,
+                        language = lang,
+                        ayanamsa = req.ayanamsa
+                    )
+                )
+            }
+            result.fold(
+                onSuccess = { payload ->
+                    try {
+                        val file = renderHtmlToPdfFile(context, payload.html, payload.filename)
+                        _pdfState.value = KundaliPdfState.Ready(file, payload.filename)
+                    } catch (e: Exception) {
+                        _pdfState.value = KundaliPdfState.Error(e.message ?: W.t("kundali_pdf_failed"))
+                    }
+                },
+                onFailure = { e ->
+                    _pdfState.value = KundaliPdfState.Error(e.message ?: W.t("kundali_pdf_failed"))
+                }
+            )
+        }
     }
 
     /**

@@ -128,14 +128,14 @@ fun PanchangScreen(
 
                     // 4. Panchang details
                     item {
-                        SectionHeader("Panchang Details")
+                        SectionHeader(W.t("panch_details"))
                     }
                     item { PanchangDetailsCard(p = p) }
 
                     // 5. Hora — planetary hours (real /hora API)
                     if (hora != null) {
                         item {
-                            SectionHeader("Hora — Planetary Hours")
+                            SectionHeader(W.t("panch_hora"))
                         }
                         item { HoraCard(hora = hora!!, selectedDate = selectedDate) }
                     }
@@ -143,7 +143,7 @@ fun PanchangScreen(
                     // 6. Samvat / calendar info
                     if (p.samvatLine != null || p.pravishte != null) {
                         item {
-                            SectionHeader("Calendar")
+                            SectionHeader(W.t("panch_calendar"))
                         }
                         item { SamvatCard(p = p) }
                     }
@@ -173,7 +173,7 @@ private fun PanchangBanner() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "PANCHANG",
+            text = W.t("Panchang").uppercase(),
             color = TextGold,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
@@ -181,7 +181,7 @@ private fun PanchangBanner() {
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "Tithi · Vara · Nakshatra · Yoga · Karana",
+            text = W.t("panch_banner_sub"),
             color = StarlightWhite.copy(alpha = 0.85f),
             fontSize = 13.sp
         )
@@ -200,7 +200,7 @@ private fun ControlsCard(
 ) {
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "DATE",
+            text = W.t("panch_date"),
             color = TextGold,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
@@ -231,11 +231,11 @@ private fun ControlsCard(
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.weight(1f)
             )
-            Text(text = "Change", color = SacredGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(text = W.t("panch_change"), color = SacredGold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "TIMEZONE",
+            text = W.t("panch_timezone"),
             color = TextGold,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
@@ -243,7 +243,7 @@ private fun ControlsCard(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "IST +5:30 (India)",
+            text = W.t("panch_ist"),
             color = StarlightWhite.copy(alpha = 0.85f),
             fontSize = 14.sp
         )
@@ -255,7 +255,7 @@ private fun ControlsCard(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                text = "Get Panchang",
+                text = W.t("panch_get"),
                 color = CosmicDeepBlue,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
@@ -324,7 +324,7 @@ private fun DateBannerCard(p: PanchangResponse) {
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = "Sunrise · ${p.sunrise}   /   Sunset · ${p.sunset}",
+            text = W.tf("panch_sunrise_sunset", p.sunrise, p.sunset),
             color = Color(0xFF7C6A50),
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium
@@ -350,21 +350,21 @@ private fun SectionHeader(title: String) {
 @Composable
 private fun PanchangDetailsCard(p: PanchangResponse) {
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
-        DetailRow(label = "Tithi", value = p.tithi)
+        DetailRow(label = W.t("panch_lb_tithi"), value = p.tithi)
         if (p.tithiStart != null || p.tithiEnd != null) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Spacer(modifier = Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End) {
                     if (p.tithiStart != null) {
                         Text(
-                            text = "Starts: ${p.tithiStart}",
+                            text = W.tf("panch_starts_fmt", p.tithiStart),
                             color = AuspiciousGreen,
                             fontSize = 12.sp
                         )
                     }
                     if (p.tithiEnd != null) {
                         Text(
-                            text = "Ends: ${p.tithiEnd}",
+                            text = W.tf("panch_ends_fmt", p.tithiEnd),
                             color = InauspiciousRed,
                             fontSize = 12.sp
                         )
@@ -374,35 +374,35 @@ private fun PanchangDetailsCard(p: PanchangResponse) {
             Spacer(modifier = Modifier.height(4.dp))
         }
         DetailDivider()
-        DetailRow(label = "Nakshatra", value = p.nakshatra)
+        DetailRow(label = W.t("panch_lb_nakshatra"), value = p.nakshatra)
         if (p.nakshatraDetail != null) {
             DetailSubtext(p.nakshatraDetail)
         }
         DetailDivider()
-        val yogaValue = if (p.yogaEnd != null) "${p.yoga} · upto ${p.yogaEnd}" else p.yoga
-        DetailRow(label = "Yoga", value = yogaValue)
+        val yogaValue = if (p.yogaEnd != null) W.tf("panch_yoga_upto_fmt", p.yoga, p.yogaEnd) else p.yoga
+        DetailRow(label = W.t("panch_lb_yoga"), value = yogaValue)
         DetailDivider()
-        DetailRow(label = "Karana", value = p.karana1)
+        DetailRow(label = W.t("panch_lb_karana"), value = p.karana1)
         if (p.karana2 != null) {
-            DetailRow(label = "Karana", value = p.karana2)
+            DetailRow(label = W.t("panch_lb_karana"), value = p.karana2)
         }
         DetailDivider()
-        DetailRow(label = "Paksha", value = p.paksha)
+        DetailRow(label = W.t("panch_lb_paksha"), value = p.paksha)
         DetailDivider()
-        DetailRow(label = "Weekday", value = p.day)
+        DetailRow(label = W.t("panch_lb_weekday"), value = p.day)
         if (p.amantaMonth != null) {
             DetailDivider()
-            DetailRow(label = "Amanta Month", value = p.amantaMonth)
+            DetailRow(label = W.t("panch_lb_amanta"), value = p.amantaMonth)
         }
         if (p.purnimantaMonth != null) {
             DetailDivider()
-            DetailRow(label = "Purnimanta Month", value = p.purnimantaMonth)
+            DetailRow(label = W.t("panch_lb_purnimanta"), value = p.purnimantaMonth)
         }
         DetailDivider()
-        DetailRow(label = "Moonsign", value = p.moonSign)
+        DetailRow(label = W.t("panch_lb_moonsign"), value = p.moonSign)
         if (p.sunSign != null) {
             DetailDivider()
-            DetailRow(label = "Sunsign", value = p.sunSign)
+            DetailRow(label = W.t("panch_lb_sunsign"), value = p.sunSign)
         }
     }
 }
@@ -469,13 +469,13 @@ private fun HoraCard(hora: HoraData, selectedDate: String) {
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             HoraTabButton(
-                text = "Day Hora",
+                text = W.t("panch_day_hora"),
                 selected = !showNight,
                 onClick = { showNight = false },
                 modifier = Modifier.weight(1f)
             )
             HoraTabButton(
-                text = "Night Hora",
+                text = W.t("panch_night_hora"),
                 selected = showNight,
                 onClick = { showNight = true },
                 modifier = Modifier.weight(1f)
@@ -485,7 +485,7 @@ private fun HoraCard(hora: HoraData, selectedDate: String) {
         val hours: List<HoraHour> = if (showNight) hora.night else hora.day
         if (hours.isEmpty()) {
             Text(
-                text = "Hora data unavailable for this date.",
+                text = W.t("panch_hora_unavailable"),
                 color = TextSecondary,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(vertical = 8.dp)
@@ -549,7 +549,7 @@ private fun HoraRow(hour: HoraHour, isCurrent: Boolean) {
         if (isCurrent) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "NOW",
+                text = W.t("panch_now"),
                 color = CosmicDeepBlue,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
@@ -591,11 +591,11 @@ private fun isCurrentHora(h: HoraHour, isToday: Boolean): Boolean {
 private fun SamvatCard(p: PanchangResponse) {
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         if (p.samvatLine != null) {
-            DetailRow(label = "Samvat", value = p.samvatLine)
+            DetailRow(label = W.t("panch_samvat"), value = p.samvatLine)
         }
         if (p.pravishte != null) {
             DetailDivider()
-            DetailRow(label = "Pravishte", value = p.pravishte.toString())
+            DetailRow(label = W.t("panch_pravishte"), value = p.pravishte.toString())
         }
     }
 }
@@ -612,14 +612,14 @@ private fun PanchangErrorCard(message: String?, onRetry: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Panchang Unavailable",
+                text = W.t("panch_unavailable"),
                 color = StarlightWhite,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = message ?: "No Panchang data available.",
+                text = message ?: W.t("panch_no_data"),
                 color = StarlightWhite.copy(alpha = 0.7f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center

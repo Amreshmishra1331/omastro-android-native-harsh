@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.omastro.app.data.model.HoroscopeSign
 import com.omastro.app.data.model.RashifalData
 import com.omastro.app.di.AppContainer
+import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,14 +30,10 @@ class HoroscopeViewModel : ViewModel() {
         HoroscopeSign("pisces", "Pisces", "मीन", "♓", "Water", "Feb 19 - Mar 20", "Jupiter", 0xFFF48FB1)
     )
 
-    /** API period values */
+    /** API period values. Display labels come from FeatureStrings
+     *  ("rashifal_period_daily|weekly|monthly|yearly") via W.t() in the
+     *  composable so they follow the global Settings language. */
     val periods = listOf("daily", "weekly", "monthly", "yearly")
-    val periodLabels = mapOf(
-        "daily" to "Daily",
-        "weekly" to "Weekly",
-        "monthly" to "Monthly",
-        "yearly" to "Yearly"
-    )
 
     private val _selectedSign = MutableStateFlow<HoroscopeSign?>(null)
     val selectedSign: StateFlow<HoroscopeSign?> = _selectedSign.asStateFlow()
@@ -86,7 +83,7 @@ class HoroscopeViewModel : ViewModel() {
                 .onFailure { err ->
                     _isLoading.value = false
                     _errorMessage.value = err.message
-                        ?: "Could not load horoscope. Please check your connection and try again."
+                        ?: W.t("rashifal_err_load")
                 }
         }
     }
