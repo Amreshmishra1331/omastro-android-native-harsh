@@ -122,7 +122,7 @@ fun SettingsScreen(
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF5252)),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
-                                Text("Logout", fontSize = 12.sp)
+                                Text(W.t("Logout"), fontSize = 12.sp)
                             }
                         } else {
                             Button(
@@ -130,7 +130,7 @@ fun SettingsScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
-                                Text("Sign In", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(W.t("Sign In"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -146,7 +146,7 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.AccountBalanceWallet,
-                        title = "Wallet Balance & Add Money",
+                        title = W.t("Wallet Balance & Add Money"),
                         subtitle = "Current balance: ₹${String.format("%.2f", walletBalanceInr)}"
                     )
                 }
@@ -154,7 +154,7 @@ fun SettingsScreen(
 
             // ============ MY ASTROLOGY ============
             item {
-                Text("My Astrology", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(W.t("My Astrology"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -164,7 +164,7 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.Bookmarks,
-                        title = "Saved Kundalis",
+                        title = W.t("Saved Kundalis"),
                         subtitle = "Your saved birth charts"
                     )
                 }
@@ -172,7 +172,7 @@ fun SettingsScreen(
 
             // ============ REWARDS ============
             item {
-                Text("Rewards", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(W.t("Rewards"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -182,7 +182,7 @@ fun SettingsScreen(
                 ) {
                     SettingsRow(
                         icon = Icons.Default.CardGiftcard,
-                        title = "Refer & Earn",
+                        title = W.t("Refer & Earn"),
                         subtitle = "Invite friends, earn rewards"
                     )
                 }
@@ -190,7 +190,7 @@ fun SettingsScreen(
 
             // ============ PREFERENCES ============
             item {
-                Text("Preferences", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(W.t("Preferences"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 CosmicCard(
@@ -220,7 +220,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Appearance", color = StarlightWhite, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(W.t("Appearance"), color = StarlightWhite, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                             Text(
                                 if (isDarkTheme) "Dark — Cosmic Night" else "Light — Temple Gold",
                                 color = StarlightWhite.copy(alpha = 0.6f),
@@ -306,7 +306,7 @@ fun SettingsScreen(
 
             // ============ ABOUT ============
             item {
-                Text("About", color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(W.t("About"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
             item {
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -353,7 +353,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showDisclaimerDialog = false }) {
-                    Text("Close", color = SacredGold, fontWeight = FontWeight.Bold)
+                    Text(W.t("Close"), color = SacredGold, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = CosmicNavy,

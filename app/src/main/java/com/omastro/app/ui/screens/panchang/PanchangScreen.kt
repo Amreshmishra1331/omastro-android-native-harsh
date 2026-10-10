@@ -66,7 +66,7 @@ fun PanchangScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Panchang", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("Panchang"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -289,12 +289,12 @@ private fun PanchangDatePicker(
                 val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).apply { timeZone = ist }
                 onDateSelected(fmt.format(java.util.Date(millis)))
             }) {
-                Text("OK", color = SacredGold, fontWeight = FontWeight.Bold)
+                Text(W.t("OK"), color = SacredGold, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = StarlightWhite.copy(alpha = 0.7f))
+                Text(W.t("Cancel"), color = StarlightWhite.copy(alpha = 0.7f))
             }
         }
     ) {
@@ -629,7 +629,7 @@ private fun PanchangErrorCard(message: String?, onRetry: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Retry", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                Text(W.t("Retry"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
             }
         }
     }

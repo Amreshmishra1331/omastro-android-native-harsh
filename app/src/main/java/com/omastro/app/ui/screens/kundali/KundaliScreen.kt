@@ -75,7 +75,7 @@ fun KundaliScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Janam Kundali", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = { Text(W.t("Janam Kundali"), color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
                     if (onMenuClick != null) {
                         IconButton(onClick = onMenuClick) {
@@ -165,7 +165,7 @@ fun KundaliScreen(
     if (showSaveDialog) {
         AlertDialog(
             onDismissRequest = { if (!isSaving) showSaveDialog = false },
-            title = { Text("Save this chart") },
+            title = { Text(W.t("Save this chart")) },
             text = {
                 Column {
                     Text(
@@ -177,7 +177,7 @@ fun KundaliScreen(
                     OutlinedTextField(
                         value = saveName,
                         onValueChange = { saveName = it; saveError = null },
-                        label = { Text("Chart name") },
+                        label = { Text(W.t("Chart name")) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isSaving
@@ -220,7 +220,7 @@ fun KundaliScreen(
                     if (isSaving) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
-                        Text("Save")
+                        Text(W.t("Save"))
                     }
                 }
             },
@@ -310,10 +310,10 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
             }
         }
 
-        FormSectionCard(title = "Personal Details") {
+        FormSectionCard(title = W.t("Personal Details")) {
             BirthField(name, viewModel::setBirthName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Gender", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(W.t("Gender"), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("male" to "Male", "female" to "Female", "other" to "Other").forEach { (value, label) ->
@@ -403,7 +403,7 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("Generate Kundali", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(W.t("Generate Kundali"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
         Spacer(modifier = Modifier.height(16.dp))
     }

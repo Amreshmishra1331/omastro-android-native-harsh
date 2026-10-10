@@ -29,7 +29,7 @@ fun SavedChartsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Saved Charts", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = { Text(W.t("Saved Charts"), fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -92,7 +92,7 @@ fun SavedChartsScreen(
                             .padding(16.dp),
                         action = {
                             TextButton(onClick = { viewModel.clearError() }) {
-                                Text("Dismiss", color = SacredGold)
+                                Text(W.t("Dismiss"), color = SacredGold)
                             }
                         }
                     ) {
@@ -116,12 +116,12 @@ fun SavedChartsScreen(
                         chartToDelete = null
                     }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(W.t("Delete"), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { chartToDelete = null }) {
-                    Text("Cancel")
+                    Text(W.t("Cancel"))
                 }
             }
         )
@@ -256,7 +256,7 @@ private fun ErrorState(message: String, onRetry: () -> Unit) {
             onClick = onRetry,
             colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
         ) {
-            Text("Retry", color = CosmicDeepBlue)
+            Text(W.t("Retry"), color = CosmicDeepBlue)
         }
     }
 }

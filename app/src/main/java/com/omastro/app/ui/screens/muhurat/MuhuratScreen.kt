@@ -96,7 +96,7 @@ fun MuhuratScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Shubh Muhurat", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("Shubh Muhurat"), color = TextPrimary, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextPrimary)
@@ -124,7 +124,7 @@ fun MuhuratScreen(
 
             // Event selector
             item {
-                Text("Select Event", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(W.t("Select Event"), color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Spacer(Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(MUHURAT_EVENTS) { ev ->
@@ -158,7 +158,7 @@ fun MuhuratScreen(
             item {
                 CosmicCard(borderGold = true) {
                     // Start date
-                    Text("Start Date", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(W.t("Start Date"), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
                     Row(
                         modifier = Modifier
@@ -182,7 +182,7 @@ fun MuhuratScreen(
                     Spacer(Modifier.height(14.dp))
 
                     // Days ahead
-                    Text("Search Window", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(W.t("Search Window"), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(7, 15, 30, 60, 90).forEach { days ->
@@ -209,7 +209,7 @@ fun MuhuratScreen(
                     Spacer(Modifier.height(14.dp))
 
                     // Location
-                    Text("Location", color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(W.t("Location"), color = TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
                     PlaceSearchField(
                         value = place,
@@ -399,7 +399,7 @@ private fun MuhuratDayCard(day: MuhuratDay) {
 
         // Rating bar
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Auspiciousness", color = TextSecondary, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text(W.t("Auspiciousness"), color = TextSecondary, fontSize = 12.sp, modifier = Modifier.weight(1f))
             Text("${day.score}/${day.maxScore}", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(4.dp))

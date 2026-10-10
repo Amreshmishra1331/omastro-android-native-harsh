@@ -100,7 +100,7 @@ fun MatchmakingScreen(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
                         ) {
-                            Text("Try Again", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                            Text(W.t("Try Again"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -210,7 +210,7 @@ fun MatchmakingScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
                             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
                         ) {
-                            Text("Calculate Compatibility", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(W.t("Calculate Compatibility"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                         Spacer(modifier = Modifier.height(24.dp))
                     }
@@ -359,7 +359,7 @@ fun MatchmakingScreen(
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = SacredGold)
                         ) {
-                            Text("Check Another Pair", fontWeight = FontWeight.Bold)
+                            Text(W.t("Check Another Pair"), fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(24.dp))
                     }

@@ -82,7 +82,7 @@ fun NotificationsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Notifications", color = StarlightWhite, fontWeight = FontWeight.Bold) },
+                title = { Text(W.t("Notifications"), color = StarlightWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = SacredGold)
@@ -116,7 +116,7 @@ fun NotificationsScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.NotificationsNone, contentDescription = null, tint = SacredGold.copy(alpha = 0.5f), modifier = Modifier.size(48.dp))
                         Spacer(Modifier.height(12.dp))
-                        Text("No notifications yet", color = StarlightWhite.copy(alpha = 0.6f), fontSize = 15.sp)
+                        Text(W.t("No notifications yet"), color = StarlightWhite.copy(alpha = 0.6f), fontSize = 15.sp)
                     }
                 }
             }
@@ -149,10 +149,10 @@ fun NotificationsScreen(
                 TextButton(onClick = {
                     showClearConfirm = false
                     viewModel.clearAll()
-                }) { Text("Clear All", color = Color(0xFFE53935)) }
+                }) { Text(W.t("Clear All"), color = Color(0xFFE53935)) }
             },
             dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) { Text("Cancel", color = SacredGold) }
+                TextButton(onClick = { showClearConfirm = false }) { Text(W.t("Cancel"), color = SacredGold) }
             },
             containerColor = CosmicCharcoal
         )

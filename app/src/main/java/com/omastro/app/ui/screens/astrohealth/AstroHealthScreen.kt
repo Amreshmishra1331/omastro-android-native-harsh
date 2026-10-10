@@ -45,7 +45,7 @@ fun AstroHealthScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Astro Health Analysis", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(W.t("Astro Health Analysis"), color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -132,7 +132,7 @@ private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
             .padding(vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Vedic Health Analysis", color = StarlightWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(W.t("Vedic Health Analysis"), color = StarlightWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Text(
             "Planetary influences on health, computed from your birth chart.",
             color = TextSecondary, fontSize = 13.sp
@@ -181,7 +181,7 @@ private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Analyze Health Indicators", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(W.t("Analyze Health Indicators"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
 
         Text(
