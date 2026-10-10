@@ -5,6 +5,7 @@ import com.omastro.app.data.remote.OmAstroApiService
 import com.omastro.app.data.repository.AstroRepository
 import com.omastro.app.data.repository.AuthRepository
 import com.omastro.app.data.repository.ChatRepository
+import com.omastro.app.data.repository.CheckoutRepository
 import com.omastro.app.data.repository.ConsultationRepository
 import com.omastro.app.data.repository.NotificationRepository
 import com.omastro.app.data.repository.SavedChartsRepository
@@ -18,6 +19,7 @@ object AppContainer {
     val astroRepository: AstroRepository by lazy { AstroRepository(apiService) }
     val consultationRepository: ConsultationRepository by lazy { ConsultationRepository(apiService) }
     val walletRepository: WalletRepository by lazy { WalletRepository(apiService) }
+    val checkoutRepository: CheckoutRepository by lazy { CheckoutRepository(apiService) }
     val chatRepository: ChatRepository by lazy { ChatRepository(apiService) }
     val savedChartsRepository: SavedChartsRepository by lazy { SavedChartsRepository(apiService) }
     val notificationRepository: NotificationRepository by lazy { NotificationRepository(apiService) }

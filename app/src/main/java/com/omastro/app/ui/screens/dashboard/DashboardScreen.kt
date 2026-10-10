@@ -29,6 +29,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import androidx.navigation.NavController
 import com.omastro.app.data.local.LangPrefs
+import com.omastro.app.data.model.CheckoutItem
+import com.omastro.app.data.model.MEMBERSHIP_PLANS
+import com.omastro.app.data.model.MembershipPlan
 import com.omastro.app.data.model.SavedChatSession
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.data.remote.SavedChart
@@ -37,7 +40,10 @@ import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.i18n.W
 import com.omastro.app.ui.navigation.PendingChartHolder
 import com.omastro.app.ui.navigation.Screen
+import com.omastro.app.ui.screens.checkout.CheckoutSheetHost
+import com.omastro.app.ui.screens.checkout.CheckoutViewModel
 import com.omastro.app.ui.theme.*
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -61,6 +67,7 @@ import java.util.Locale
 fun DashboardScreen(
     navController: NavController,
     viewModel: DashboardViewModel = viewModel(),
+    checkoutVm: CheckoutViewModel = viewModel(),
     onMenuClick: (() -> Unit)? = null
 ) {
     val profile by viewModel.profile.collectAsState()
@@ -96,6 +103,19 @@ fun DashboardScreen(
         try { notificationRepo.refresh() } catch (e: Exception) { /* badge stays hidden */ }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // Flutter-exact checkout flow for membership plans. After a payment
+    // finishes the dashboard reloads (Flutter parity: home reload), which
+    // refreshes the plan status.
+    CheckoutSheetHost(
+        vm = checkoutVm,
+        onPaymentFinished = { viewModel.loadDashboard() },
+        onEvent = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -320,7 +340,17 @@ fun DashboardScreen(
                         planName = planName,
                         isPro = isPro,
                         isMax = isMax,
-                        onAddMoney = { navController.navigate(Screen.Wallet.route) }
+                        onAddMoney = { navController.navigate(Screen.Wallet.route) },
+                        onBuyPlan = { plan ->
+                            checkoutVm.openSheet(
+                                CheckoutViewModel.SheetSelection(
+                                    item = CheckoutItem.membershipPlan(plan.planKey),
+                                    titleFallback = W.t(plan.titleKey),
+                                    priceFallback = plan.displayPriceInr,
+                                    isCoinRecharge = false
+                                )
+                            )
+                        }
                     )
                 }
             }
@@ -347,6 +377,13 @@ fun DashboardScreen(
         item {
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
     }
 }
 
@@ -1288,7 +1325,8 @@ private fun PlanTabContent(
     planName: String,
     isPro: Boolean,
     isMax: Boolean,
-    onAddMoney: () -> Unit
+    onAddMoney: () -> Unit,
+    onBuyPlan: (MembershipPlan) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CosmicCard(modifier = Modifier.fillMaxWidth()) {
@@ -1327,6 +1365,68 @@ private fun PlanTabContent(
                 colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
             ) {
                 Text("Add Money", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // Membership plans — Flutter-exact checkout flow (product ids
+        // 208/209/210/211, plan keys pro_monthly/pro_yearly/max_monthly/
+        // max_yearly). Display prices are estimates; the server quote in the
+        // sheet is authoritative.
+        Text(
+            text = W.t("checkout_plans_title"),
+            color = StarlightWhite,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+        MEMBERSHIP_PLANS.forEach { plan ->
+            MembershipPlanCard(plan = plan, onBuy = { onBuyPlan(plan) })
+        }
+        Text(
+            text = W.t("checkout_plans_note"),
+            color = StarlightWhite.copy(alpha = 0.55f),
+            fontSize = 11.sp
+        )
+    }
+}
+
+@Composable
+private fun MembershipPlanCard(
+    plan: MembershipPlan,
+    onBuy: () -> Unit
+) {
+    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = W.t(plan.titleKey),
+                    color = StarlightWhite,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "₹${"%.0f".format(plan.displayPriceInr)} ${W.t(plan.billingKey)}",
+                    color = RadiantAmber,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = onBuy,
+                colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Text(
+                    text = W.t("checkout_buy"),
+                    color = CosmicDeepBlue,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
             }
         }
     }

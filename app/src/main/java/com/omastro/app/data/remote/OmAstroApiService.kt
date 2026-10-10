@@ -154,6 +154,34 @@ interface OmAstroApiService {
         @Body request: TopupVerifyRequest
     ): Response<TopupVerifyResponse>
 
+    // Flutter-exact checkout flow (spec: /home/hatch/workspace/flutter-payment-spec.md,
+    // verified against omastro-flutter-app @ 8628ab8 lib/main.dart 2026-10-10):
+    //  1. validate-coupon {coupon, plan?, product_id?, coins?}
+    //       -> {success, data:{item_title, subtotal(+_display), discount_amount,
+    //          tax_amount, tax_label, total(+_display), total_paise, coupon_code, message}}
+    //       invalid coupon -> {success:false, code:"coupon_invalid", message, calculation:{...}}
+    //  2. create-order {product_id|plan, coins?, qty?, coupon?}
+    //       -> {success, data:{order_id (WC int), rzp_key_id, amount (paise),
+    //          rzp_order_id, plan_title, user_email, user_name}}
+    //  3. verify {order_id, razorpay_payment_id, razorpay_order_id, razorpay_signature}
+    //       -> {success, message}
+    // Bodies are Maps because the server mixes numbers and display strings;
+    // CheckoutRepository parses them tolerantly.
+    @POST("checkout/validate-coupon")
+    suspend fun validateCoupon(
+        @Body request: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<Map<String, Any>>
+
+    @POST("checkout/create-order")
+    suspend fun createCheckoutOrder(
+        @Body request: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<Map<String, Any>>
+
+    @POST("checkout/verify")
+    suspend fun verifyCheckout(
+        @Body request: Map<String, @JvmSuppressWildcards Any?>
+    ): Response<Map<String, Any>>
+
     // AI Chat (personas: general, divine, mundane, ...)
     @POST("ai/chat")
     suspend fun aiChat(

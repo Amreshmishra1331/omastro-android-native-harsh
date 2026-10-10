@@ -4,6 +4,24 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Audit Loop Cycle 3: Flutter-exact Razorpay payment flow
+
+### Added (user directive: payment EXACTLY as the Flutter app has it — no redesign)
+**Before:** Wallet "Add Money" packs tapped straight into a Razorpay order (`/wallet/topup-order` → Razorpay → `/wallet/topup-verify`): no price quote, no promo code, no GST breakdown; Razorpay options were theme `#7B0D1E`, retry `max_count: 4`, no `send_sms_hash`. No membership-plan purchase UI existed anywhere in the app.
+**After:** New Flutter-exact checkout flow (`ui/screens/checkout/` + `CheckoutRepository`): bottom sheet opens → `POST /checkout/validate-coupon` (empty coupon) → Subtotal / Promo Discount / `{tax_label}` GST (18%) / Total Payable → promo field re-validates via the same endpoint → "Pay ₹X via Razorpay" button (double-tap guarded) → `POST /checkout/create-order` → Razorpay (key from server `rzp_key_id` with Flutter's `rzp_live_T8gzsClejXQi48` fallback, amount in paise, name 'Om Astro AI', server `plan_title`, INR, `order_id` only when non-empty, prefill email/name only when non-empty, theme `#FF6B00`, retry `max_count: 1`, `send_sms_hash: true`) → success → "Verifying payment..." → `POST /checkout/verify` → "Payment Successful!" + wallet/dashboard refresh (Flutter's home-reload equivalent); verify-fail → "Payment verification failed." + refresh; cancel → "Payment was cancelled." / "Payment: <gateway message>"; external wallet → info only, no verify call. Server contract verified live 2026-10-10 (curl): product 704 + coins = wallet top-up (coins = pay-rupees × 100; ₹25→₹35, ₹50→₹80, ₹100→₹200, ₹200→₹400 — matches the app's slabs); product ids 208/209/210/211 = Pro Monthly ₹499 / Pro Annual ₹4999 / Max Monthly ₹999 / Max Annual ₹9999 (server-authoritative; GST 18% added on top). HTTP: `/wp-json/omastro/v1<path>` with `?rest_route=` retry on 404 (new OkHttp interceptor).
+
+**Before:** Wallet screen had only the 4 fixed packs; the dashboard Plan tab showed the plan name + "Add Money" with no way to buy a membership.
+**After:** Wallet packs route through the checkout sheet (server quote incl. GST); new custom-coin recharge card (coins input, min 100 — Flutter's coin-recharge entry point); dashboard Plan tab has a Membership Plans section (Pro Monthly/Annual, Max Monthly/Annual → checkout sheet with plan keys). Wallet-spend logic untouched. All new UI bilingual (40 new HI/EN keys); no emojis; no fake data — every amount, title and key comes from the server response.
+
+### Changed
+**Before:** `money_gst_note` said "18% GST is included in the price you pay."
+**After:** Corrected to "18% GST is added on top of the pack price — the exact total is shown before you pay." (matches the server quote). Old `/wallet/topup-order` repo methods kept as truthful API bindings but no longer used by any screen.
+
+### Not verifiable without a device
+End-to-end Razorpay payment (needs logged-in Bearer token + real device), real promo-code redemption, `/checkout/verify` success path.
+
+---
+
 ## [2026-10-10] — Audit Loop Cycle 2: Dashboard + Kundali + Vastu bilingual gap sweep
 
 ### Fixed (bilingual gaps — hardcoded English-only strings)

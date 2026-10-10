@@ -1,13 +1,10 @@
 package com.omastro.app.ui.screens.wallet
 
-import android.app.Activity
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
@@ -18,21 +15,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.local.LangPrefs
+import com.omastro.app.data.model.CheckoutItem
 import com.omastro.app.data.model.RechargePack
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.i18n.W
+import com.omastro.app.ui.screens.checkout.CheckoutSheetHost
+import com.omastro.app.ui.screens.checkout.CheckoutViewModel
 import com.omastro.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WalletScreen(
     onBack: () -> Unit,
-    viewModel: WalletViewModel = viewModel()
+    viewModel: WalletViewModel = viewModel(),
+    checkoutVm: CheckoutViewModel = viewModel()
 ) {
     val lang by LangPrefs.language.collectAsState()
     val walletBalanceInr by viewModel.walletBalanceInr.collectAsState()
@@ -41,7 +43,6 @@ fun WalletScreen(
     val transactions by viewModel.transactions.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val message by viewModel.message.collectAsState()
-    val pendingOrder by viewModel.pendingOrder.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -58,41 +59,18 @@ fun WalletScreen(
         }
     }
 
-    // Launches the REAL Razorpay checkout sheet for a freshly issued order.
-    val paymentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val order = pendingOrder
-        viewModel.clearPendingOrder()
-        if (result.resultCode == Activity.RESULT_OK && order != null) {
-            val data: Intent? = result.data
-            viewModel.verifyPayment(
-                orderId = order.order.orderId,
-                paymentId = data?.getStringExtra(RazorpayPaymentActivity.RESULT_PAYMENT_ID),
-                signature = data?.getStringExtra(RazorpayPaymentActivity.RESULT_SIGNATURE),
-                pack = order.pack
-            )
-        } else {
-            val reason = result.data?.getStringExtra(RazorpayPaymentActivity.RESULT_ERROR)
-            viewModel.onPaymentAborted(reason)
-        }
-    }
-
-    val context = LocalContext.current
-
-    // When an order is issued, hand it to the payment activity exactly once.
-    LaunchedEffect(pendingOrder) {
-        val po = pendingOrder ?: return@LaunchedEffect
-        val intent = Intent(context, RazorpayPaymentActivity::class.java).apply {
-            putExtra(RazorpayPaymentActivity.EXTRA_KEY_ID, po.order.rzpKeyId)
-            putExtra(RazorpayPaymentActivity.EXTRA_ORDER_ID, po.order.orderId)
-            putExtra(RazorpayPaymentActivity.EXTRA_AMOUNT_PAISE, po.order.amount)
-            putExtra(RazorpayPaymentActivity.EXTRA_CURRENCY, po.order.currency)
-            putExtra(RazorpayPaymentActivity.EXTRA_TITLE, "OmAstro AI")
-            putExtra(RazorpayPaymentActivity.EXTRA_DESCRIPTION, W.tf("money_credit_desc", "₹${po.pack.creditInr.toInt()}"))
-        }
-        paymentLauncher.launch(intent)
-    }
+    // Flutter-exact checkout flow (bottom sheet -> Razorpay -> verify).
+    // After a payment finishes, refresh the wallet state (Flutter reloads
+    // the home page to reflect the new balance — this is the native
+    // equivalent). Wallet-spend logic is untouched.
+    CheckoutSheetHost(
+        vm = checkoutVm,
+        onPaymentFinished = {
+            viewModel.refreshBalance()
+            viewModel.refreshTransactions()
+        },
+        onEvent = { viewModel.postMessage(it) }
+    )
 
     Scaffold(
         topBar = {
@@ -206,9 +184,36 @@ fun WalletScreen(
                 RechargePackCard(
                     pack = pack,
                     isProcessing = isProcessing,
-                    onBuyClick = { viewModel.createOrder(pack) }
+                    // Flutter-exact flow: pack -> checkout bottom sheet (server
+                    // quote) -> Razorpay -> verify. Server coins = pay x 100.
+                    onBuyClick = {
+                        checkoutVm.openSheet(
+                            CheckoutViewModel.SheetSelection(
+                                item = CheckoutItem.walletPack(pack.payInr.toInt()),
+                                titleFallback = W.tf(
+                                    "money_pack_pay_get",
+                                    "₹${pack.payInr.toInt()}",
+                                    "₹${pack.creditInr.toInt()}"
+                                ),
+                                priceFallback = pack.payInr,
+                                isCoinRecharge = true
+                            )
+                        )
+                    }
                 )
             }
+
+            // Custom coin recharge (Flutter entry: qty from input, min 100 coins).
+            item { CustomCoinsCard(onRecharge = { coins ->
+                checkoutVm.openSheet(
+                    CheckoutViewModel.SheetSelection(
+                        item = CheckoutItem.coinRecharge(coins),
+                        titleFallback = W.tf("checkout_coins_card_title", coins.toString()),
+                        priceFallback = coins / 100.0,
+                        isCoinRecharge = true
+                    )
+                )
+            }) }
 
             // Bonus slabs + GST note (website Add Money parity).
             item { BonusSlabCard() }
@@ -340,6 +345,81 @@ private fun BonusSlabCard() {
                 color = StarlightWhite.copy(alpha = 0.55f),
                 fontSize = 11.sp
             )
+        }
+    }
+}
+
+/**
+ * Custom coin recharge (Flutter entry point: qty from input, min 100 coins).
+ * The server quote in the checkout sheet is authoritative — any coins value
+ * maps to the wallet top-up slabs (coins = pay-rupees x 100).
+ */
+@Composable
+private fun CustomCoinsCard(onRecharge: (Int) -> Unit) {
+    var coinsText by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = W.t("checkout_coins_title"),
+                color = StarlightWhite,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = coinsText,
+                    onValueChange = {
+                        coinsText = it.filter { ch -> ch.isDigit() }.take(7)
+                        error = null
+                    },
+                    placeholder = {
+                        Text(
+                            W.t("checkout_coins_hint"),
+                            color = StarlightWhite.copy(alpha = 0.4f),
+                            fontSize = 13.sp
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = StarlightWhite,
+                        unfocusedTextColor = StarlightWhite,
+                        focusedBorderColor = SacredGold,
+                        unfocusedBorderColor = StarlightWhite.copy(alpha = 0.25f)
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+                    modifier = Modifier.weight(1f)
+                )
+                Button(
+                    onClick = {
+                        val coins = coinsText.toIntOrNull() ?: 0
+                        if (coins < 100) {
+                            error = W.t("checkout_coins_min")
+                        } else {
+                            onRecharge(coins)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Text(
+                        text = W.t("checkout_coins_recharge"),
+                        color = CosmicDeepBlue,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+            error?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = it, color = Color(0xFFFF5252), fontSize = 12.sp)
+            }
         }
     }
 }

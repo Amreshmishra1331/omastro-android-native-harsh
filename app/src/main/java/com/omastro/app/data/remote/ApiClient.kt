@@ -191,8 +191,36 @@ object ApiClient {
         }
     }
 
+    /**
+     * Spec fallback (flutter-payment-spec.md): try /wp-json/omastro/v1<path>,
+     * and on a 404 retry once as ?rest_route=/omastro/v1<path>.
+     * Placed after auth so the retry keeps the Authorization header; the
+     * Retrofit POST body is byte-backed and safe to replay once.
+     */
+    private val restRouteFallbackInterceptor = Interceptor { chain ->
+        val request = chain.request()
+        var response = chain.proceed(request)
+        val url = request.url
+        val path = url.encodedPath
+        if (response.code == 404
+            && path.contains("/wp-json/omastro/v1/")
+            && url.queryParameter("rest_route") == null
+        ) {
+            response.close()
+            val restPath = path.substringAfter("/wp-json") // "/omastro/v1/..."
+            val fallbackUrl = url.newBuilder()
+                .encodedPath("/")
+                .query(null)
+                .addQueryParameter("rest_route", restPath)
+                .build()
+            response = chain.proceed(request.newBuilder().url(fallbackUrl).build())
+        }
+        response
+    }
+
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
+        .addInterceptor(restRouteFallbackInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)

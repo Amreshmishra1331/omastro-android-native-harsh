@@ -2,7 +2,6 @@ package com.omastro.app.ui.screens.wallet
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.omastro.app.data.model.TopupOrderResponse
 import com.omastro.app.data.model.RechargePack
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.di.AppContainer
@@ -13,19 +12,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Wallet flow (production):
- *  1. User taps a pack -> createOrder() issues a REAL Razorpay order
- *     (POST /wallet/topup-order).
- *  2. UI launches RazorpayPaymentActivity with the order; the genuine
- *     Razorpay sheet collects the payment.
- *  3. On success the activity returns payment_id + signature, which are sent
- *     to POST /wallet/topup-verify. Balance is credited ONLY on verified success.
- * Nothing is ever fabricated: no mock payment ids, no mock signatures.
+ * Wallet screen state: balance + transactions + recharge packs.
+ *
+ * Money-in now goes through the Flutter-exact checkout flow
+ * ([com.omastro.app.ui.screens.checkout.CheckoutViewModel] +
+ * [com.omastro.app.ui.screens.checkout.CheckoutSheetHost]):
+ * pack tap -> checkout bottom sheet (server price quote) -> Razorpay ->
+ * POST /checkout/verify. On payment finish the host calls [refreshBalance]
+ * and [refreshTransactions] — the wallet balance is credited ONLY on a
+ * verified success, and nothing is ever fabricated.
  */
 class WalletViewModel : ViewModel() {
 
     private val walletRepo = AppContainer.walletRepository
-    private val rechargeUseCase = AppContainer.rechargeUseCase
 
     val walletBalanceInr: StateFlow<Double> = walletRepo.walletBalanceInr
     val paidBalanceInr: StateFlow<Double> = walletRepo.paidBalanceInr
@@ -50,70 +49,6 @@ class WalletViewModel : ViewModel() {
         }
     }
 
-    /**
-     * A freshly issued order awaiting payment, together with the pack being
-     * purchased. The UI observes this and launches RazorpayPaymentActivity once.
-     */
-    data class PendingOrder(
-        val order: TopupOrderResponse,
-        val pack: RechargePack
-    )
-
-    private val _pendingOrder = MutableStateFlow<PendingOrder?>(null)
-    val pendingOrder: StateFlow<PendingOrder?> = _pendingOrder.asStateFlow()
-
-    /** Step 1: create a real Razorpay order for the pack. */
-    fun createOrder(pack: RechargePack) {
-        if (_isProcessing.value) return
-        viewModelScope.launch {
-            _isProcessing.value = true
-            _message.value = null
-            rechargeUseCase.createOrder(pack)
-                .onSuccess { order ->
-                    _pendingOrder.value = PendingOrder(order, pack)
-                }
-                .onFailure { err ->
-                    _message.value = err.message ?: W.t("money_pay_start_fail")
-                }
-            _isProcessing.value = false
-        }
-    }
-
-    /** Consumed by the UI after launching the payment activity. */
-    fun clearPendingOrder() {
-        _pendingOrder.value = null
-    }
-
-    /**
-     * Step 3: verify the genuine Razorpay result with the backend.
-     * Called only with the real payment_id / signature returned by Razorpay.
-     */
-    fun verifyPayment(orderId: String, paymentId: String?, signature: String?, pack: RechargePack) {
-        if (paymentId.isNullOrBlank() || signature.isNullOrBlank()) {
-            _message.value = W.t("money_verify_missing")
-            return
-        }
-        viewModelScope.launch {
-            _isProcessing.value = true
-            rechargeUseCase.verifyPayment(
-                orderId = orderId,
-                paymentId = paymentId,
-                signature = signature
-            ).onSuccess { res ->
-                _message.value = (res.message ?: "").ifBlank { W.t("money_recharge_ok") }
-            }.onFailure { err ->
-                _message.value = err.message ?: W.t("money_verify_fail")
-            }
-            _isProcessing.value = false
-        }
-    }
-
-    /** Called when the user cancels the sheet or it fails to open. */
-    fun onPaymentAborted(reason: String?) {
-        _pendingOrder.value = null
-        _message.value = reason ?: W.t("money_pay_cancelled")
-    }
-
     fun refreshTransactions() {
         viewModelScope.launch {
             _isProcessing.value = true
@@ -127,5 +62,10 @@ class WalletViewModel : ViewModel() {
 
     fun clearMessage() {
         _message.value = null
+    }
+
+    /** Surfaces checkout-flow messages in the screen snackbar. */
+    fun postMessage(msg: String) {
+        _message.value = msg
     }
 }
