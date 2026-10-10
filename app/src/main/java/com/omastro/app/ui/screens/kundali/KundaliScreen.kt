@@ -268,6 +268,47 @@ fun KundaliScreen(
             }
         )
     }
+
+    // --- Cycle 5: PDF export progress / error dialogs (bilingual) ---
+    if (pdfState is KundaliPdfState.Loading) {
+        AlertDialog(
+            onDismissRequest = { /* block dismissal while rendering */ },
+            title = { Text(W.t("kundali_pdf_export"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = SacredGold, modifier = Modifier.size(28.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Text(
+                        W.t("kundali_pdf_loading"),
+                        fontSize = 13.sp,
+                        color = StarlightWhite.copy(alpha = 0.8f)
+                    )
+                }
+            },
+            confirmButton = {},
+            containerColor = CosmicNavy
+        )
+    }
+    val pdfError = (pdfState as? KundaliPdfState.Error)?.message
+    if (pdfError != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.resetPdfState() },
+            title = { Text(W.t("kundali_pdf_export"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    pdfError.ifBlank { W.t("kundali_pdf_failed") },
+                    fontSize = 13.sp,
+                    color = StarlightWhite.copy(alpha = 0.8f)
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.resetPdfState() }) {
+                    Text(W.t("OK"), color = SacredGold, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = CosmicNavy
+        )
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -543,46 +584,6 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
         )
     }
 
-    // --- Cycle 5: PDF export progress / error dialogs (bilingual) ---
-    if (pdfState is KundaliPdfState.Loading) {
-        AlertDialog(
-            onDismissRequest = { /* block dismissal while rendering */ },
-            title = { Text(W.t("kundali_pdf_export"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(color = SacredGold, modifier = Modifier.size(28.dp))
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Text(
-                        W.t("kundali_pdf_loading"),
-                        fontSize = 13.sp,
-                        color = StarlightWhite.copy(alpha = 0.8f)
-                    )
-                }
-            },
-            confirmButton = {},
-            containerColor = CosmicNavy
-        )
-    }
-    val pdfError = (pdfState as? KundaliPdfState.Error)?.message
-    if (pdfError != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.resetPdfState() },
-            title = { Text(W.t("kundali_pdf_export"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    pdfError.ifBlank { W.t("kundali_pdf_failed") },
-                    fontSize = 13.sp,
-                    color = StarlightWhite.copy(alpha = 0.8f)
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { viewModel.resetPdfState() }) {
-                    Text(W.t("OK"), color = SacredGold, fontWeight = FontWeight.Bold)
-                }
-            },
-            containerColor = CosmicNavy
-        )
-    }
 }
 
 @Composable
