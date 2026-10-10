@@ -383,6 +383,29 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
+                        // ---- Unified on-device "My Data" (1 tap from dashboard) ----
+                        composable(Screen.MyData.route) {
+                            com.omastro.app.ui.screens.mydata.MyDataScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenKundali = { id ->
+                                    // Instant re-open from stored JSON — no
+                                    // re-computation, no API call.
+                                    com.omastro.app.ui.navigation.PendingLocalHolder.setKundali(id)
+                                    navController.navigate(Screen.Kundali.route)
+                                },
+                                onOpenNumerology = { stored ->
+                                    com.omastro.app.ui.navigation.PendingLocalHolder.setNumerology(stored)
+                                    navController.navigate(
+                                        Screen.NumerologyTool.createRoute(stored.toolId)
+                                    )
+                                },
+                                onOpenVisionReading = { id ->
+                                    navController.navigate(
+                                        Screen.ReadingHistoryDetail.createRoute(id)
+                                    )
+                                }
+                            )
+                        }
                         composable(
                             route = Screen.ReadingHistoryDetail.route,
                             arguments = listOf(navArgument("readingId") { type = NavType.StringType })

@@ -6,8 +6,16 @@ import com.omastro.app.data.local.ThemePrefs
 import com.omastro.app.di.AppContainer
 
 class OmAstroApp : Application() {
+
+    companion object {
+        /** Process-wide application instance, set in [onCreate]. */
+        lateinit var instance: OmAstroApp
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
         ThemePrefs.init(this)
         com.omastro.app.data.local.LangPrefs.init(this)
         // Voice mode (spoken AI replies) — prefs + TTS engine

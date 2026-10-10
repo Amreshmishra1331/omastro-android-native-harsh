@@ -4,6 +4,40 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — App storage: on-device "My Data" for Kundali + readings + numerology
+
+User directive: "Native Apps me App storage ko focus karna. Recent kundali yesab data device storage me select honi chahiye. AI chat cloud me." The existing Room store (`reading_history.db`, vision readings only) is extended into a unified on-device "My Data": Kundali charts, numerology results, and reusable birth profiles are now saved on the device automatically. AI chat is deliberately NOT moved — it stays cloud-based, no chat changes in this entry.
+
+### Before
+- **Kundali had no local storage**: every chart was recomputed via POST /kundali when reopened (server-saved charts) or lost entirely when leaving the screen. No offline re-open path.
+- **Numerology results were ephemeral**: closing a tool screen discarded the result; no way to revisit a computed result.
+- **Birth details retyped every time**: the Kundali birth form had no saved profiles; repeat charts for the same person meant retyping name/dob/time/place/coordinates.
+- **History was vision-only**: `ReadingHistoryScreen` showed only Vastu/Palmistry/Face readings — no Kundali, no numerology, no unified view, no storage-usage info, no search, no clear-all.
+- **No storage management**: no visibility into how much space saved data uses; no bulk delete.
+
+### After
+- **Room DB v2** (`MyDataTables.kt`, `ReadingHistoryDatabase.kt`): three new tables with `MIGRATION_1_2` (vision_readings untouched) —
+  - `kundali_charts`: full `KundaliResponse` JSON (Gson, verbatim) + `KundaliRequest` JSON + denormalized birth columns (name, dob, tob, place, lat/lon, gender) for labels/search.
+  - `numerology_results`: full `ToolResult` JSON (Gson, verbatim) + inputs JSON + tool id/name.
+  - `birth_profiles`: reusable birth details (name label, dob, tob, place, lat/lon, gender).
+- **Auto-save** (fire-and-forget, never blocks UI, never fails loudly):
+  - `KundaliViewModel.fetchKundali` success → `MyDataRepository.saveKundali` (cap 50, oldest pruned).
+  - `NumerologyToolViewModel.calculate` success → `saveNumerology` (cap 50). `recalculate()` (Settings language change) and stored re-opens pass `saveLocal = false` so re-renders never write duplicates.
+  - Refusals and errors never reach the save calls — only successful results are stored.
+- **Instant re-open, zero re-computation** (`PendingLocalHolder.kt`):
+  - Saved Kundali → `KundaliViewModel.loadStoredKundali(id)` deserializes the stored request+response JSON and sets all 23 tabs directly; no API call. Dedicated lazy reports (Personality/BNN/Lal Kitab/Jaimini) were never stored — they lazy-load on tab select exactly like a fresh chart.
+  - Saved numerology result → `loadStoredResult(inputs, result)` re-renders the stored `ToolResult` verbatim and restores the form inputs; no re-compute.
+  - Vision readings keep their existing detail screen (already JSON-based, no re-analysis).
+- **Unified "My Data" screen** (new `ui/screens/mydata/MyDataScreen.kt`, route `my_data`): one list of ALL saved items — Kundalis, numerology, Vastu, Palmistry, Face — sorted by recency; type filter chips (All/Kundali/Numerology/Vastu/Palmistry/Face); search by name/label; long-press or delete-icon deletes with a confirm dialog; rename supported; vision thumbnails shown where available. One tap from the dashboard (new gold "My Data" card in the AI-readings section of the Home tab); also reachable from Kundali via the existing saved-charts bookmark.
+- **Storage management** (bilingual): header row shows real bytes used (DB file + WAL/SHM + thumbnails, e.g. "Storage used: 1.2 MB" / "उपयोग किया गया स्टोरेज: 1.2 MB"); "Clear all" / "सब हटाएं" with a confirmation dialog deletes every table and all thumbnails.
+- **Birth profiles on the Kundali form**: a profile card on the birth form shows the saved-profile count; "Choose a profile" opens the saved list (tap applies, delete icon removes); "Save as profile" stores the current form values under a user-chosen name after the same validation as Generate. Picking a profile fills name/dob/time/place/coordinates/gender — no retyping.
+- **Bilingual**: 25 new `mydata_*` + `profile_*` keys in `FeatureStrings.kt` (EN + हिन्दी), auto-following the Settings language. No emojis anywhere.
+- **AI chat untouched**: stays cloud-based per the user directive; no local chat storage added.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox blocks inter-process TCP, so the Gradle daemon handshake fails — same limitation class as previous entries; wrapper distribution is cached but the client/daemon cannot talk). Substitute verification: brace/paren counts balanced in all 13 touched/new files (deltas vs HEAD are exactly balanced; the two residual mismatches are byte-identical in the committed originals — pre-existing, from block-comment braces the checker mishandles); all 25 new `mydata_*`/`profile_*` keys resolve exactly once in both the HI and EN maps; `MIGRATION_1_2` DDL matches the three `@Entity` classes column-for-column (names, TEXT/INTEGER/REAL types, NOT NULL, PRIMARY KEY(id)); `MIGRATION_1_2` is registered via `addMigrations` on the v2 database; `filterChipBorder` call matches the M3 signature used in `MuhuratScreen.kt` (`enabled`/`selected`/`borderColor`/`selectedBorderColor`); `Screen.MyData` is registered in `MainActivity.kt`'s NavHost with all four open-callbacks wired; single `HomeTabContent` call site updated; `calculate()`'s only user-facing caller passes the default (save), `recalculate()` passes `saveLocal = false`. CI (`assembleDebug` on push to main) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) generating a Kundali then opening My Data shows it and tapping it re-opens all 23 tabs instantly with no network spinner, (2) a computed numerology result appears in My Data and re-opens verbatim, (3) saving/choosing a birth profile pre-fills the Kundali form, (4) search + filter chips + delete + rename + clear-all (with confirmation) behave, (5) storage-used shows a plausible size, (6) हिन्दी language switches all new strings, (7) upgrading from the v1 DB keeps existing vision readings (migration 1→2).
+
 ## [2026-10-10] — Vision/photo AI: wallet billing UI + Settings language on all vision calls
 
 Backend wallet billing landed on the AI vision endpoints: palmistry, face reading, and vastu house-map photo are now PAID (charged from the wallet after a successful AI response; HTTP 402 `insufficient_balance` when the balance is too low), while the manual Vastu engine form stays free. The app now passes the Settings language on every vision call, shows prices on Analyze buttons, handles 402 with a bilingual Add-Money dialog, and refreshes the wallet balance from the server's post-charge figures.

@@ -1,11 +1,13 @@
 package com.omastro.app.ui.screens.kundali
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.omastro.app.data.model.JaiminiData
 import com.omastro.app.data.model.KundaliRequest
 import com.omastro.app.data.model.KundaliResponse
 import com.omastro.app.data.model.ReportData
+import com.omastro.app.data.repository.MyDataRepository
 import com.omastro.app.di.AppContainer
 import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,8 +44,9 @@ data class JaiminiUiState(
  * birth form, which are passed to fetchKundali(). Chart data shown is exactly
  * what POST /kundali returns — nothing is invented client-side.
  */
-class KundaliViewModel : ViewModel() {
+class KundaliViewModel(application: Application) : AndroidViewModel(application) {
     private val getKundaliUseCase = AppContainer.getKundaliUseCase
+    private val myDataRepo = MyDataRepository(application)
 
     private val _kundaliData = MutableStateFlow<KundaliResponse?>(null)
     val kundaliData: StateFlow<KundaliResponse?> = _kundaliData.asStateFlow()
@@ -283,6 +286,14 @@ class KundaliViewModel : ViewModel() {
                     _lalKitabState.value = ReportUiState()
                     _jaiminiState.value = JaiminiUiState()
                     _isLoading.value = false
+                    // App storage: auto-save the full chart on-device (My Data).
+                    // Fire-and-forget — never blocks the UI, never fails loudly.
+                    viewModelScope.launch {
+                        try {
+                            myDataRepo.saveKundali(req, it)
+                        } catch (_: Exception) {
+                        }
+                    }
                 }
                 .onFailure {
                     _errorMessage.value = it.message ?: "Could not compute the Kundali. Please check your details and try again."
@@ -293,6 +304,123 @@ class KundaliViewModel : ViewModel() {
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Instant re-open of a locally saved Kundali (from My Data): restores
+     * the full chart from stored JSON — no re-computation, no API call.
+     * The dedicated reports (Personality/BNN/Lal Kitab/Jaimini) were never
+     * stored; they lazy-load on tab select exactly like a fresh chart.
+     */
+    fun loadStoredKundali(id: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            try {
+                val saved = myDataRepo.getKundali(id)
+                    ?: throw IllegalStateException("Saved chart not found.")
+                val req = saved.toRequest()
+                val response = saved.toResponse()
+                _kundaliData.value = response
+                _lastRequest.value = req
+                _hasData.value = true
+                _selectedTab.value = 0
+                _selectedDivisional.value = "D1"
+                _chartStyle.value = "North Indian"
+                _personalityState.value = ReportUiState()
+                _bnnState.value = ReportUiState()
+                _lalKitabState.value = ReportUiState()
+                _jaiminiState.value = JaiminiUiState()
+                _isLoading.value = false
+            } catch (_: Exception) {
+                _errorMessage.value = W.t("mydata_open_failed")
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Birth profiles (on-device, reusable birth details)
+    // ------------------------------------------------------------------
+
+    private val _birthProfiles =
+        MutableStateFlow<List<MyDataRepository.BirthProfile>>(emptyList())
+    val birthProfiles: StateFlow<List<MyDataRepository.BirthProfile>> =
+        _birthProfiles.asStateFlow()
+
+    fun refreshBirthProfiles() {
+        viewModelScope.launch {
+            try {
+                _birthProfiles.value = myDataRepo.listBirthProfiles()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /** Picks a saved profile into the birth form (no retyping needed). */
+    fun applyBirthProfile(profile: MyDataRepository.BirthProfile) {
+        _birthName.value = profile.name
+        _birthDob.value = profile.dob
+        _birthTob.value = profile.tob
+        _birthPlace.value = profile.pob
+        _birthLat.value = profile.lat.toString()
+        _birthLon.value = profile.lon.toString()
+        _birthGender.value = profile.gender
+        _formError.value = null
+    }
+
+    /**
+     * Saves the current form values as a reusable birth profile. [profileName]
+     * is the user-chosen label ("Me", "Mother"...). Validation mirrors
+     * [submitBirthDetails]; onDone(true) only when the profile was stored.
+     */
+    fun saveCurrentAsBirthProfile(profileName: String, onDone: (Boolean) -> Unit) {
+        val cleanName = profileName.trim()
+        if (cleanName.length < 2) {
+            _formError.value = W.t("profile_name_short")
+            onDone(false)
+            return
+        }
+        val dob = _birthDob.value.trim()
+        val tob = _birthTob.value.trim()
+        val pob = _birthPlace.value.trim()
+        val lat = _birthLat.value.toDoubleOrNull()
+        val lon = _birthLon.value.toDoubleOrNull()
+        if (!DOB_REGEX.matches(dob) || !TOB_REGEX.matches(tob) || pob.isBlank() ||
+            lat == null || lat < -90 || lat > 90 || lon == null || lon < -180 || lon > 180
+        ) {
+            _formError.value = W.t("profile_invalid_details")
+            onDone(false)
+            return
+        }
+        viewModelScope.launch {
+            try {
+                myDataRepo.saveBirthProfile(
+                    name = cleanName,
+                    dob = dob,
+                    tob = tob,
+                    pob = pob,
+                    lat = lat,
+                    lon = lon,
+                    gender = _birthGender.value
+                )
+                refreshBirthProfiles()
+                onDone(true)
+            } catch (_: Exception) {
+                _formError.value = W.t("profile_save_failed")
+                onDone(false)
+            }
+        }
+    }
+
+    fun deleteBirthProfile(id: String) {
+        viewModelScope.launch {
+            try {
+                myDataRepo.deleteBirthProfile(id)
+                refreshBirthProfiles()
+            } catch (_: Exception) {
+            }
+        }
     }
 
     companion object {

@@ -48,9 +48,15 @@ fun NumerologyToolScreen(
     val lang by LangPrefs.language.collectAsState()
     LaunchedEffect(lang) { vm.recalculate() }
 
-    // Pre-fill from the Kundali Numerology tab (birth details carried over)
+    // Pre-fill from the Kundali Numerology tab (birth details carried over),
+    // or instantly re-open a locally saved result from My Data (stored JSON,
+    // no re-compute).
     LaunchedEffect(Unit) {
-        com.omastro.app.ui.navigation.PendingNumerologyHolder.consume()?.let { (name, dob) ->
+        com.omastro.app.ui.navigation.PendingLocalHolder.consumeNumerology()?.let { stored ->
+            if (stored.toolId == toolId) {
+                vm.loadStoredResult(stored.inputs, stored.result)
+            }
+        } ?: com.omastro.app.ui.navigation.PendingNumerologyHolder.consume()?.let { (name, dob) ->
             vm.setName(name)
             vm.setDob(dob)
         }

@@ -36,6 +36,8 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object ReadingHistoryDetail : Screen("reading_history_detail/{readingId}", "Reading") {
         fun createRoute(readingId: String) = "reading_history_detail/$readingId"
     }
+    /** Unified on-device "My Data": Kundalis, readings and numerology results. */
+    object MyData : Screen("my_data", "My Data", Icons.Default.SdStorage)
     object Auth : Screen("auth", "Sign In") {
         /** Opens the auth screen directly in forgot-password mode. */
         const val FORGOT_ROUTE = "auth/forgot"

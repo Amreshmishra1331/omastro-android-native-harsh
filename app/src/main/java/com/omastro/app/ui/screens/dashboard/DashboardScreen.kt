@@ -266,7 +266,9 @@ fun DashboardScreen(
                         onPalmistryClick = { navController.navigate(Screen.Palmistry.route) },
                         onFaceReadingClick = { navController.navigate(Screen.FaceReading.route) },
                         onNumerologyClick = { navController.navigate(Screen.Numerology.route) },
-                        onAstroHealthClick = { navController.navigate(Screen.AstroHealth.route) }
+                        onAstroHealthClick = { navController.navigate(Screen.AstroHealth.route) },
+                        // App storage: My Data is 1 tap from the dashboard.
+                        onMyDataClick = { navController.navigate(Screen.MyData.route) }
                     )
                 }
             }
@@ -413,7 +415,9 @@ private fun HomeTabContent(
     // only via the drawer (Numerology tools needed 3 taps; Astro Health had no
     // entry point at all). Prominent dashboard cards make every feature ≤2 taps.
     onNumerologyClick: () -> Unit,
-    onAstroHealthClick: () -> Unit
+    onAstroHealthClick: () -> Unit,
+    // App storage: unified on-device My Data (Kundalis, readings, numerology).
+    onMyDataClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Wallet hero card (orange gradient like website)
@@ -592,6 +596,16 @@ private fun HomeTabContent(
             title = W.t("face_title"),
             subtitle = W.t("dash_face_sub"),
             onClick = onFaceReadingClick
+        )
+
+        // ============ APP STORAGE: MY DATA ============
+        // One-tap entry to all on-device data — Kundalis, Vastu/Palmistry/Face
+        // readings and numerology results saved on this device.
+        AiReadingCard(
+            icon = Screen.MyData.icon,
+            title = W.t("mydata_title"),
+            subtitle = W.t("mydata_sub"),
+            onClick = onMyDataClick
         )
 
         // Recent Kundalis

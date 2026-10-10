@@ -2,7 +2,9 @@ package com.omastro.app.ui.screens.numerology
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.omastro.app.OmAstroApp
 import com.omastro.app.data.local.LangPrefs
+import com.omastro.app.data.repository.MyDataRepository
 import com.omastro.app.di.AppContainer
 import com.omastro.app.ui.i18n.W
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,7 +84,7 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
     fun needsPhone(): Boolean = tool == NumerologyTool.MOBILE_NUM
     fun needsGender(): Boolean = tool == NumerologyTool.KUA
 
-    fun calculate() {
+    fun calculate(saveLocal: Boolean = true) {
         _formError.value = null
         if (needsName()) {
             if (_name.value.trim().length < 2) {
@@ -113,6 +115,21 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
             try {
                 val result = compute(dobTriple)
                 _uiState.value = ToolUiState.Success(result)
+                // App storage: auto-save the completed result on-device
+                // (My Data). Fire-and-forget — language re-renders and stored
+                // re-opens never write (saveLocal = false).
+                if (saveLocal) {
+                    try {
+                        MyDataRepository(OmAstroApp.instance.applicationContext)
+                            .saveNumerology(
+                                toolId = tool.id,
+                                toolName = W.t("num_tool_${tool.id}_title"),
+                                inputs = currentInputs(),
+                                result = result
+                            )
+                    } catch (_: Exception) {
+                    }
+                }
             } catch (e: Exception) {
                 _uiState.value = ToolUiState.Error(W.t("num_err_generic"))
             }
@@ -121,7 +138,32 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
 
     /** Re-runs the last calculation (e.g. after a Settings language change). */
     fun recalculate() {
-        if (_uiState.value is ToolUiState.Success) calculate()
+        if (_uiState.value is ToolUiState.Success) calculate(saveLocal = false)
+    }
+
+    /** Snapshot of the form inputs for local storage / stored re-open. */
+    fun currentInputs(): Map<String, String> = mapOf(
+        "name" to _name.value,
+        "dob" to _dob.value,
+        "name2" to _name2.value,
+        "dob2" to _dob2.value,
+        "phone" to _phone.value,
+        "gender" to _gender.value
+    )
+
+    /**
+     * Instant re-open of a locally saved result (from My Data): re-renders
+     * the stored result verbatim and restores the inputs — no re-compute.
+     */
+    fun loadStoredResult(inputs: Map<String, String>, result: ToolResult) {
+        _name.value = inputs["name"] ?: ""
+        _dob.value = inputs["dob"] ?: ""
+        _name2.value = inputs["name2"] ?: ""
+        _dob2.value = inputs["dob2"] ?: ""
+        _phone.value = inputs["phone"] ?: ""
+        _gender.value = inputs["gender"]?.ifBlank { "male" } ?: "male"
+        _formError.value = null
+        _uiState.value = ToolUiState.Success(result)
     }
 
     private suspend fun compute(dob: Triple<Int, Int, Int>): ToolResult {

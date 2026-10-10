@@ -63,7 +63,11 @@ fun KundaliScreen(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        com.omastro.app.ui.navigation.PendingChartHolder.consume()?.let { chart ->
+        // Locally saved chart (My Data) re-opens instantly from stored JSON;
+        // server-saved charts fetch fresh as before.
+        com.omastro.app.ui.navigation.PendingLocalHolder.consumeKundali()?.let { id ->
+            viewModel.loadStoredKundali(id)
+        } ?: com.omastro.app.ui.navigation.PendingChartHolder.consume()?.let { chart ->
             viewModel.loadSavedChart(chart)
         }
     }
@@ -246,10 +250,16 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
     val lat by viewModel.birthLat.collectAsState()
     val lon by viewModel.birthLon.collectAsState()
     val formError by viewModel.formError.collectAsState()
+    val profiles by viewModel.birthProfiles.collectAsState()
+
+    var showProfilePicker by remember { mutableStateOf(false) }
+    var showSaveProfile by remember { mutableStateOf(false) }
+    var profileName by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         if (lat.isBlank()) viewModel.setBirthLat("28.6139")
         if (lon.isBlank()) viewModel.setBirthLon("77.2090")
+        viewModel.refreshBirthProfiles()
     }
 
     Column(
@@ -271,6 +281,34 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
             fontSize = 13.sp,
             lineHeight = 19.sp
         )
+
+        // Birth profiles: pick a saved profile instead of retyping (on-device).
+        CosmicCard(borderGold = false, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = W.t("profile_title"),
+                        color = StarlightWhite,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = W.tf("profile_count", profiles.size),
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+                TextButton(onClick = { showProfilePicker = true }) {
+                    Text(W.t("profile_choose"), color = SacredGoldLight, fontSize = 13.sp)
+                }
+                TextButton(onClick = { profileName = ""; showSaveProfile = true }) {
+                    Text(W.t("profile_save_btn"), color = SacredGoldLight, fontSize = 13.sp)
+                }
+            }
+        }
 
         FormSectionCard(title = "Personal Details") {
             BirthField(name, viewModel::setBirthName, "Full Name", "e.g. Rahul Sharma", KeyboardType.Text)
@@ -368,6 +406,107 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
             Text("Generate Kundali", color = CosmicDeepBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // --- Saved birth profiles picker (on-device) ---
+    if (showProfilePicker) {
+        AlertDialog(
+            onDismissRequest = { showProfilePicker = false },
+            title = { Text(W.t("profile_choose"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                if (profiles.isEmpty()) {
+                    Text(W.t("profile_none"), fontSize = 13.sp, color = TextSecondary, lineHeight = 19.sp)
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        profiles.forEach { profile ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.applyBirthProfile(profile)
+                                        showProfilePicker = false
+                                    }
+                                    .padding(vertical = 10.dp)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        profile.name,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 14.sp
+                                    )
+                                    Text(
+                                        "${profile.dob} · ${profile.tob} · ${profile.pob}",
+                                        fontSize = 11.sp,
+                                        color = TextSecondary
+                                    )
+                                }
+                                IconButton(onClick = { viewModel.deleteBirthProfile(profile.id) }) {
+                                    Icon(
+                                        Icons.Default.DeleteOutline,
+                                        contentDescription = W.t("mydata_delete"),
+                                        tint = InauspiciousRed
+                                    )
+                                }
+                            }
+                            HorizontalDivider(color = CosmicBorder)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showProfilePicker = false }) {
+                    Text(W.t("mydata_close"))
+                }
+            }
+        )
+    }
+
+    // --- Save current details as a birth profile ---
+    if (showSaveProfile) {
+        AlertDialog(
+            onDismissRequest = { showSaveProfile = false },
+            title = { Text(W.t("profile_save_btn"), fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(
+                        W.t("profile_save_hint"),
+                        fontSize = 13.sp,
+                        color = TextSecondary,
+                        lineHeight = 19.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = profileName,
+                        onValueChange = { profileName = it },
+                        label = { Text(W.t("profile_name_hint")) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.saveCurrentAsBirthProfile(profileName) { ok ->
+                        if (ok) {
+                            showSaveProfile = false
+                            profileName = ""
+                        }
+                    }
+                }) {
+                    Text(W.t("history_save"))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSaveProfile = false }) {
+                    Text(W.t("history_cancel"))
+                }
+            }
+        )
     }
 }
 

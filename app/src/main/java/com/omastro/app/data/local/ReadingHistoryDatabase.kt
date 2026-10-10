@@ -73,12 +73,20 @@ interface VisionReadingDao {
 }
 
 @Database(
-    entities = [VisionReadingEntity::class],
-    version = 1,
+    entities = [
+        VisionReadingEntity::class,
+        LocalKundaliChartEntity::class,
+        LocalNumerologyResultEntity::class,
+        BirthProfileEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class ReadingHistoryDatabase : RoomDatabase() {
     abstract fun visionReadingDao(): VisionReadingDao
+    abstract fun localKundaliChartDao(): LocalKundaliChartDao
+    abstract fun localNumerologyResultDao(): LocalNumerologyResultDao
+    abstract fun birthProfileDao(): BirthProfileDao
 
     companion object {
         private const val DB_NAME = "reading_history.db"
@@ -92,7 +100,7 @@ abstract class ReadingHistoryDatabase : RoomDatabase() {
                     context.applicationContext,
                     ReadingHistoryDatabase::class.java,
                     DB_NAME
-                ).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
             }
     }
 }
