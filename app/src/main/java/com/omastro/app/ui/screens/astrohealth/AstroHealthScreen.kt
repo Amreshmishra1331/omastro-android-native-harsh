@@ -122,8 +122,7 @@ private fun AstroHealthForm(viewModel: AstroHealthViewModel) {
     val formError by viewModel.formError.collectAsState()
 
     LaunchedEffect(Unit) {
-        if (lat.isBlank()) viewModel.setLat("28.6139")
-        if (lon.isBlank()) viewModel.setLon("77.2090")
+        // Honesty: do NOT silently default to Delhi coordinates.
     }
 
     Column(

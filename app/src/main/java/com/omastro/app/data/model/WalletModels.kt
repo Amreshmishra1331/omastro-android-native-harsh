@@ -43,7 +43,7 @@ data class RechargePack(
 }
 
 data class TopupOrderRequest(
-    @SerializedName("amount") val amountPaise: Int, // amount in paise
+    @SerializedName("amount") val amountRupees: Int, // amount in RUPEES (backend kg_wallet_quote expects rupees)
     @SerializedName("currency") val currency: String = "INR"
 )
 

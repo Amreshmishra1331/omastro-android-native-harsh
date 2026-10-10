@@ -257,8 +257,8 @@ private fun BirthDetailsForm(viewModel: KundaliViewModel) {
     var profileName by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
-        if (lat.isBlank()) viewModel.setBirthLat("28.6139")
-        if (lon.isBlank()) viewModel.setBirthLon("77.2090")
+        // Honesty: do NOT silently default to Delhi coordinates.
+        // The form validation requires an explicit place selection.
         viewModel.refreshBirthProfiles()
     }
 

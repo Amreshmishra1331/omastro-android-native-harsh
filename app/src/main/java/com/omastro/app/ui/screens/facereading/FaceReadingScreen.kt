@@ -569,7 +569,7 @@ internal fun FaceReadingResultCard(
 
             // Full reading text
             if (reading.reading.isNotBlank()) {
-                FaceSectionCard(title = W.t("palm_detailed")) {
+                FaceSectionCard(title = W.t("face_detailed")) {
                     Text(
                         reading.reading,
                         color = StarlightWhite.copy(alpha = 0.9f),

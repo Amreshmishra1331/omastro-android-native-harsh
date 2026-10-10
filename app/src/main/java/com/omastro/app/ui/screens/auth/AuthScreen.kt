@@ -90,8 +90,8 @@ private val FlutterPageBg = Color(0xFFF4F5F7)
 private val FlutterCard = Color(0xFFFFFFFF)
 private val FlutterFieldBg = Color(0xFFF1F2F5)
 private val FlutterPillBg = Color(0xFFF0F1F4)
-private val FlutterOrange = Color(0xFFFF6B00)
-private val FlutterOrangeDeep = Color(0xFFE8590C)
+private val SaffronOrange = Color(0xFFFF6B00)
+private val SaffronOrangeDeep = Color(0xFFE8590C)
 private val FlutterText = Color(0xFF1F2430)
 private val FlutterMuted = Color(0xFF8A8F98)
 private val FlutterBorder = Color(0xFFD9DDE3)
@@ -256,14 +256,14 @@ private fun AuthBrandHeader(subtitle: String) {
             Icon(
                 imageVector = Icons.Filled.AutoAwesome,
                 contentDescription = "OmAstro",
-                tint = FlutterOrange,
+                tint = SaffronOrange,
                 modifier = Modifier.size(30.dp)
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "OmAstro AI",
-            color = FlutterOrange,
+            color = SaffronOrange,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.3.sp
@@ -304,7 +304,7 @@ private fun AuthModeTabs(current: AuthMode, onSelect: (AuthMode) -> Unit) {
             ) {
                 Text(
                     text = label,
-                    color = if (selected) FlutterOrange else FlutterMuted,
+                    color = if (selected) SaffronOrange else FlutterMuted,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
@@ -344,7 +344,7 @@ private fun BackToSignInLink(viewModel: AuthViewModel, mode: AuthMode) {
             contentAlignment = Alignment.Center
         ) {
             TextButton(onClick = { viewModel.switchMode(AuthMode.LOGIN) }) {
-                Text("Back to sign in", color = FlutterOrangeDeep, fontSize = 13.sp)
+                Text("Back to sign in", color = SaffronOrangeDeep, fontSize = 13.sp)
             }
         }
     }
@@ -376,7 +376,7 @@ private fun AuthTextField(
                 Icon(
                     imageVector = it,
                     contentDescription = null,
-                    tint = FlutterOrange,
+                    tint = SaffronOrange,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -414,9 +414,9 @@ private fun AuthTextField(
             errorIndicatorColor = Color.Transparent,
             focusedTextColor = FlutterText,
             unfocusedTextColor = FlutterText,
-            cursorColor = FlutterOrange,
-            focusedLeadingIconColor = FlutterOrange,
-            unfocusedLeadingIconColor = FlutterOrange,
+            cursorColor = SaffronOrange,
+            focusedLeadingIconColor = SaffronOrange,
+            unfocusedLeadingIconColor = SaffronOrange,
             focusedTrailingIconColor = FlutterMuted,
             unfocusedTrailingIconColor = FlutterMuted
         ),
@@ -435,7 +435,7 @@ private fun AuthPrimaryButton(
             .fillMaxWidth()
             .height(52.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(if (isLoading) FlutterBorder else FlutterOrange)
+            .background(if (isLoading) FlutterBorder else SaffronOrange)
             .clickable(enabled = !isLoading, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -544,7 +544,7 @@ private fun GoogleSignInButton(
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                color = FlutterOrange,
+                color = SaffronOrange,
                 modifier = Modifier.size(24.dp),
                 strokeWidth = 3.dp
             )
@@ -610,7 +610,7 @@ private fun PasswordStrengthMeter(password: String) {
     val colors = listOf(
         LightError,
         Color(0xFFFF7043),
-        FlutterOrange,
+        SaffronOrange,
         LightSuccess
     )
     val index = (strength - 1).coerceIn(0, 3)
@@ -689,7 +689,7 @@ private fun ColumnScope.LoginForm(
             checked = rememberPw,
             onCheckedChange = viewModel::setRememberPassword,
             colors = CheckboxDefaults.colors(
-                checkedColor = FlutterOrange,
+                checkedColor = SaffronOrange,
                 uncheckedColor = FlutterMuted,
                 checkmarkColor = StarlightWhite
             )
@@ -705,7 +705,7 @@ private fun ColumnScope.LoginForm(
             onClick = { viewModel.switchMode(AuthMode.FORGOT_PASSWORD) },
             contentPadding = PaddingValues(4.dp)
         ) {
-            Text("Forgot Password?", color = FlutterOrange, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text("Forgot Password?", color = SaffronOrange, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
     }
 
@@ -848,7 +848,7 @@ private fun TermsCheckboxRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = CheckboxDefaults.colors(
-                checkedColor = FlutterOrange,
+                checkedColor = SaffronOrange,
                 uncheckedColor = FlutterMuted,
                 checkmarkColor = StarlightWhite
             )
@@ -858,7 +858,7 @@ private fun TermsCheckboxRow(
             pushStringAnnotation(tag = "terms", annotation = "terms")
             withStyle(
                 SpanStyle(
-                    color = FlutterOrange,
+                    color = SaffronOrange,
                     textDecoration = TextDecoration.Underline,
                     fontWeight = FontWeight.Medium
                 )
@@ -868,7 +868,7 @@ private fun TermsCheckboxRow(
             pushStringAnnotation(tag = "privacy", annotation = "privacy")
             withStyle(
                 SpanStyle(
-                    color = FlutterOrange,
+                    color = SaffronOrange,
                     textDecoration = TextDecoration.Underline,
                     fontWeight = FontWeight.Medium
                 )
@@ -900,7 +900,7 @@ private fun AuthFooterLink(prefix: String, link: String, onClick: () -> Unit) {
         Text(text = prefix, color = FlutterMuted, fontSize = 13.sp)
         Text(
             text = link,
-            color = FlutterOrange,
+            color = SaffronOrange,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.clickable(onClick = onClick)
@@ -935,7 +935,7 @@ private fun TermsPrivacyDialogs(
             },
             confirmButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Close", color = FlutterOrange, fontWeight = FontWeight.Bold)
+                    Text("Close", color = SaffronOrange, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = StarlightWhite
@@ -959,7 +959,7 @@ private fun TermsPrivacyDialogs(
             },
             confirmButton = {
                 TextButton(onClick = onDismiss) {
-                    Text("Close", color = FlutterOrange, fontWeight = FontWeight.Bold)
+                    Text("Close", color = SaffronOrange, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = StarlightWhite
@@ -1034,7 +1034,7 @@ private fun OtpCodeInput(
                             .background(if (filled) FlutterFieldBg else StarlightWhite)
                             .border(
                                 width = if (filled) 1.5.dp else 1.dp,
-                                color = if (filled) FlutterOrange else FlutterBorder,
+                                color = if (filled) SaffronOrange else FlutterBorder,
                                 shape = RoundedCornerShape(12.dp)
                             ),
                         contentAlignment = Alignment.Center
@@ -1084,7 +1084,7 @@ private fun ColumnScope.VerifyOtpForm(viewModel: AuthViewModel, isLoading: Boole
     ) {
         Text(
             if (cooldown > 0) "Resend code in ${cooldown}s" else "Resend Code",
-            color = if (cooldown > 0) FlutterMuted else FlutterOrangeDeep,
+            color = if (cooldown > 0) FlutterMuted else SaffronOrangeDeep,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium
         )

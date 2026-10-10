@@ -169,19 +169,6 @@ fun SettingsScreen(
                     )
                 }
             }
-            item {
-                CosmicCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToWallet() }
-                ) {
-                    SettingsRow(
-                        icon = Icons.Default.ReceiptLong,
-                        title = "Activity History",
-                        subtitle = "Wallet transactions & payments"
-                    )
-                }
-            }
 
             // ============ REWARDS ============
             item {

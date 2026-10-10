@@ -74,7 +74,8 @@ class WalletRepository(
         return listOf(
             RechargePack("slab_25", 25.0, 35.0),
             RechargePack("slab_50", 50.0, 80.0),
-            RechargePack("slab_100", 100.0, 200.0)
+            RechargePack("slab_100", 100.0, 200.0),
+            RechargePack("slab_200", 200.0, 400.0)
         )
     }
 
@@ -96,8 +97,9 @@ class WalletRepository(
     suspend fun createOrder(pack: RechargePack): Result<TopupOrderResponse> {
         return try {
             // Only the pay amount is sent — bonus is server-computed on verify.
-            val amountPaise = (pack.payInr * 100).toInt()
-            val res = api.createTopupOrder(TopupOrderRequest(amountPaise))
+            // Backend expects amount in RUPEES (kg_wallet_quote($amount_rupees)).
+            val amountRupees = pack.payInr.toInt()
+            val res = api.createTopupOrder(TopupOrderRequest(amountRupees))
             val body = res.body()
             if (res.isSuccessful && body != null) {
                 Result.success(body)
