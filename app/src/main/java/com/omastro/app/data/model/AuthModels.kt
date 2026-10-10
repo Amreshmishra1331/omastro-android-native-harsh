@@ -177,3 +177,20 @@ data class FirebaseAuthEnvelope(
     @SerializedName("message") val message: String? = null,
     @SerializedName("code") val code: String? = null
 )
+
+// ─── Delete Account (DELETE /me) ──────────────────────────────────────────
+// Real server endpoint (verified live 2026-10-10): Bearer auth, requires the
+// body {"confirm_phrase":"DELETE"}. Success envelope: {"deleted":true, ...}.
+
+/** Confirmation phrase the server requires before it deletes the account. */
+const val DELETE_ACCOUNT_CONFIRM_PHRASE = "DELETE"
+
+data class DeleteAccountRequest(
+    @SerializedName("confirm_phrase") val confirmPhrase: String = DELETE_ACCOUNT_CONFIRM_PHRASE
+)
+
+data class DeleteAccountResponse(
+    @SerializedName("deleted") val deleted: Boolean = false,
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null
+)

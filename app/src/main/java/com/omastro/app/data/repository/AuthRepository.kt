@@ -165,4 +165,27 @@ class AuthRepository(
         ApiClient.setAuthToken(null)
         _currentUser.value = null
     }
+
+    /**
+     * Delete the signed-in account via DELETE /me (Bearer auth, requires the
+     * DELETE confirm phrase). Success is `{"deleted":true}`. API call only —
+     * local-data wiping is orchestrated by
+     * [com.omastro.app.di.AppContainer.deleteAccountEverywhere] so every
+     * repository stays the owner of its own state.
+     */
+    suspend fun deleteAccount(): Result<Unit> {
+        return try {
+            val res = api.deleteAccount(DeleteAccountRequest(DELETE_ACCOUNT_CONFIRM_PHRASE))
+            val body = res.body()
+            if (res.isSuccessful && body != null && body.deleted) {
+                Result.success(Unit)
+            } else {
+                val msg = body?.message?.takeIf { it.isNotBlank() }
+                    ?: "Account deletion failed: HTTP ${res.code()}"
+                Result.failure(IOException(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

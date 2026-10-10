@@ -64,6 +64,17 @@ class WalletRepository(
         _walletBalanceInr.value = totalPaise / 100.0
     }
 
+    /** Reset all in-memory wallet state without any server call. */
+    fun clearLocal() {
+        _walletBalancePaise.value = 0
+        _paidBalancePaise.value = 0
+        _bonusBalancePaise.value = 0
+        _paidBalanceInr.value = 0.0
+        _bonusBalanceInr.value = 0.0
+        _walletBalanceInr.value = 0.0
+        _transactions.value = emptyList()
+    }
+
     /**
      * Cycle 4: the hardcoded add-money slab list (₹25→₹35, ₹50→₹80,
      * ₹100→₹200, ₹200→₹400) is REMOVED. Pack credits are now server-driven:

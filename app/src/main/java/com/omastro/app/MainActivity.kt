@@ -301,6 +301,11 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToWallet = { navController.navigate(Screen.Wallet.route) },
                                 onNavigateToSavedCharts = { navController.navigate(Screen.SavedCharts.route) },
                                 onNavigateToRefer = { navController.navigate(Screen.ReferEarn.route) },
+                                onAccountDeleted = {
+                                    navController.navigate(Screen.Auth.route) {
+                                        popUpTo(Screen.Home.route) { inclusive = true }
+                                    }
+                                },
                                 onMenuClick = openDrawer
                             )
                         }

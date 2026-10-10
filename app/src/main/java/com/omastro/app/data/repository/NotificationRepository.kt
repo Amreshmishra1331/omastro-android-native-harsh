@@ -69,8 +69,7 @@ class NotificationRepository(private val api: OmAstroApiService) {
         return try {
             val res = api.clearNotifications()
             if (res.isSuccessful) {
-                _notifications.value = emptyList()
-                _unreadCount.value = 0
+                clearLocal()
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Clear failed (HTTP ${res.code()})."))
@@ -78,5 +77,11 @@ class NotificationRepository(private val api: OmAstroApiService) {
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /** Reset in-memory notification state without any server call. */
+    fun clearLocal() {
+        _notifications.value = emptyList()
+        _unreadCount.value = 0
     }
 }

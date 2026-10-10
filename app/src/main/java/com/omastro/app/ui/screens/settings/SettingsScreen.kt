@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.omastro.app.BuildConfig
+import com.omastro.app.data.model.DELETE_ACCOUNT_CONFIRM_PHRASE
 import com.omastro.app.di.AppContainer
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.DrawerDialog
@@ -33,6 +34,7 @@ fun SettingsScreen(
     onNavigateToWallet: () -> Unit,
     onNavigateToSavedCharts: () -> Unit = {},
     onNavigateToRefer: () -> Unit = {},
+    onAccountDeleted: () -> Unit = {},
     onMenuClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -42,7 +44,9 @@ fun SettingsScreen(
     val walletBalanceInr by AppContainer.walletRepository.walletBalanceInr.collectAsState()
 
     var showDisclaimerDialog by remember { mutableStateOf(false) }
-    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var deleteStage by remember { mutableStateOf(DeleteDialogStage.None) }
+    var deleteTypedPhrase by remember { mutableStateOf("") }
+    var deleteErrorMsg by remember { mutableStateOf<String?>(null) }
     var drawerDialog by remember { mutableStateOf<DrawerDialog?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -163,7 +167,12 @@ fun SettingsScreen(
                 CosmicCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showDeleteAccountDialog = true }
+                        .clickable {
+                            deleteTypedPhrase = ""
+                            deleteErrorMsg = null
+                            deleteStage = if (user != null) DeleteDialogStage.Step1
+                            else DeleteDialogStage.FailedNoSession
+                        }
                 ) {
                     // No account-deletion REST endpoint exists on the server (verified
                     // against the live wp-json/omastro/v1 index): deletion is completed
@@ -356,12 +365,24 @@ fun SettingsScreen(
         }
     }
 
-    // Delete Account confirm dialog — honest: the app has no deletion REST
-    // endpoint, so it opens the website's /delete-account/ page (HTTP 200,
-    // verified live 2026-10-10). The app never fakes deletion.
-    if (showDeleteAccountDialog) {
+    // ============ DELETE ACCOUNT FLOW (Cycle 7) ============
+    // Step 1: warn about permanent data loss. Step 2: double-confirm by
+    // typing DELETE. Then DELETE /me (Bearer, body confirm_phrase=DELETE);
+    // on {"deleted":true} the server account is gone, so ALL local user data
+    // is wiped and the user is logged out. If the endpoint call fails, the
+    // website's /delete-account/ page (HTTP 200, verified live) is offered as
+    // fallback — deletion is never faked.
+    fun openDeleteAccountWebPage() {
+        val webIntent = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            android.net.Uri.parse("https://www.omastroai.com/delete-account/")
+        )
+        try { context.startActivity(webIntent) } catch (e: Exception) { /* no browser */ }
+    }
+
+    if (deleteStage == DeleteDialogStage.Step1) {
         AlertDialog(
-            onDismissRequest = { showDeleteAccountDialog = false },
+            onDismissRequest = { deleteStage = DeleteDialogStage.None },
             title = {
                 Text(
                     W.t("Delete Account"),
@@ -371,7 +392,143 @@ fun SettingsScreen(
             },
             text = {
                 Text(
-                    W.t("delete_acct_body"),
+                    W.t("delete_acct_step1_body"),
+                    color = StarlightWhite.copy(alpha = 0.75f),
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { deleteStage = DeleteDialogStage.Step2 },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF5252),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(W.t("delete_acct_step1_confirm"))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteStage = DeleteDialogStage.None }) {
+                    Text(W.t("Cancel"), color = SacredGold)
+                }
+            },
+            containerColor = CosmicDeepBlue
+        )
+    }
+
+    if (deleteStage == DeleteDialogStage.Step2) {
+        AlertDialog(
+            onDismissRequest = { deleteStage = DeleteDialogStage.None },
+            title = {
+                Text(
+                    W.t("delete_acct_step2_title"),
+                    color = Color(0xFFFF5252),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        W.t("delete_acct_step2_body"),
+                        color = StarlightWhite.copy(alpha = 0.75f),
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = deleteTypedPhrase,
+                        onValueChange = { deleteTypedPhrase = it },
+                        label = { Text(W.t("delete_acct_type_hint")) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = StarlightWhite,
+                            unfocusedTextColor = StarlightWhite,
+                            focusedBorderColor = Color(0xFFFF5252),
+                            unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f),
+                            focusedLabelColor = Color(0xFFFF5252),
+                            unfocusedLabelColor = StarlightWhite.copy(alpha = 0.5f),
+                            cursorColor = Color(0xFFFF5252)
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        deleteStage = DeleteDialogStage.Deleting
+                        coroutineScope.launch {
+                            AppContainer.deleteAccountEverywhere(context.applicationContext)
+                                .onSuccess { onAccountDeleted() }
+                                .onFailure { e ->
+                                    deleteErrorMsg = e.message
+                                    deleteStage = DeleteDialogStage.Failed
+                                }
+                        }
+                    },
+                    enabled = deleteTypedPhrase.trim() == DELETE_ACCOUNT_CONFIRM_PHRASE,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF5252),
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFFFF5252).copy(alpha = 0.35f)
+                    )
+                ) {
+                    Text(W.t("delete_acct_confirm_final"))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteStage = DeleteDialogStage.None }) {
+                    Text(W.t("Cancel"), color = SacredGold)
+                }
+            },
+            containerColor = CosmicDeepBlue
+        )
+    }
+
+    if (deleteStage == DeleteDialogStage.Deleting) {
+        AlertDialog(
+            onDismissRequest = { /* non-dismissible while the request is in flight */ },
+            title = {
+                Text(
+                    W.t("Delete Account"),
+                    color = Color(0xFFFF5252),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(color = Color(0xFFFF5252), modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        W.t("delete_acct_deleting"),
+                        color = StarlightWhite.copy(alpha = 0.75f),
+                        fontSize = 14.sp
+                    )
+                }
+            },
+            confirmButton = {},
+            containerColor = CosmicDeepBlue
+        )
+    }
+
+    // Endpoint failed (or no session): honest fallback — complete deletion on
+    // the website's Delete Account page instead of faking it in-app.
+    if (deleteStage == DeleteDialogStage.Failed || deleteStage == DeleteDialogStage.FailedNoSession) {
+        AlertDialog(
+            onDismissRequest = { deleteStage = DeleteDialogStage.None },
+            title = {
+                Text(
+                    W.t("delete_acct_failed_title"),
+                    color = Color(0xFFFF5252),
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    if (deleteStage == DeleteDialogStage.FailedNoSession) {
+                        W.t("delete_acct_nosession_body")
+                    } else {
+                        W.tf("delete_acct_failed_body", deleteErrorMsg ?: "")
+                    },
                     color = StarlightWhite.copy(alpha = 0.75f),
                     fontSize = 14.sp
                 )
@@ -379,23 +536,19 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        showDeleteAccountDialog = false
-                        val webIntent = android.content.Intent(
-                            android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://www.omastroai.com/delete-account/")
-                        )
-                        try { context.startActivity(webIntent) } catch (e: Exception) { /* no browser */ }
+                        deleteStage = DeleteDialogStage.None
+                        openDeleteAccountWebPage()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF5252),
-                        contentColor = Color.White
+                        containerColor = SacredGold,
+                        contentColor = CosmicDeepBlue
                     )
                 ) {
-                    Text(W.t("delete_acct_open"))
+                    Text(W.t("delete_acct_open"), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteAccountDialog = false }) {
+                TextButton(onClick = { deleteStage = DeleteDialogStage.None }) {
                     Text(W.t("Cancel"), color = SacredGold)
                 }
             },
@@ -468,4 +621,19 @@ private fun SettingsRow(
         }
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = SacredGold)
     }
+}
+
+/** Stages of the Settings → Delete Account flow (Cycle 7). */
+enum class DeleteDialogStage {
+    None,
+    /** Step 1: warn about permanent data loss. */
+    Step1,
+    /** Step 2: double-confirm by typing DELETE. */
+    Step2,
+    /** DELETE /me in flight — non-dismissible. */
+    Deleting,
+    /** Endpoint failed: offer the website fallback. */
+    Failed,
+    /** No signed-in session: offer the website fallback directly. */
+    FailedNoSession
 }

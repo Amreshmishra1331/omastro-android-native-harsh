@@ -344,6 +344,17 @@ interface OmAstroApiService {
         @Path("id") chartId: String
     ): Response<Map<String, Any>>
 
+    /**
+     * Delete the signed-in user's account (Cycle 7, built by the web worker
+     * 2026-10-10, verified live). Bearer token is attached by the auth
+     * interceptor; the server requires {"confirm_phrase":"DELETE"} and
+     * answers {"deleted":true} on success.
+     */
+    @DELETE("me")
+    suspend fun deleteAccount(
+        @Body request: DeleteAccountRequest
+    ): Response<DeleteAccountResponse>
+
     // ------------------------------------------------------------------
     // Vastu Shastra engine + Vision / Photo AI (NEW world-class systems)
     // ------------------------------------------------------------------
