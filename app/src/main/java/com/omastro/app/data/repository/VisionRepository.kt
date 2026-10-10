@@ -46,17 +46,16 @@ class VisionRepository(
 
     companion object {
         /**
-         * Server-side default prices for the paid vision endpoints, in paise.
-         * Source: backend options `kg_rate_palmistry_paise`,
-         * `kg_rate_facereading_paise`, `kg_rate_vastu_photo_paise`
-         * (all default 2000 = ₹20, admin-editable in WP Admin).
-         * Shown on Analyze buttons; the HTTP 402 response always carries the
-         * live authoritative price, which the insufficient-balance dialog uses.
-         * There is no /vision/prices endpoint yet — these stay defaults.
+         * Vision analyses are FREE (user directive 2026-10-10): backend rates
+         * `kg_rate_palmistry_paise` / `kg_rate_facereading_paise` /
+         * `kg_rate_vastu_photo_paise` are all 0. AI follow-up questions via
+         * "Ask AI" are billed per-message through POST /ai/chat (AI chat rate).
+         * The HTTP 402 response always carries the live authoritative price,
+         * which the insufficient-balance dialog uses.
          */
-        const val PRICE_PALMISTRY_PAISE = 2000
-        const val PRICE_FACE_READING_PAISE = 2000
-        const val PRICE_VASTU_PHOTO_PAISE = 2000
+        const val PRICE_PALMISTRY_PAISE = 0
+        const val PRICE_FACE_READING_PAISE = 0
+        const val PRICE_VASTU_PHOTO_PAISE = 0
     }
 
     // ------------------------------------------------------------------

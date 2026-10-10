@@ -4,6 +4,20 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Vision billing FREE + Kundali retry + chart delete wiring
+
+### Changed (user directive: vision analyses are FREE)
+**Before:** `VisionRepository` hardcoded `PRICE_*_PAISE = 2000`; Analyze buttons showed "Analyze — ₹20" on Palmistry/Face Reading/Vastu photo.
+**After:** Prices are 0 (backend rates `kg_rate_*_paise` are 0); buttons show "Analyze — FREE" / "विश्लेषण करें — मुफ्त" via new `vision_btn_free` i18n key. "Ask AI about this reading" follow-ups route through POST `/ai/chat` (per-message billing). Unused `formatRs` imports removed.
+
+### Fixed
+**Before:** Kundali error card "Try Again" only called `clearError()` — dismissed the error without re-fetching.
+**After:** New `KundaliViewModel.retryLastFetch()` re-submits the preserved birth details, actually retrying the API call. Button text bilingual via `kundali_try_again`.
+**Before:** `DashboardScreen` `onDeleteChart` was passed but never used — saved Kundali charts had no delete button.
+**After:** `SavedChartRow` takes `onDelete`; delete icon wired to `viewModel.deleteSavedChart()`. Bilingual content description via `dashboard_delete_chart`.
+
+---
+
 ## [2026-10-10] — Audit Loop Cycle 2: bilingual Hindi+English (8 screens)
 
 ### Fixed

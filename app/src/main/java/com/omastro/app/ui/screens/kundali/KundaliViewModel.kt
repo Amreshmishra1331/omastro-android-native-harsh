@@ -307,6 +307,16 @@ class KundaliViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
+     * Re-runs the Kundali fetch with the preserved form values.
+     * Used by the "Try Again" button on the error card — actually retries
+     * the API call instead of just dismissing the error.
+     */
+    fun retryLastFetch() {
+        _errorMessage.value = null
+        submitBirthDetails()
+    }
+
+    /**
      * Instant re-open of a locally saved Kundali (from My Data): restores
      * the full chart from stored JSON — no re-computation, no API call.
      * The dedicated reports (Personality/BNN/Lal Kitab/Jaimini) were never

@@ -731,7 +731,8 @@ private fun AiReadingCard(
 @Composable
 private fun SavedChartRow(
     chart: SavedChart,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     CosmicCard(
         modifier = Modifier
@@ -755,6 +756,14 @@ private fun SavedChartRow(
                     text = chart.birthDate,
                     color = StarlightWhite.copy(alpha = 0.6f),
                     fontSize = 12.sp
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = W.t("dashboard_delete_chart"),
+                    tint = Color(0xFFE53935),
+                    modifier = Modifier.size(20.dp)
                 )
             }
             Icon(
@@ -839,7 +848,8 @@ private fun ActivityTabContent(
                         ) {
                             SavedChartRow(
                                 chart = chart,
-                                onClick = { onKundaliClick(chart.id) }
+                                onClick = { onKundaliClick(chart.id) },
+                                onDelete = { onDeleteChart(chart.id) }
                             )
                         }
                     }

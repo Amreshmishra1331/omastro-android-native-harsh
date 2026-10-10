@@ -76,7 +76,6 @@ import com.omastro.app.ui.share.shareCardContent
 import com.omastro.app.data.repository.InsufficientBalanceException
 import com.omastro.app.data.repository.VisionRepository
 import com.omastro.app.ui.components.InsufficientBalanceDialog
-import com.omastro.app.ui.components.formatRs
 import com.omastro.app.data.local.ReadingFeatureType
 import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
@@ -488,7 +487,7 @@ private fun PalmistryCaptureCard(
             )
         ) {
             Text(
-                W.tf("vision_btn_price", formatRs(VisionRepository.PRICE_PALMISTRY_PAISE)),
+                W.t("vision_btn_free"),
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
             )

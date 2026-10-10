@@ -144,11 +144,11 @@ fun KundaliScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
-                            onClick = { viewModel.clearError() },
+                            onClick = { viewModel.retryLastFetch() },
                             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Try Again", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
+                            Text(W.t("kundali_try_again"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(onClick = { viewModel.editBirthDetails() }) {

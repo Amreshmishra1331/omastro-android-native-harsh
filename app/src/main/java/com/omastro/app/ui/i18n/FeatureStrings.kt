@@ -171,6 +171,7 @@ object W {
         "kundali_chart_south" to "दक्षिण भारतीय ग्रिड",
         "kundali_chart_title" to "%1\$s — %2\$s",
         "kundali_chart_legend" to "Lg = लग्न • ग्रह: ☉ ☽ ♂ ☿ ♃ ♀ ♄ ☊ ☋",
+        "kundali_try_again" to "पुनः प्रयास करें",
         "kundali_pill_d1" to "D1 · लग्न",
         "kundali_pill_d9" to "D9 · नवांश",
         "kundali_pill_d10" to "D10 · दशमांश",
@@ -287,12 +288,14 @@ object W {
         // kg_rate_palmistry_paise / kg_rate_facereading_paise /
         // kg_rate_vastu_photo_paise (default 2000 paise each).
         "vision_btn_price" to "विश्लेषण करें — %s",
+        "vision_btn_free" to "विश्लेषण करें — मुफ्त",
         "vision_free" to "मुफ़्त",
         "vision_price_word" to "कीमत",
         "vision_balance_word" to "बैलेंस",
         "vision_insuf_title" to "अपर्याप्त बैलेंस",
         "vision_insuf_body" to "इस AI विश्लेषण की कीमत %s है, लेकिन आपके वॉलेट में केवल %s है। जारी रखने के लिए पैसे जोड़ें — विश्लेषण पुनः प्रयास नहीं किया गया है।",
         "vision_insuf_add" to "पैसे जोड़ें",
+        "dashboard_delete_chart" to "चार्ट हटाएं",
         "vision_insuf_later" to "अभी नहीं",
 
         // ---- Face reading ----
@@ -1247,6 +1250,7 @@ object W {
         "kundali_chart_south" to "South Indian Grid",
         "kundali_chart_title" to "%1\$s — %2\$s",
         "kundali_chart_legend" to "Lg = Lagna • planets: ☉ ☽ ♂ ☿ ♃ ♀ ♄ ☊ ☋",
+        "kundali_try_again" to "Try Again",
         "kundali_pill_d1" to "D1 · Lagna",
         "kundali_pill_d9" to "D9 · Navamsha",
         "kundali_pill_d10" to "D10 · Dashamsha",
@@ -1357,12 +1361,14 @@ object W {
         // kg_rate_palmistry_paise / kg_rate_facereading_paise /
         // kg_rate_vastu_photo_paise (default 2000 paise each).
         "vision_btn_price" to "Analyze — %s",
+        "vision_btn_free" to "Analyze — FREE",
         "vision_free" to "Free",
         "vision_price_word" to "Price",
         "vision_balance_word" to "Balance",
         "vision_insuf_title" to "Insufficient balance",
         "vision_insuf_body" to "This AI analysis costs %s, but your wallet balance is only %s. Add money to continue — the analysis was not retried.",
         "vision_insuf_add" to "Add Money",
+        "dashboard_delete_chart" to "Delete chart",
         "vision_insuf_later" to "Not now",
         "face_title" to "Face Reading",
         "face_sub" to "Samudrika Shastra face reading from your photo",

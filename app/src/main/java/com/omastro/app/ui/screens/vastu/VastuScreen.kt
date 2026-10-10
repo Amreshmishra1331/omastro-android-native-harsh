@@ -97,7 +97,6 @@ import com.omastro.app.data.repository.InsufficientBalanceException
 import com.omastro.app.data.repository.VisionRepository
 import com.omastro.app.ui.components.FreeBadge
 import com.omastro.app.ui.components.InsufficientBalanceDialog
-import com.omastro.app.ui.components.formatRs
 import com.omastro.app.data.local.ReadingFeatureType
 import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
@@ -1027,9 +1026,9 @@ private fun VastuPhotoForm(
                     contentColor = Color(0xFF1A1005)
                 )
             ) {
-                // House-map photo flows through paid AI vision — price on the button.
+                // House-map photo analysis is FREE (user directive 2026-10-10).
                 Text(
-                    W.tf("vision_btn_price", formatRs(VisionRepository.PRICE_VASTU_PHOTO_PAISE)),
+                    W.t("vision_btn_free"),
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
