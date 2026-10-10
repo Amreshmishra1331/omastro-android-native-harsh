@@ -4,6 +4,8 @@ import com.omastro.app.data.model.*
 import com.omastro.app.data.remote.ApiClient
 import com.omastro.app.data.remote.GocharRequest
 import com.omastro.app.data.remote.GocharResponse
+import com.omastro.app.data.remote.PrashnaRequest
+import com.omastro.app.data.remote.PrashnaResponse
 import com.omastro.app.data.remote.OmAstroApiService
 import java.io.IOException
 
