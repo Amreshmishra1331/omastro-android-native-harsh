@@ -52,8 +52,27 @@ data class AiChatUiState(
     /** True when a saved session's stored context was restored (chips can't show it). */
     val hasRestoredContext: Boolean = false,
     val isLoadingSessions: Boolean = false,
-    val savedSessions: List<SavedChatSession> = emptyList()
+    val savedSessions: List<SavedChatSession> = emptyList(),
+    // ---- Advanced chat: reply threading / ask-about / send retry ----
+    /** Message being replied to (draft): its snapshot renders above the input bar. */
+    val replyingTo: ChatMessage? = null,
+    /** "Ask AI about this": selected message text sent as context with the next question. */
+    val askContext: String? = null,
+    /** Last message text that failed to send (for the inline retry card). */
+    val failedMessage: String? = null,
+    /** Friendly text for the inline send-error card. */
+    val sendErrorText: String? = null
 )
+
+/** Outcome of a pull-to-refresh history reload. */
+sealed interface RefreshResult {
+    data object Ok : RefreshResult
+    /** No saved session open — nothing on the server to reload. */
+    data object NoSavedSession : RefreshResult
+    /** Local messages exist that were never saved — confirm before discarding. */
+    data object UnsyncedChanges : RefreshResult
+    data class Failed(val message: String) : RefreshResult
+}
 
 class AiChatViewModel : ViewModel() {
     private val chatRepository = AppContainer.chatRepository
@@ -64,6 +83,12 @@ class AiChatViewModel : ViewModel() {
     private val states = AiChatMode.values().associateWith { MutableStateFlow(AiChatUiState()) }
     private val sessionIds = mutableMapOf<AiChatMode, String?>()
     private val chatContexts = mutableMapOf<AiChatMode, String?>()
+    /**
+     * Messages known to be on the server per mode (loaded or explicitly
+     * saved). Pull-to-refresh only discards local messages with the user's
+     * confirmation when messages.size exceeds this count.
+     */
+    private val serverSyncedCounts = mutableMapOf<AiChatMode, Int>()
 
     val uiState: StateFlow<AiChatUiState>
         get() = states.getValue(_selectedMode.value)
@@ -91,18 +116,21 @@ class AiChatViewModel : ViewModel() {
 
     /**
      * Builds the context string for the next message:
-     * attachment blocks + photo parsed-facts + the server-returned
-     * chatContext (replayed verbatim).
+     * "Ask AI about this" reference + attachment blocks + photo parsed-facts
+     * + the server-returned chatContext (replayed verbatim).
      */
     private fun buildContext(mode: AiChatMode): String {
         val state = states.getValue(mode).value
+        val askCtx = state.askContext?.takeIf { it.isNotBlank() }?.let {
+            "--- Message the user is asking about ---\n$it"
+        } ?: ""
         val attachmentCtx = buildBirthDataContext(state.attachments)
         val photoCtx = state.photoAttachments
             .map { it.contextBlock }
             .filter { it.isNotBlank() }
             .joinToString("\n\n")
         val stored = chatContexts[mode]
-        return listOf(attachmentCtx, photoCtx, stored.orEmpty())
+        return listOf(askCtx, attachmentCtx, photoCtx, stored.orEmpty())
             .filter { it.isNotBlank() }
             .joinToString("\n\n")
     }
@@ -130,6 +158,30 @@ class AiChatViewModel : ViewModel() {
     fun sendMessage(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
+        // A fresh send dismisses the previous failure card.
+        clearSendError()
+        sendInternal(trimmed)
+    }
+
+    /** Re-sends the last failed message (inline retry card). */
+    fun retryFailedMessage() {
+        val mode = _selectedMode.value
+        val failed = states.getValue(mode).value.failedMessage ?: return
+        sendInternal(failed)
+    }
+
+    /** Dismisses the inline send-error card. */
+    fun clearSendError() {
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        if (flow.value.failedMessage != null || flow.value.sendErrorText != null) {
+            flow.value = flow.value.copy(failedMessage = null, sendErrorText = null)
+        }
+    }
+
+    private fun sendInternal(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
         val mode = _selectedMode.value
         val stateFlow = states.getValue(mode)
         val current = stateFlow.value
@@ -143,7 +195,11 @@ class AiChatViewModel : ViewModel() {
             id = UUID.randomUUID().toString(),
             senderId = "me",
             isUser = true,
-            message = trimmed
+            message = trimmed,
+            // Reply threading: snapshot the quoted message onto the sent
+            // message; the draft is cleared below.
+            replyToText = current.replyingTo?.message,
+            replyToIsUser = current.replyingTo?.isUser
         )
         stateFlow.value = current.copy(
             messages = current.messages + userMessage,
@@ -151,7 +207,11 @@ class AiChatViewModel : ViewModel() {
             error = null,
             // The restored-context notice has served its purpose once the
             // user starts a fresh exchange.
-            hasRestoredContext = false
+            hasRestoredContext = false,
+            // The draft quote is baked into the message above.
+            replyingTo = null,
+            failedMessage = null,
+            sendErrorText = null
         )
 
         val context = buildContext(mode)
@@ -204,13 +264,16 @@ class AiChatViewModel : ViewModel() {
                 states.getValue(mode).value = latest.copy(
                     messages = latest.messages + aiMessage,
                     isTyping = false,
-                    quota = response.quota
+                    quota = response.quota,
+                    // The "Ask AI about this" reference was consumed by this send.
+                    askContext = null
                 )
             }.onFailure { err ->
                 val latest = states.getValue(mode).value
                 // Server-provided messages pass through verbatim; transport or
                 // HTTP-only failures get the bilingual fallback (never a raw
-                // "HTTP 500" string shown to the user).
+                // "HTTP 500" string shown to the user). Send failures surface
+                // in the inline retry card (failedMessage), not the snackbar.
                 val serverMsg = err.message
                 val friendly = if (serverMsg.isNullOrBlank() || serverMsg.startsWith("AI chat request failed:")) {
                     W.t("chat_reply_failed")
@@ -219,7 +282,8 @@ class AiChatViewModel : ViewModel() {
                 }
                 states.getValue(mode).value = latest.copy(
                     isTyping = false,
-                    error = friendly
+                    failedMessage = trimmed,
+                    sendErrorText = friendly
                 )
             }
         }
@@ -302,12 +366,130 @@ class AiChatViewModel : ViewModel() {
         stateFlow.value = stateFlow.value.copy(error = null)
     }
 
+    // ------------------------------------------------------------------
+    // Reply threading + "Ask AI about this"
+    // ------------------------------------------------------------------
+
+    /** Starts a quoted reply to [message]; its snapshot renders above the input. */
+    fun setReplyingTo(message: ChatMessage) {
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        flow.value = flow.value.copy(replyingTo = message)
+    }
+
+    /** Cancels the reply draft. */
+    fun clearReplyingTo() {
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        if (flow.value.replyingTo != null) {
+            flow.value = flow.value.copy(replyingTo = null)
+        }
+    }
+
+    /**
+     * "Ask AI about this": [text] (the selected message) is sent as context
+     * with the next question, then cleared. A chip above the input shows it
+     * until sent or dismissed.
+     */
+    fun setAskContext(text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        flow.value = flow.value.copy(askContext = trimmed)
+    }
+
+    /** Dismisses the pending "Ask AI about this" reference. */
+    fun clearAskContext() {
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        if (flow.value.askContext != null) {
+            flow.value = flow.value.copy(askContext = null)
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Pull-to-refresh: reload the open saved session from the server
+    // ------------------------------------------------------------------
+
+    /**
+     * Reloads the open saved session's history from the server.
+     * Suspends until done so the pull-to-refresh indicator can end exactly
+     * when the reload finishes. Never discards unsent local messages
+     * silently: [RefreshResult.UnsyncedChanges] asks the UI to confirm first.
+     */
+    suspend fun refreshHistory(): RefreshResult {
+        val mode = _selectedMode.value
+        val flow = states.getValue(mode)
+        val chatId = flow.value.savedSessionId ?: return RefreshResult.NoSavedSession
+        if (flow.value.messages.size > (serverSyncedCounts[mode] ?: 0)) {
+            return RefreshResult.UnsyncedChanges
+        }
+        return reloadFromServer(mode, chatId)
+    }
+
+    /**
+     * Same as [refreshHistory] but discards local messages without asking.
+     * Called only after the user confirmed the discard dialog.
+     */
+    suspend fun forceRefreshHistory(): RefreshResult {
+        val mode = _selectedMode.value
+        val chatId = states.getValue(mode).value.savedSessionId
+            ?: return RefreshResult.NoSavedSession
+        return reloadFromServer(mode, chatId)
+    }
+
+    private suspend fun reloadFromServer(mode: AiChatMode, chatId: String): RefreshResult {
+        return chatRepository.loadChatSession(chatId).fold(
+            onSuccess = { detail ->
+                applyLoadedDetail(mode, detail)
+                RefreshResult.Ok
+            },
+            onFailure = { err ->
+                RefreshResult.Failed(err.message ?: W.t("chat_refresh_failed"))
+            }
+        )
+    }
+
+    /**
+     * Rebuilds a mode's state from a loaded saved session (shared by
+     * [loadSession] and pull-to-refresh). Marks every message server-synced.
+     */
+    private fun applyLoadedDetail(mode: AiChatMode, detail: SavedChatSession) {
+        val messages = detail.messages.mapNotNull { m ->
+            val content = m.content
+            if (content.isBlank()) null else ChatMessage(
+                id = UUID.randomUUID().toString(),
+                senderId = if (m.userTurn) "me" else "ai",
+                isUser = m.userTurn,
+                message = content
+            )
+        }
+        val flow = states.getValue(mode)
+        flow.value = AiChatUiState(
+            messages = messages,
+            aiModel = flow.value.aiModel,
+            // Keep the session's own reply language (was: reset to "en").
+            language = detail.language?.takeIf { it == "hi" } ?: "en",
+            savedSessionId = detail.id,
+            // The stored context IS restored and sent, but the
+            // attachment chips can't be rebuilt from it — flag it
+            // so the UI can say so honestly instead of implying
+            // "no context attached".
+            hasRestoredContext = !detail.storedContext.isNullOrBlank()
+        )
+        sessionIds[mode] = detail.sessionId
+        detail.storedContext?.let { chatContexts[mode] = it }
+        serverSyncedCounts[mode] = messages.size
+    }
+
     /** Starts a fresh chat: clears messages, context, session, attachments. */
     fun clearChat() {
         val mode = _selectedMode.value
         states.getValue(mode).value = AiChatUiState()
         sessionIds.remove(mode)
         chatContexts.remove(mode)
+        serverSyncedCounts.remove(mode)
     }
 
     // ------------------------------------------------------------------
@@ -372,6 +554,9 @@ class AiChatViewModel : ViewModel() {
                     val flow = states.getValue(mode)
                     flow.value = flow.value.copy(savedSessionId = id)
                     sessionIds[mode] = sessionId
+                    // Everything on screen is now server-side: a later
+                    // pull-to-refresh can reload without a discard warning.
+                    serverSyncedCounts[mode] = flow.value.messages.size
                     onSaved(id)
                 }
                 .onFailure { err ->
@@ -390,30 +575,7 @@ class AiChatViewModel : ViewModel() {
         viewModelScope.launch {
             chatRepository.loadChatSession(session.id)
                 .onSuccess { detail ->
-                    val messages = detail.messages.mapNotNull { m ->
-                        val content = m.content
-                        if (content.isBlank()) null else ChatMessage(
-                            id = UUID.randomUUID().toString(),
-                            senderId = if (m.userTurn) "me" else "ai",
-                            isUser = m.userTurn,
-                            message = content
-                        )
-                    }
-                    val flow = states.getValue(mode)
-                    flow.value = AiChatUiState(
-                        messages = messages,
-                        aiModel = flow.value.aiModel,
-                        // Keep the session's own reply language (was: reset to "en").
-                        language = detail.language?.takeIf { it == "hi" } ?: "en",
-                        savedSessionId = detail.id,
-                        // The stored context IS restored and sent, but the
-                        // attachment chips can't be rebuilt from it — flag it
-                        // so the UI can say so honestly instead of implying
-                        // "no context attached".
-                        hasRestoredContext = !detail.storedContext.isNullOrBlank()
-                    )
-                    sessionIds[mode] = detail.sessionId
-                    detail.storedContext?.let { chatContexts[mode] = it }
+                    applyLoadedDetail(mode, detail)
                 }
                 .onFailure { err ->
                     val flow = states.getValue(mode)

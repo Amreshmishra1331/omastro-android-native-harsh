@@ -9,13 +9,16 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,14 +42,21 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,10 +65,13 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -71,13 +84,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -95,11 +120,35 @@ import com.omastro.app.ui.theme.CosmicNavy
 import com.omastro.app.ui.theme.SacredGold
 import com.omastro.app.ui.theme.StarlightWhite
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
 
 private val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+private val dayKeyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+private val dayDisplayFormat = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+
+/** Flat list model for the message LazyColumn: day separators + messages. */
+private sealed interface ChatListItem {
+    data class Day(val dayKey: String, val timestamp: Long) : ChatListItem
+    data class Message(val message: ChatMessage) : ChatListItem
+}
+
+/** Inserts a day separator whenever the calendar day changes between messages. */
+private fun buildChatItems(messages: List<ChatMessage>): List<ChatListItem> {
+    val out = ArrayList<ChatListItem>(messages.size + 4)
+    var lastDay: String? = null
+    for (m in messages) {
+        val day = dayKeyFormat.format(Date(m.timestamp))
+        if (day != lastDay) {
+            out.add(ChatListItem.Day(day, m.timestamp))
+            lastDay = day
+        }
+        out.add(ChatListItem.Message(m))
+    }
+    return out
+}
 
 /** Bilingual mode titles/subtitles (auto-follow the Settings language). */
 private fun modeTitle(mode: AiChatMode): String = when (mode) {
@@ -170,6 +219,37 @@ fun AiChatScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val inputFocusRequester = remember { FocusRequester() }
+
+    // Pull-to-refresh: reloads the open saved session's history from the
+    // server. Material3 1.2 pull-to-refresh (BOM 2024.04.01).
+    val pullState = rememberPullToRefreshState()
+    var showRefreshConfirm by remember { mutableStateOf(false) }
+    // While the forced refresh (after the discard dialog) runs, the
+    // auto-refresh LaunchedEffect below must not fire a second refresh.
+    var suppressAutoRefresh by remember { mutableStateOf(false) }
+
+    suspend fun doRefresh(force: Boolean) {
+        val result = if (force) viewModel.forceRefreshHistory() else viewModel.refreshHistory()
+        when (result) {
+            RefreshResult.Ok ->
+                snackbarHostState.showSnackbar(W.t("chat_refresh_done"))
+            RefreshResult.NoSavedSession ->
+                snackbarHostState.showSnackbar(W.t("chat_refresh_no_saved"))
+            RefreshResult.UnsyncedChanges ->
+                showRefreshConfirm = true
+            is RefreshResult.Failed ->
+                snackbarHostState.showSnackbar(result.message)
+        }
+    }
+
+    if (pullState.isRefreshing && !suppressAutoRefresh) {
+        LaunchedEffect(Unit) {
+            doRefresh(force = false)
+            pullState.endRefresh()
+        }
+    }
 
     // Global UI language: voice/photo UI auto-switches EN/हिन्दी with Settings.
     val lang by LangPrefs.language.collectAsState()
@@ -247,10 +327,14 @@ fun AiChatScreen(
     val initialMessageIds = remember { uiState.messages.map { it.id }.toSet() }
     val revealedMessageIds = remember { mutableSetOf<String>() }
 
-    LaunchedEffect(uiState.messages.size, uiState.isTyping, selectedMode) {
-        if (uiState.messages.isNotEmpty() || uiState.isTyping) {
-            val target = uiState.messages.size // typing indicator sits at this index
-            scope.launch { listState.animateScrollToItem(target.coerceAtLeast(0)) }
+    // Flat list: day separators interleaved with messages.
+    val chatItems = remember(uiState.messages) { buildChatItems(uiState.messages) }
+
+    LaunchedEffect(chatItems.size, uiState.isTyping, selectedMode) {
+        // Typing indicator is appended after the last item when present.
+        val lastIndex = chatItems.size - 1 + if (uiState.isTyping) 1 else 0
+        if (lastIndex >= 0) {
+            scope.launch { listState.animateScrollToItem(lastIndex) }
         }
     }
 
@@ -389,6 +473,29 @@ fun AiChatScreen(
                         onTap = { inputText = it }
                     )
                 }
+                // Reply draft: quoted message renders above the input.
+                uiState.replyingTo?.let { replyTo ->
+                    ReplyDraftBar(
+                        replyingTo = replyTo,
+                        onCancel = { viewModel.clearReplyingTo() }
+                    )
+                }
+                // "Ask AI about this": pending reference chip above the input.
+                uiState.askContext?.let { askCtx ->
+                    AskContextBar(
+                        askContext = askCtx,
+                        onCancel = { viewModel.clearAskContext() }
+                    )
+                }
+                // Send failure: inline error with a retry button (no snackbar
+                // duplication — send failures no longer set uiState.error).
+                uiState.sendErrorText?.let { errText ->
+                    SendErrorBar(
+                        errorText = errText,
+                        onRetry = { viewModel.retryFailedMessage() },
+                        onDismiss = { viewModel.clearSendError() }
+                    )
+                }
                 ChatInputBar(
                     value = inputText,
                     onValueChange = { inputText = it },
@@ -405,7 +512,9 @@ fun AiChatScreen(
                     },
                     isListening = isListening,
                     onPhotoClick = { showPhotoDialog = true },
-                    enabled = !uiState.isTyping
+                    enabled = !uiState.isTyping,
+                    focusRequester = inputFocusRequester,
+                    hint = if (uiState.askContext != null) W.t("chat_ask_ctx_hint") else W.t("chat_input_hint")
                 )
             }
         }
@@ -448,50 +557,96 @@ fun AiChatScreen(
                 )
             }
 
-            if (uiState.messages.isEmpty() && !uiState.isTyping) {
-                ChatEmptyState(
-                    mode = selectedMode,
-                    onSuggestionTap = { inputText = it },
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
-                ) {
-                    itemsIndexed(
-                        items = uiState.messages,
-                        key = { _, msg -> msg.id }
-                    ) { index, msg ->
-                        if (msg.isUser) {
-                            ChatBubble(message = msg)
-                        } else {
-                            // Only replies that arrived after this screen
-                            // opened animate in bubble-by-bubble.
-                            val firstSeen = remember(msg.id) {
-                                revealedMessageIds.add(msg.id)
+            // Pull-to-refresh wraps both the empty state and the list: it
+            // reloads the open saved session's history from the server.
+            // Keyboard avoidance: the input bar keeps imePadding() so the
+            // keyboard never covers it.
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .nestedScroll(pullState.nestedScrollConnection)
+            ) {
+                if (uiState.messages.isEmpty() && !uiState.isTyping) {
+                    ChatEmptyState(
+                        mode = selectedMode,
+                        onSuggestionTap = { inputText = it },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        itemsIndexed(
+                            items = chatItems,
+                            key = { _, item ->
+                                when (item) {
+                                    is ChatListItem.Day -> "day-${item.dayKey}"
+                                    is ChatListItem.Message -> "msg-${item.message.id}"
+                                }
                             }
-                            AiMessageBubbles(
-                                message = msg,
-                                animate = msg.id !in initialMessageIds && firstSeen,
-                                onChunkRevealed = {
-                                    scope.launch {
-                                        listState.animateScrollToItem(index)
+                        ) { flatIndex, item ->
+                            when (item) {
+                                is ChatListItem.Day ->
+                                    DateSeparator(label = dayLabel(item.dayKey, item.timestamp))
+                                is ChatListItem.Message -> {
+                                    val msg = item.message
+                                    MessageWithMenu(
+                                        message = msg,
+                                        onCopy = {
+                                            clipboardManager.setText(AnnotatedString(msg.message))
+                                            scope.launch {
+                                                snackbarHostState.showSnackbar(W.t("chat_copied"))
+                                            }
+                                        },
+                                        onReply = { viewModel.setReplyingTo(msg) },
+                                        onAsk = {
+                                            viewModel.setAskContext(msg.message)
+                                            inputFocusRequester.requestFocus()
+                                        }
+                                    ) {
+                                        if (msg.isUser) {
+                                            ChatBubble(
+                                                message = msg,
+                                                replyToText = msg.replyToText,
+                                                replyToIsUser = msg.replyToIsUser
+                                            )
+                                        } else {
+                                            // Only replies that arrived after this screen
+                                            // opened animate in bubble-by-bubble.
+                                            val firstSeen = remember(msg.id) {
+                                                revealedMessageIds.add(msg.id)
+                                            }
+                                            AiMessageBubbles(
+                                                message = msg,
+                                                animate = msg.id !in initialMessageIds && firstSeen,
+                                                onChunkRevealed = {
+                                                    scope.launch {
+                                                        listState.animateScrollToItem(flatIndex)
+                                                    }
+                                                }
+                                            )
+                                        }
                                     }
                                 }
-                            )
+                            }
                         }
-                    }
-                    if (uiState.isTyping) {
-                        item(key = "typing") {
-                            AnimatedTypingIndicator()
+                        if (uiState.isTyping) {
+                            item(key = "typing") {
+                                AnimatedTypingIndicator()
+                            }
                         }
                     }
                 }
+                PullToRefreshContainer(
+                    state = pullState,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = SacredGold,
+                    contentColor = CosmicDeepBlue
+                )
             }
         }
     }
@@ -585,6 +740,55 @@ fun AiChatScreen(
             snackbarHostState.showSnackbar(W.t("chat_saved"))
             showSaveConfirm = false
         }
+    }
+
+    // Pull-to-refresh guard: the open session has local messages that were
+    // never saved — confirm before the reload discards them.
+    if (showRefreshConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRefreshConfirm = false },
+            title = {
+                Text(
+                    W.t("chat_refresh_discard_title"),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    W.t("chat_refresh_discard_msg"),
+                    fontSize = 13.5.sp,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRefreshConfirm = false
+                        // Forced refresh: run with the spinner on, but keep the
+                        // auto-refresh effect from firing a second refresh.
+                        scope.launch {
+                            suppressAutoRefresh = true
+                            pullState.startRefresh()
+                            doRefresh(force = true)
+                            pullState.endRefresh()
+                            suppressAutoRefresh = false
+                        }
+                    }
+                ) {
+                    Text(
+                        W.t("chat_refresh_discard_yes"),
+                        color = SacredGold,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRefreshConfirm = false }) {
+                    Text(W.t("chat_cancel"))
+                }
+            }
+        )
     }
 }
 
@@ -806,7 +1010,9 @@ private fun ChatBubble(
     message: ChatMessage,
     text: String = message.message,
     showNameLabel: Boolean = true,
-    showTimestamp: Boolean = true
+    showTimestamp: Boolean = true,
+    replyToText: String? = null,
+    replyToIsUser: Boolean? = null
 ) {
     val isUser = message.isUser
     Column(
@@ -820,6 +1026,15 @@ private fun ChatBubble(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+            )
+        }
+        // Reply threading: the quoted original renders as a small card
+        // above the reply bubble.
+        if (replyToText != null) {
+            ReplyQuoteCard(
+                senderLabel = if (replyToIsUser == true) W.t("chat_you") else W.t("chat_ai_name"),
+                snippet = replyToText,
+                modifier = Modifier.padding(bottom = 6.dp)
             )
         }
         Surface(
@@ -848,6 +1063,311 @@ private fun ChatBubble(
                 fontSize = 10.5.sp,
                 modifier = Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
             )
+        }
+    }
+}
+
+/** Day label for a date separator: Today / Yesterday / d MMM yyyy. */
+private fun dayLabel(dayKey: String, timestamp: Long): String {
+    if (dayKey == dayKeyFormat.format(Date())) return W.t("chat_today")
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.DAY_OF_YEAR, -1)
+    if (dayKey == dayKeyFormat.format(cal.time)) return W.t("chat_yesterday")
+    return dayDisplayFormat.format(Date(timestamp))
+}
+
+/** Centered day separator pill between messages from different days. */
+@Composable
+private fun DateSeparator(label: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Surface(
+            color = StarlightWhite.copy(alpha = 0.08f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text(
+                text = label,
+                color = StarlightWhite.copy(alpha = 0.55f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Long-press wrapper for any message: shows the context menu with
+ * Copy / Reply / "Ask AI about this". The menu anchors near the press point.
+ */
+@Composable
+private fun MessageWithMenu(
+    message: ChatMessage,
+    onCopy: () -> Unit,
+    onReply: () -> Unit,
+    onAsk: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    var showMenu by remember(message.id) { mutableStateOf(false) }
+    var pressOffset by remember(message.id) { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Accessibility: TalkBack announces the long-press action.
+                .semantics(mergeDescendants = true) {
+                    onLongClick(label = W.t("chat_msg_menu_cd")) {
+                        pressOffset = Offset.Zero
+                        showMenu = true
+                        true
+                    }
+                }
+                .pointerInput(message.id) {
+                    detectTapGestures(
+                        onLongPress = { offset ->
+                            pressOffset = offset
+                            showMenu = true
+                        }
+                    )
+                }
+        ) {
+            content()
+        }
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            offset = with(density) {
+                DpOffset(
+                    pressOffset.x.toDp().coerceAtLeast(0.dp),
+                    pressOffset.y.toDp().coerceAtLeast(0.dp)
+                )
+            }
+        ) {
+            DropdownMenuItem(
+                text = { Text(W.t("chat_ctx_copy"), fontSize = 14.sp) },
+                onClick = { showMenu = false; onCopy() },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = null,
+                        tint = SacredGold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(W.t("chat_ctx_reply"), fontSize = 14.sp) },
+                onClick = { showMenu = false; onReply() },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Reply,
+                        contentDescription = null,
+                        tint = SacredGold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text(W.t("chat_ctx_ask"), fontSize = 14.sp) },
+                onClick = { showMenu = false; onAsk() },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = SacredGold,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            )
+        }
+    }
+}
+
+/**
+ * The quoted original above a reply: gold accent bar, sender label,
+ * 2-line snippet. Used both on sent replies and in the reply draft bar.
+ */
+@Composable
+private fun ReplyQuoteCard(
+    senderLabel: String,
+    snippet: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .widthIn(max = 300.dp)
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(8.dp))
+            .background(StarlightWhite.copy(alpha = 0.07f))
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(SacredGold)
+        )
+        Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)) {
+            Text(
+                text = senderLabel,
+                color = SacredGold,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = snippet,
+                color = StarlightWhite.copy(alpha = 0.75f),
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/** Reply draft bar above the input: quoted message + cancel. */
+@Composable
+private fun ReplyDraftBar(
+    replyingTo: ChatMessage,
+    onCancel: () -> Unit
+) {
+    Surface(color = CosmicNavy, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ReplyQuoteCard(
+                senderLabel = W.tf(
+                    "chat_replying_to",
+                    if (replyingTo.isUser) W.t("chat_you") else W.t("chat_ai_name")
+                ),
+                snippet = replyingTo.message,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = W.t("chat_close"),
+                    tint = StarlightWhite.copy(alpha = 0.6f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+/** "Ask AI about this" pending-reference chip above the input. */
+@Composable
+private fun AskContextBar(
+    askContext: String,
+    onCancel: () -> Unit
+) {
+    Surface(color = CosmicNavy, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = SacredGold.copy(alpha = 0.10f),
+                modifier = Modifier
+                    .weight(1f)
+                    .border(1.dp, SacredGold.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = SacredGold,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = W.t("chat_asking_about"),
+                            color = SacredGold,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = askContext,
+                        color = StarlightWhite.copy(alpha = 0.8f),
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = W.t("chat_close"),
+                    tint = StarlightWhite.copy(alpha = 0.6f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+/** Inline send-error card with a retry button (above the input bar). */
+@Composable
+private fun SendErrorBar(
+    errorText: String,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Surface(
+        color = Color(0xFFFF8A80).copy(alpha = 0.10f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .border(
+                1.dp,
+                Color(0xFFFF8A80).copy(alpha = 0.45f),
+                RoundedCornerShape(12.dp)
+            )
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, top = 6.dp, bottom = 6.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = errorText,
+                color = Color(0xFFFF8A80),
+                fontSize = 12.5.sp,
+                lineHeight = 18.sp,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onRetry) {
+                Text(
+                    W.t("chat_retry"),
+                    color = SacredGold,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+            }
+            IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = W.t("chat_close"),
+                    tint = Color(0xFFFF8A80).copy(alpha = 0.7f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }
@@ -1048,7 +1568,9 @@ private fun ChatInputBar(
     onMicClick: () -> Unit,
     isListening: Boolean,
     onPhotoClick: () -> Unit,
-    enabled: Boolean
+    enabled: Boolean,
+    focusRequester: FocusRequester = FocusRequester(),
+    hint: String = ""
 ) {
     Surface(
         color = CosmicNavy,
@@ -1089,7 +1611,7 @@ private fun ChatInputBar(
                 onValueChange = onValueChange,
                 placeholder = {
                     Text(
-                        W.t("chat_input_hint"),
+                        hint.ifBlank { W.t("chat_input_hint") },
                         color = StarlightWhite.copy(alpha = 0.4f),
                         fontSize = 14.sp
                     )
@@ -1107,7 +1629,9 @@ private fun ChatInputBar(
                     disabledIndicatorColor = Color.Transparent
                 ),
                 shape = RoundedCornerShape(26.dp),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
                 enabled = enabled,
                 maxLines = 5,
                 keyboardOptions = KeyboardOptions(

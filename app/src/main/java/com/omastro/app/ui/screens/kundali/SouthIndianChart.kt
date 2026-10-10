@@ -115,18 +115,26 @@ private fun SouthIndianCell(
             }
         }
         Spacer(modifier = Modifier.height(2.dp))
-        planets.take(4).forEach { planet ->
+        // Crowded cells: shrink the planet labels instead of cutting them
+        // off early, so every planet stays visible.
+        val planetSize = when {
+            planets.size <= 3 -> 12.sp
+            planets.size <= 5 -> 10.5.sp
+            else -> 9.sp
+        }
+        planets.take(6).forEach { planet ->
             val glyph = planet.symbol.ifBlank { planetGlyphFallback(planet.name) }
             Text(
                 text = glyph + if (planet.isRetrograde()) " (R)" else "",
                 color = StarlightWhite,
-                fontSize = 12.sp,
+                fontSize = planetSize,
                 fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                maxLines = 1
             )
         }
-        if (planets.size > 4) {
-            Text("+${planets.size - 4} more", color = TextSecondary, fontSize = 8.sp)
+        if (planets.size > 6) {
+            Text("+${planets.size - 6} more", color = TextSecondary, fontSize = 8.sp)
         }
     }
 }

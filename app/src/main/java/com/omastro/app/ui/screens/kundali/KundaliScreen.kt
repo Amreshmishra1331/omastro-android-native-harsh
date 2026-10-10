@@ -712,7 +712,7 @@ internal fun LazyListScope.chartsTab(
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text(
-                        if (style == "North Indian") "North Indian Diamond" else "South Indian Grid",
+                        if (style == "North Indian") W.t("kundali_chart_north") else W.t("kundali_chart_south"),
                         color = if (selected) CosmicDeepBlue else StarlightWhite,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
@@ -724,7 +724,11 @@ internal fun LazyListScope.chartsTab(
 
     item {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            val divs = listOf("D1" to "D1 · Lagna", "D9" to "D9 · Navamsha", "D10" to "D10 · Dashamsha")
+            val divs = listOf(
+                "D1" to W.t("kundali_pill_d1"),
+                "D9" to W.t("kundali_pill_d9"),
+                "D10" to W.t("kundali_pill_d10")
+            )
             items(divs) { (code, label) ->
                 val isSelected = div == code
                 Surface(
@@ -751,14 +755,30 @@ internal fun LazyListScope.chartsTab(
             SouthIndianChart(
                 planets = southPlanetsFor(kundali, div),
                 ascendantSign = southLagnaFor(kundali, div),
-                chartTitle = "South Indian — $div Chart"
+                chartTitle = W.tf(
+                    "kundali_chart_title",
+                    W.t("kundali_chart_south"),
+                    when (div) {
+                        "D9" -> W.t("kundali_pill_d9")
+                        "D10" -> W.t("kundali_pill_d10")
+                        else -> W.t("kundali_pill_d1")
+                    }
+                )
             )
         } else {
             val (lagnaSign, marks) = northMarksFor(kundali, div)
             VedicDiamondChart(
                 lagnaSign = lagnaSign,
                 housePlanets = marks,
-                chartTitle = "North Indian Diamond — $div Chart"
+                chartTitle = W.tf(
+                    "kundali_chart_title",
+                    W.t("kundali_chart_north"),
+                    when (div) {
+                        "D9" -> W.t("kundali_pill_d9")
+                        "D10" -> W.t("kundali_pill_d10")
+                        else -> W.t("kundali_pill_d1")
+                    }
+                )
             )
         }
     }
@@ -781,13 +801,17 @@ internal fun LazyListScope.chartsTab(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "House ${h.number} · ${h.rashi}${if (h.rashiHi.isNotBlank()) " (${h.rashiHi})" else ""}",
+                                    W.tf(
+                                        "kundali_house_fmt",
+                                        h.number,
+                                        "${h.rashi}${if (h.rashiHi.isNotBlank()) " (${h.rashiHi})" else ""}"
+                                    ),
                                     color = StarlightWhite,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp
                                 )
                                 Text(
-                                    "Lord: ${h.lord}${if (h.sav > 0) "  ·  ${h.sav} bindus" else ""}",
+                                    W.tf("kundali_lord_fmt", h.lord) + if (h.sav > 0) "  ·  ${h.sav} bindus" else "",
                                     color = TextSecondary,
                                     fontSize = 11.sp
                                 )
@@ -1397,7 +1421,7 @@ private fun LazyListScope.ashtakavargaTab(
                     )
                 }
                 Text(
-                    av?.savTotal?.let { "Average ${it / 12} per house" } ?: "—",
+                    av?.savTotal?.let { W.tf("kundali_avg_per_house", it / 12) } ?: "—",
                     color = TextSecondary,
                     fontSize = 11.sp
                 )

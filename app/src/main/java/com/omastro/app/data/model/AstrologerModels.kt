@@ -1,6 +1,7 @@
 package com.omastro.app.data.model
 
 import com.google.gson.annotations.SerializedName
+import kotlin.jvm.Transient
 
 /**
  * Astrologer model matching the real production API:
@@ -52,7 +53,15 @@ data class ChatMessage(
     @SerializedName("sender_id") val senderId: String,
     @SerializedName("is_user") val isUser: Boolean,
     @SerializedName("message") val message: String,
-    @SerializedName("timestamp") val timestamp: Long = System.currentTimeMillis()
+    @SerializedName("timestamp") val timestamp: Long = System.currentTimeMillis(),
+    /**
+     * Local-only reply threading: a snapshot of the quoted message's text and
+     * sender. Display metadata only — never serialized to the server and not
+     * part of the saved-session payload (the server history already carries
+     * the original message text).
+     */
+    @Transient val replyToText: String? = null,
+    @Transient val replyToIsUser: Boolean? = null
 )
 
 data class SendMessageRequest(

@@ -147,17 +147,19 @@ internal fun KxChartPair(
         KxEmpty(W.t("kundali_empty_section"))
         return
     }
+    val styleName = if (chartStyle == "South Indian") W.t("kundali_chart_south")
+    else W.t("kundali_chart_north")
     if (chartStyle == "South Indian") {
         SouthIndianChart(
             planets = kxSouthPlanets(houses),
             ascendantSign = lagnaIndex,
-            chartTitle = "South Indian — $title"
+            chartTitle = W.tf("kundali_chart_title", styleName, title)
         )
     } else {
         VedicDiamondChart(
             lagnaSign = lagnaIndex,
             housePlanets = kxNorthMarks(houses, symbolFor),
-            chartTitle = "North Indian Diamond — $title"
+            chartTitle = W.tf("kundali_chart_title", styleName, title)
         )
     }
 }
@@ -741,7 +743,7 @@ internal fun LazyListScope.navamshaTab(
             lagnaIndex = kundali.navamshaLagnaIndex(),
             symbolFor = symbolFor,
             chartStyle = chartStyle,
-            title = "Navamsha Chart (D9)"
+            title = W.t("kundali_d9_chart_title")
         )
     }
     item { KxLegendCard() }
@@ -910,14 +912,18 @@ private fun KarakamshaContent(data: JaiminiData, chartStyle: String) {
                         siPlanets.add(ApiPlanet(name = p.en, nameHi = p.hi, symbol = p.sym.ifBlank { planetGlyphFallback(p.en) }, rashiIndex = h.ri + 1))
                     }
                 }
-                SouthIndianChart(planets = siPlanets, ascendantSign = lagnaIdx, chartTitle = "South Indian — Karakamsha")
+                SouthIndianChart(
+                    planets = siPlanets,
+                    ascendantSign = lagnaIdx,
+                    chartTitle = W.tf("kundali_chart_title", W.t("kundali_chart_south"), W.t("kundali_tab_3"))
+                )
             } else {
                 VedicDiamondChart(
                     lagnaSign = lagnaIdx,
                     housePlanets = houseInfos.associate { hi ->
                         hi.number to hi.planets.map { p -> PlanetMark(p.name, symbolFor(p.name)) }
                     },
-                    chartTitle = "North Indian Diamond — Karakamsha"
+                    chartTitle = W.tf("kundali_chart_title", W.t("kundali_chart_north"), W.t("kundali_tab_3"))
                 )
             }
             KxLegendCard()
@@ -1098,7 +1104,7 @@ internal fun LazyListScope.divisionalTab(
             lagnaIndex = kxLagnaIndex(varga.houses, varga.lagnaRashi),
             symbolFor = symbolFor,
             chartStyle = chartStyle,
-            title = varga.title.ifBlank { "$active Chart" }
+            title = varga.title.ifBlank { W.tf("kundali_varga_chart_title", active) }
         )
     }
     item { KxLegendCard() }
@@ -2475,7 +2481,13 @@ private fun remedyKey(planetName: String): String {
     }
 }
 
-private val REMEDY_SUBTABS = listOf("Ratna", "Rudraksh", "Dhatu", "Jad", "Vedic Upay")
+private val REMEDY_SUBTAB_KEYS = listOf(
+    "kundali_remedy_tab_ratna",
+    "kundali_remedy_tab_rudraksh",
+    "kundali_remedy_tab_dhatu",
+    "kundali_remedy_tab_jad",
+    "kundali_remedy_tab_vedic"
+)
 
 internal fun LazyListScope.remediesTab(
     kundali: KundaliResponse?,
@@ -2505,7 +2517,7 @@ internal fun LazyListScope.remediesTab(
         var selected by remember { mutableStateOf(0) }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(REMEDY_SUBTABS.size) { i ->
+                items(REMEDY_SUBTAB_KEYS.size) { i ->
                     val isSelected = selected == i
                     Surface(
                         shape = RoundedCornerShape(14.dp),
@@ -2513,7 +2525,7 @@ internal fun LazyListScope.remediesTab(
                         modifier = Modifier.clickable { selected = i }
                     ) {
                         Text(
-                            REMEDY_SUBTABS[i],
+                            W.t(REMEDY_SUBTAB_KEYS[i]),
                             color = if (isSelected) CosmicDeepBlue else StarlightWhite,
                             fontWeight = FontWeight.Bold, fontSize = 11.sp,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)

@@ -4,6 +4,47 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Advanced AI Chat (message actions, reply threading, date separators, pull-to-refresh) + premium Kundali diamond chart
+
+Two features in one pass. Calculation stays server-side; the app remains a render-only layer over REST.
+
+### FEATURE 1 — Advanced AI Chat
+
+### Before
+- **No message actions**: long-pressing a message did nothing — no way to copy text, quote-reply, or ask a follow-up about a specific message.
+- **No reply threading**: no visual link between a question and the message it answers.
+- **No date separators**: long conversations spanning days had no day boundaries; only per-message timestamps existed.
+- **No history reload**: the only way to re-sync a saved session was to close and reopen it from Saved Chats.
+- **Send failures went to a snackbar only**: a failed send showed a transient snackbar with no retry affordance — the typed message was effectively lost from the flow.
+
+### After (`ui/screens/aichat/AiChatScreen.kt`, `AiChatViewModel.kt`, `data/model/AstrologerModels.kt`)
+- **Long-press context menu** on every message (user + AI): **Copy** (clipboard + confirmation snackbar), **Reply**, **"Ask AI about this"** — anchored near the press point via `detectTapGestures` + `DropdownMenu`.
+- **Reply threading**: choosing Reply shows a draft bar above the input ("Replying to You / AI Jyotishi" + snippet, cancellable); the sent message carries a `replyToText`/`replyToIsUser` snapshot (`@Transient` — display-only, never sent to the server) rendered as a small gold-accent quote card above the reply bubble.
+- **"Ask AI about this"**: the selected message text is staged as `askContext`, shown as a chip above the input (cancellable, input hint changes to "Type your follow-up question..."), sent as a `--- Message the user is asking about ---` context block with the next question, then cleared. Follows the existing photo-context handoff pattern.
+- **Date separators**: messages are grouped by calendar day in a flat list (`ChatListItem.Day` / `ChatListItem.Message`); separators show Today / Yesterday / d MMM yyyy, bilingual.
+- **Pull-to-refresh** (Material3 1.2 `pulltorefresh`, matching BOM 2024.04.01): reloads the open *saved* session's history from the server. Honest guards — unsaved chat: snackbar "nothing to reload"; local messages newer than the last save/load: a confirm dialog before discarding ("Refreshing will reload the saved version and discard messages sent since the last save."); failures: snackbar with the server message.
+- **Inline send-error card with Retry**: send failures now set `failedMessage`/`sendErrorText` (no more snackbar-only failure); the card above the input shows the friendly error with **Retry** (re-sends) and dismiss. A fresh send clears the card.
+- Kept as-is: timestamps on every message, animated typing indicator, auto-scroll to bottom (now targets the flat list incl. separators), `imePadding()` keyboard avoidance, multi-bubble AI reveal, empty state.
+- **Bilingual**: 18 new `chat_*` keys in `FeatureStrings.kt` (EN + हिन्दी), auto-following the Settings language. No emojis.
+
+### FEATURE 2 — Kundali chart visual polish + 23-tab audit
+
+### Before
+- **Flat-looking diamond chart**: single-weight lines, planet glyphs concatenated into one string per house (crowded houses overlapped), floating "Lg" text, hard-coded English title/legend ("North Indian Diamond — D1 Chart", "Lg = Lagna • ..."), fixed text sizes.
+- **Hardcoded English labels** around the chart: style buttons ("North Indian Diamond"/"South Indian Grid"), D1/D9/D10 pills, house rows ("House 1 · ...", "Lord: ..."), Karakamsha chart titles, remedy sub-tabs.
+
+### After (`ui/components/VedicDiamondChart.kt` rewritten, `SouthIndianChart.kt`, `KundaliScreen.kt`, `KundaliExtendedTabs.kt`)
+- **Premium diamond chart**: layered crisp lines (4px outer border + hairline inner frame + 2.6px diagonals/diamond, all anti-aliased gold), subtle alternating gold cell tints, soft radial gold glow behind the chart, vertical-gradient card, small gold diamond center emblem.
+- **Smart label placement, zero overlap**: each house has a measured content region (wide for diamond houses, narrow for corner triangles); the rashi glyph renders large gold; planet glyphs flow in rows of up to 3 (2 in narrow cells) measured with the real `Paint` — the font auto-shrinks (42 → 34 → 28 → 17px floor) until every row fits the cell; house numbers sit top-left of the content stack (always inside the cell); house 1 gets a gold pill "Lg" badge instead of floating text. All sizes scale with canvas width (`k = w/1000f`) — crisp on any screen.
+- **South Indian chart**: crowded cells shrink planet labels (12 → 10.5 → 9sp) and show up to 6 planets before "+N more" (was 4).
+- **Bilingual chart UI**: 17 new `kundali_*` keys (EN + हिन्दी) — chart titles ("%1$s — %2$s" format), legend, style buttons, D1/D9/D10 pills, house rows, "Average N per house", remedy sub-tabs. Auto-follows Settings language.
+- **23-tab audit** (Birth Info, Birth Chart, Navamsha, Karakamsha, Chandra/Surya/Chalit, Divisional D1–D60, Dasha, Ashtakavarga, Sodasvarga, Yogas, Doshas, Personality, Planets, Panchang, Shadbal, BNN, Lal Kitab, Numerology, Char Dasha, Faladesh, Remedies): every tab renders completely — all have loading / error-with-retry / honest empty states; wide tables (12-col planets, sodasvarga, shadbal) horizontal-scroll with hints; no fixed-height text clipping; tab switching via `ScrollableTabRow`; back navigation from the screen top bar on every tab. Website parity: the public website kundali page is only the birth-details form (report sections are behind the authenticated report flow); the app's 23 tabs already mirror the website's known analysis surface from the earlier parity pass — no missing sections found, nothing added.
+- No emojis anywhere. All data rendered is server-provided; nothing is computed or fabricated client-side.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (no Android SDK, no dependency cache, sandbox blocks the Gradle distribution/dependency downloads — same limitation class as previous entries). Substitute verification: Kotlin-aware tokenizer balance check passes (braces/parens/brackets) on all 7 edited files; zero remaining references to removed identifiers (`REMEDY_SUBTABS`, old hardcoded titles); all 35 new string keys resolve exactly once in each of the HI and EN maps and every one is used; new Material3 1.2 `pulltorefresh` API usage matches the BOM 2024.04.01 (material3 1.2.x) documented recipe; `data object`/`sealed interface` already used elsewhere in the codebase (Kotlin 1.9.23); Canvas geometry (cell polygons, anchors) derived from the actual North-Indian chart line intersections. CI (`assembleDebug` + `assembleRelease` on push to main) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) long-press menu appears on user and AI messages with working Copy/Reply/Ask, (2) quoted replies render above the reply bubble, (3) date separators appear across days, (4) pull-to-refresh reloads a saved session and the discard dialog appears with unsaved messages, (5) send-failure card shows with working Retry, (6) the diamond chart shows no overlapping labels in crowded houses (e.g. 4+ planets), (7) हिन्दी switches all new strings, (8) dark mode stays consistent.
+
 ## [2026-10-10] — Vastu compass: direction-granularity selector (4/8/10/16) replaces style switcher
 
 User directive (correction): "He did NOT want 4 visual styles. He wants compasses by DIRECTION COUNT." The website already does this — the compass now offers 4 / 8 / 10 / 16 direction counts instead of the classic/minimal/mandala/digital visual styles.
