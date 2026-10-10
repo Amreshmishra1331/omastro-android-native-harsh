@@ -4,6 +4,14 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Audit Loop Cycle 2: bilingual Hindi+English (8 screens)
+
+### Fixed
+**Before:** Settings, Saved Charts, Panchang, Notifications, Muhurat, Matchmaking, Kundali birth form, and Astro Health had hardcoded English strings — Hindi users saw English UI.
+**After:** All user-visible strings now use `W.t()` with 40+ new Hindi translations in `FeatureStrings.kt`. Auto-follows the Settings language; no per-screen toggle.
+
+---
+
 ## [2026-10-10] — Audit Loop Cycle 1: billing + honesty + UI fixes
 
 ### Fixed (critical)
