@@ -3,7 +3,6 @@
 All notable changes to the native Android app. Each entry lists what was broken or missing, what was removed, and what was added.
 
 ---
----
 
 ## [2026-10-10] — Audit Loop Cycle 1: billing + honesty + UI fixes
 
@@ -16,10 +15,10 @@ All notable changes to the native Android app. Each entry lists what was broken 
 **After:** Token is synced via `AuthRepository.updateFcmToken()` on every cold start. (`OmAstroApp.kt`)
 
 **Before:** Kundali + Astro Health forms silently defaulted to Delhi coordinates (28.6139/77.2090) when blank — users got a Delhi chart without being told.
-**After:** Silent defaults removed; form validation already requires explicit place selection ("Please enter the place of birth"). (`KundaliScreen.kt`, `AstroHealthScreen.kt`)
+**After:** Silent defaults removed; form validation already requires explicit place selection. (`KundaliScreen.kt`, `AstroHealthScreen.kt`)
 
 **Before:** "Pay above ₹100 → double credit" advertised but no >₹100 pack purchasable.
-**After:** Added ₹200 → ₹400 pack (`slab_200`); backend `kg_wallet_quote` verified to double above ₹100. (`WalletRepository.kt`)
+**After:** Added ₹200 → ₹400 pack (`slab_200`); backend verified to double above ₹100. (`WalletRepository.kt`)
 
 **Before:** Settings had duplicate rows ("Wallet Balance & Add Money" + "Activity History") both navigating to wallet.
 **After:** Removed the redundant "Activity History" row. (`SettingsScreen.kt`)
@@ -27,9 +26,269 @@ All notable changes to the native Android app. Each entry lists what was broken 
 **Before:** `FlutterOrange` color constants in a Kotlin app; `FaceReadingScreen` misused palm i18n key `palm_detailed`.
 **After:** Renamed to `SaffronOrange`/`SaffronOrangeDeep`; added proper `face_detailed` key (EN+HI). (`AuthScreen.kt`, `FaceReadingScreen.kt`, `FeatureStrings.kt`)
 
-### Deferred (need backend/product confirmation)
-- Refer & Earn implementation; free-chat minutes logic; full bilingual literal sweep (8 screens) — flagged for next cycle.
+---
 
+## [2026-10-10] — Advanced AI Chat (message actions, reply threading, date separators, pull-to-refresh) + premium Kundali diamond chart
+
+Two features in one pass. Calculation stays server-side; the app remains a render-only layer over REST.
+
+### FEATURE 1 — Advanced AI Chat
+
+### Before
+- **No message actions**: long-pressing a message did nothing — no way to copy text, quote-reply, or ask a follow-up about a specific message.
+- **No reply threading**: no visual link between a question and the message it answers.
+- **No date separators**: long conversations spanning days had no day boundaries; only per-message timestamps existed.
+- **No history reload**: the only way to re-sync a saved session was to close and reopen it from Saved Chats.
+- **Send failures went to a snackbar only**: a failed send showed a transient snackbar with no retry affordance — the typed message was effectively lost from the flow.
+
+### After (`ui/screens/aichat/AiChatScreen.kt`, `AiChatViewModel.kt`, `data/model/AstrologerModels.kt`)
+- **Long-press context menu** on every message (user + AI): **Copy** (clipboard + confirmation snackbar), **Reply**, **"Ask AI about this"** — anchored near the press point via `detectTapGestures` + `DropdownMenu`.
+- **Reply threading**: choosing Reply shows a draft bar above the input ("Replying to You / AI Jyotishi" + snippet, cancellable); the sent message carries a `replyToText`/`replyToIsUser` snapshot (`@Transient` — display-only, never sent to the server) rendered as a small gold-accent quote card above the reply bubble.
+- **"Ask AI about this"**: the selected message text is staged as `askContext`, shown as a chip above the input (cancellable, input hint changes to "Type your follow-up question..."), sent as a `--- Message the user is asking about ---` context block with the next question, then cleared. Follows the existing photo-context handoff pattern.
+- **Date separators**: messages are grouped by calendar day in a flat list (`ChatListItem.Day` / `ChatListItem.Message`); separators show Today / Yesterday / d MMM yyyy, bilingual.
+- **Pull-to-refresh** (Material3 1.2 `pulltorefresh`, matching BOM 2024.04.01): reloads the open *saved* session's history from the server. Honest guards — unsaved chat: snackbar "nothing to reload"; local messages newer than the last save/load: a confirm dialog before discarding ("Refreshing will reload the saved version and discard messages sent since the last save."); failures: snackbar with the server message.
+- **Inline send-error card with Retry**: send failures now set `failedMessage`/`sendErrorText` (no more snackbar-only failure); the card above the input shows the friendly error with **Retry** (re-sends) and dismiss. A fresh send clears the card.
+- Kept as-is: timestamps on every message, animated typing indicator, auto-scroll to bottom (now targets the flat list incl. separators), `imePadding()` keyboard avoidance, multi-bubble AI reveal, empty state.
+- **Bilingual**: 18 new `chat_*` keys in `FeatureStrings.kt` (EN + हिन्दी), auto-following the Settings language. No emojis.
+
+### FEATURE 2 — Kundali chart visual polish + 23-tab audit
+
+### Before
+- **Flat-looking diamond chart**: single-weight lines, planet glyphs concatenated into one string per house (crowded houses overlapped), floating "Lg" text, hard-coded English title/legend ("North Indian Diamond — D1 Chart", "Lg = Lagna • ..."), fixed text sizes.
+- **Hardcoded English labels** around the chart: style buttons ("North Indian Diamond"/"South Indian Grid"), D1/D9/D10 pills, house rows ("House 1 · ...", "Lord: ..."), Karakamsha chart titles, remedy sub-tabs.
+
+### After (`ui/components/VedicDiamondChart.kt` rewritten, `SouthIndianChart.kt`, `KundaliScreen.kt`, `KundaliExtendedTabs.kt`)
+- **Premium diamond chart**: layered crisp lines (4px outer border + hairline inner frame + 2.6px diagonals/diamond, all anti-aliased gold), subtle alternating gold cell tints, soft radial gold glow behind the chart, vertical-gradient card, small gold diamond center emblem.
+- **Smart label placement, zero overlap**: each house has a measured content region (wide for diamond houses, narrow for corner triangles); the rashi glyph renders large gold; planet glyphs flow in rows of up to 3 (2 in narrow cells) measured with the real `Paint` — the font auto-shrinks (42 → 34 → 28 → 17px floor) until every row fits the cell; house numbers sit top-left of the content stack (always inside the cell); house 1 gets a gold pill "Lg" badge instead of floating text. All sizes scale with canvas width (`k = w/1000f`) — crisp on any screen.
+- **South Indian chart**: crowded cells shrink planet labels (12 → 10.5 → 9sp) and show up to 6 planets before "+N more" (was 4).
+- **Bilingual chart UI**: 17 new `kundali_*` keys (EN + हिन्दी) — chart titles ("%1$s — %2$s" format), legend, style buttons, D1/D9/D10 pills, house rows, "Average N per house", remedy sub-tabs. Auto-follows Settings language.
+- **23-tab audit** (Birth Info, Birth Chart, Navamsha, Karakamsha, Chandra/Surya/Chalit, Divisional D1–D60, Dasha, Ashtakavarga, Sodasvarga, Yogas, Doshas, Personality, Planets, Panchang, Shadbal, BNN, Lal Kitab, Numerology, Char Dasha, Faladesh, Remedies): every tab renders completely — all have loading / error-with-retry / honest empty states; wide tables (12-col planets, sodasvarga, shadbal) horizontal-scroll with hints; no fixed-height text clipping; tab switching via `ScrollableTabRow`; back navigation from the screen top bar on every tab. Website parity: the public website kundali page is only the birth-details form (report sections are behind the authenticated report flow); the app's 23 tabs already mirror the website's known analysis surface from the earlier parity pass — no missing sections found, nothing added.
+- No emojis anywhere. All data rendered is server-provided; nothing is computed or fabricated client-side.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (no Android SDK, no dependency cache, sandbox blocks the Gradle distribution/dependency downloads — same limitation class as previous entries). Substitute verification: Kotlin-aware tokenizer balance check passes (braces/parens/brackets) on all 7 edited files; zero remaining references to removed identifiers (`REMEDY_SUBTABS`, old hardcoded titles); all 35 new string keys resolve exactly once in each of the HI and EN maps and every one is used; new Material3 1.2 `pulltorefresh` API usage matches the BOM 2024.04.01 (material3 1.2.x) documented recipe; `data object`/`sealed interface` already used elsewhere in the codebase (Kotlin 1.9.23); Canvas geometry (cell polygons, anchors) derived from the actual North-Indian chart line intersections. CI (`assembleDebug` + `assembleRelease` on push to main) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) long-press menu appears on user and AI messages with working Copy/Reply/Ask, (2) quoted replies render above the reply bubble, (3) date separators appear across days, (4) pull-to-refresh reloads a saved session and the discard dialog appears with unsaved messages, (5) send-failure card shows with working Retry, (6) the diamond chart shows no overlapping labels in crowded houses (e.g. 4+ planets), (7) हिन्दी switches all new strings, (8) dark mode stays consistent.
+
+## [2026-10-10] — Vastu compass: direction-granularity selector (4/8/10/16) replaces style switcher
+
+User directive (correction): "He did NOT want 4 visual styles. He wants compasses by DIRECTION COUNT." The website already does this — the compass now offers 4 / 8 / 10 / 16 direction counts instead of the classic/minimal/mandala/digital visual styles.
+
+### Before
+- **Wrong concept**: the compass had a 4-way *visual style* switcher (Classic, Minimal, Mandala, Digital) — four different looks at the same 8 directions. The user never asked for styles; he asked for compasses by direction count.
+- **No 4/16-direction support**: only 8 sectors (N, NE, E, SE, S, SW, W, NW) existed; no 4-direction (90° sectors), no 16-direction (22.5° sectors), no 10-direction (8 + Urdhva/Adho).
+- **Dikpala lords only on one style**: guardian-deity names appeared only in the Mandala visual style.
+
+### After
+- **Granularity selector** (`CompassModeScreen.kt`): 4 / 8 / 10 / 16 buttons with a bilingual "Compass directions" / "कम्पास दिशाएँ" label. One dial renders exactly the selected number of sectors; the live sector glows gold.
+  - **4-direction**: N/E/S/W only (90° sectors).
+  - **8-direction**: N, NE, E, SE, S, SW, W, NW (45° sectors) with dikpala lord names (Kubera, Ishana, Indra, Agni, Yama, Nirriti, Varuna, Vayu) under each sector.
+  - **10-direction**: the 8-direction ring plus a center ↑ Urdhva (Up) · ↓ Adho (Down) indicator, with an honest note: up/down cannot be measured by the phone's sensor — shown for Vastu reference only. The live heading always maps to one of the 8 ring sectors.
+  - **16-direction**: N, NNE, NE, ENE, E, ESE, SE, SSE, S, SSW, SW, WSW, W, WNW, NW, NNW (22.5° sectors).
+- **Correct sector mapping** (`CompassSensor.kt`, new `granularCode()`): the live heading maps to the exact sector for the selected granularity at every degree; the dial, the readout, and the photo stamp all show the precise granular sector (e.g. NNE).
+- **"Use This Direction" passes the right code**: the Vastu form's facing field and the backend engine use the classical 8 directions (same as the website's 8-option facing select — a 16-direction code would be silently dropped by the backend), so the button passes the nearest 8-direction code at every granularity while its label shows the precise granular direction.
+- **Photo capture unchanged**: shutter button, direction-stamped photo (now stamped with the granular direction name + code + degrees), gallery save, and hand-off to house-map analysis all work as before.
+- **Bilingual**: new `vastu_compass_granularity`, `vastu_compass_up_down`, `vastu_compass_up_down_note` keys plus 16-direction direction names (EN + हिन्दी) in `FeatureStrings.kt`; dead `vastu_compass_style_*` keys removed. No emojis.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox blocks inter-process TCP, so the Gradle daemon handshake fails — same limitation class as previous entries). Substitute verification: brace/paren/bracket deltas are 0 in all 3 edited files; zero remaining references to `CompassStyle`, the 4 deleted dials, or `vastu_compass_style_*` keys; all 3 new string keys resolve exactly once in each of the HI and EN maps; all 10 new direction codes resolve exactly once in each of the DIR_HI/DIR_EN maps; the sector math was verified independently in Python against the Kotlin formulas — an exhaustive 0.1° sweep over 0–360° maps every heading to its nearest sector center for 4/8/16, and exact boundary checks pass (4-direction boundaries at 45°/135°/225°/315°; 16-direction sector edges at ±11.25°, e.g. 11.25°→NNE, 348.75°→N). CI (`assembleDebug` + `assembleRelease` on push to main) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) each granularity button renders the correct sector count, (2) rotating the phone highlights the correct sector including NNE etc. at 16, (3) "Use This Direction" fills the facing field with the nearest 8-direction code, (4) the captured photo stamp shows the granular direction + degrees, (5) हिन्दी switches all new strings.
+
+## [2026-10-10] — App storage: on-device "My Data" for Kundali + readings + numerology
+
+User directive: "Native Apps me App storage ko focus karna. Recent kundali yesab data device storage me select honi chahiye. AI chat cloud me." The existing Room store (`reading_history.db`, vision readings only) is extended into a unified on-device "My Data": Kundali charts, numerology results, and reusable birth profiles are now saved on the device automatically. AI chat is deliberately NOT moved — it stays cloud-based, no chat changes in this entry.
+
+### Before
+- **Kundali had no local storage**: every chart was recomputed via POST /kundali when reopened (server-saved charts) or lost entirely when leaving the screen. No offline re-open path.
+- **Numerology results were ephemeral**: closing a tool screen discarded the result; no way to revisit a computed result.
+- **Birth details retyped every time**: the Kundali birth form had no saved profiles; repeat charts for the same person meant retyping name/dob/time/place/coordinates.
+- **History was vision-only**: `ReadingHistoryScreen` showed only Vastu/Palmistry/Face readings — no Kundali, no numerology, no unified view, no storage-usage info, no search, no clear-all.
+- **No storage management**: no visibility into how much space saved data uses; no bulk delete.
+
+### After
+- **Room DB v2** (`MyDataTables.kt`, `ReadingHistoryDatabase.kt`): three new tables with `MIGRATION_1_2` (vision_readings untouched) —
+  - `kundali_charts`: full `KundaliResponse` JSON (Gson, verbatim) + `KundaliRequest` JSON + denormalized birth columns (name, dob, tob, place, lat/lon, gender) for labels/search.
+  - `numerology_results`: full `ToolResult` JSON (Gson, verbatim) + inputs JSON + tool id/name.
+  - `birth_profiles`: reusable birth details (name label, dob, tob, place, lat/lon, gender).
+- **Auto-save** (fire-and-forget, never blocks UI, never fails loudly):
+  - `KundaliViewModel.fetchKundali` success → `MyDataRepository.saveKundali` (cap 50, oldest pruned).
+  - `NumerologyToolViewModel.calculate` success → `saveNumerology` (cap 50). `recalculate()` (Settings language change) and stored re-opens pass `saveLocal = false` so re-renders never write duplicates.
+  - Refusals and errors never reach the save calls — only successful results are stored.
+- **Instant re-open, zero re-computation** (`PendingLocalHolder.kt`):
+  - Saved Kundali → `KundaliViewModel.loadStoredKundali(id)` deserializes the stored request+response JSON and sets all 23 tabs directly; no API call. Dedicated lazy reports (Personality/BNN/Lal Kitab/Jaimini) were never stored — they lazy-load on tab select exactly like a fresh chart.
+  - Saved numerology result → `loadStoredResult(inputs, result)` re-renders the stored `ToolResult` verbatim and restores the form inputs; no re-compute.
+  - Vision readings keep their existing detail screen (already JSON-based, no re-analysis).
+- **Unified "My Data" screen** (new `ui/screens/mydata/MyDataScreen.kt`, route `my_data`): one list of ALL saved items — Kundalis, numerology, Vastu, Palmistry, Face — sorted by recency; type filter chips (All/Kundali/Numerology/Vastu/Palmistry/Face); search by name/label; long-press or delete-icon deletes with a confirm dialog; rename supported; vision thumbnails shown where available. One tap from the dashboard (new gold "My Data" card in the AI-readings section of the Home tab); also reachable from Kundali via the existing saved-charts bookmark.
+- **Storage management** (bilingual): header row shows real bytes used (DB file + WAL/SHM + thumbnails, e.g. "Storage used: 1.2 MB" / "उपयोग किया गया स्टोरेज: 1.2 MB"); "Clear all" / "सब हटाएं" with a confirmation dialog deletes every table and all thumbnails.
+- **Birth profiles on the Kundali form**: a profile card on the birth form shows the saved-profile count; "Choose a profile" opens the saved list (tap applies, delete icon removes); "Save as profile" stores the current form values under a user-chosen name after the same validation as Generate. Picking a profile fills name/dob/time/place/coordinates/gender — no retyping.
+- **Bilingual**: 25 new `mydata_*` + `profile_*` keys in `FeatureStrings.kt` (EN + हिन्दी), auto-following the Settings language. No emojis anywhere.
+- **AI chat untouched**: stays cloud-based per the user directive; no local chat storage added.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox blocks inter-process TCP, so the Gradle daemon handshake fails — same limitation class as previous entries; wrapper distribution is cached but the client/daemon cannot talk). Substitute verification: brace/paren counts balanced in all 13 touched/new files (deltas vs HEAD are exactly balanced; the two residual mismatches are byte-identical in the committed originals — pre-existing, from block-comment braces the checker mishandles); all 25 new `mydata_*`/`profile_*` keys resolve exactly once in both the HI and EN maps; `MIGRATION_1_2` DDL matches the three `@Entity` classes column-for-column (names, TEXT/INTEGER/REAL types, NOT NULL, PRIMARY KEY(id)); `MIGRATION_1_2` is registered via `addMigrations` on the v2 database; `filterChipBorder` call matches the M3 signature used in `MuhuratScreen.kt` (`enabled`/`selected`/`borderColor`/`selectedBorderColor`); `Screen.MyData` is registered in `MainActivity.kt`'s NavHost with all four open-callbacks wired; single `HomeTabContent` call site updated; `calculate()`'s only user-facing caller passes the default (save), `recalculate()` passes `saveLocal = false`. CI (`assembleDebug` on push to main) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) generating a Kundali then opening My Data shows it and tapping it re-opens all 23 tabs instantly with no network spinner, (2) a computed numerology result appears in My Data and re-opens verbatim, (3) saving/choosing a birth profile pre-fills the Kundali form, (4) search + filter chips + delete + rename + clear-all (with confirmation) behave, (5) storage-used shows a plausible size, (6) हिन्दी language switches all new strings, (7) upgrading from the v1 DB keeps existing vision readings (migration 1→2).
+
+## [2026-10-10] — Vision/photo AI: wallet billing UI + Settings language on all vision calls
+
+Backend wallet billing landed on the AI vision endpoints: palmistry, face reading, and vastu house-map photo are now PAID (charged from the wallet after a successful AI response; HTTP 402 `insufficient_balance` when the balance is too low), while the manual Vastu engine form stays free. The app now passes the Settings language on every vision call, shows prices on Analyze buttons, handles 402 with a bilingual Add-Money dialog, and refreshes the wallet balance from the server's post-charge figures.
+
+### Before
+- **No language param on vision calls**: `analyzePalmistry`, `analyzeFaceReading`, `analyzeVastuPhoto`, `aiVision` never sent `language`, so photo-AI replies fell back to the website `kg_lang` cookie / English even when the app was set to हिन्दी.
+- **No price visibility**: paid endpoints had no price on any Analyze button; users only discovered the charge (or a failure) after tapping.
+- **402 was a raw error**: an HTTP 402 surfaced as a generic "Request failed (HTTP 402)" string; no balance shown, no Add-Money path, and nothing stopped a retry.
+- **Wallet balance went stale**: the success fields `price_charged_paise` / `wallet_balance_paise` were ignored, so the wallet display only refreshed on a manual `/wallet/balance` reload.
+
+### After
+- **Language passing** (`OmAstroApiService.kt`, `VisionRepository.kt`): all four multipart vision endpoints (`analyzeVastuPhoto`, `analyzeVision`, `analyzePalmistry`, `analyzeFaceReading`) take a `language` part; the repository sends `LangPrefs.language.value` ("en"|"hi") on every call. Manual `/vastu/analyze` (free engine, no language param server-side) is unchanged.
+- **Price display** (bilingual, no emojis): Palmistry, Face Reading, and Vastu house-map-photo Analyze buttons now read "Analyze — ₹20" / "विश्लेषण करें — ₹20" (new `vision_btn_price` key, `W.tf`). The manual Vastu form button keeps its label plus a green "Free" / "मुफ़्त" badge (new `FreeBadge`, engine is free). Defaults are 2000 paise (₹20) each, read from the backend worker's billing files (`kg_rate_palmistry_paise`, `kg_rate_facereading_paise`, `kg_rate_vastu_photo_paise` — admin-editable); there is no `/vision/prices` endpoint yet, so the buttons use these defaults while the 402 dialog always shows the live server-reported price. Generic `/ai/vision` (AI-chat photo attach) is NOT billed server-side, so its button is unchanged.
+- **402 handling** (`VisionRepository.parseInsufficient`): HTTP 402 with `code: "insufficient_balance"` becomes `InsufficientBalanceException(pricePaise, balancePaise, serverMessage)`. Each ViewModel routes it to a new `insufficientBalance` UiState field; the screen shows the shared bilingual `InsufficientBalanceDialog` (new `ui/components/VisionBillingUi.kt`) with the price and current balance side by side, a prominent gold "Add Money" / "पैसे जोड़ें" button that navigates to the Wallet screen (`onOpenWallet` wired in `MainActivity.kt` for all three screens), and "Not now" / "अभी नहीं" to dismiss. The analysis is never retried.
+- **Wallet refresh** (`WalletRepository.applyServerBalance`): paid-vision success responses carry `price_charged_paise` / `wallet_balance_paise`; the repository applies the server's authoritative post-charge balance to the shared `AppContainer.walletRepository` flows, so the wallet display updates immediately with no extra round-trip.
+- **11 new bilingual strings** in `FeatureStrings.kt` (EN + हिन्दी): `vision_btn_price`, `vision_free`, `vision_price_word`, `vision_balance_word`, `vision_insuf_title`, `vision_insuf_body`, `vision_insuf_add`, `vision_insuf_later`, `vision_err_402`.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox intercepts HTTPS, so the Gradle wrapper cannot download the distribution — same limitation as previous entries). Substitute verification: brace/paren/bracket counts balanced in all 9 touched files (the PalmistryScreen imbalance is byte-identical to the committed original — pre-existing, from string-template braces the checker mishandles); all 9 new `vision_*` keys resolve exactly once in both the HI and EN maps; `langBody()` is passed at all 4 vision call sites; `onOpenWallet` is wired for Palmistry/FaceReading/Vastu in `MainActivity.kt`; no other callers of the three screens exist; the 402 JSON shape (`data.price_paise` / `data.balance_paise`) matches the backend's `kg_vision_require_balance` / `kg_vision_charge` responses in `billing-work/rest-*.php`. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) a Hindi-settings palmistry/face/vastu-photo analysis returns a Hindi reading, (2) the Analyze buttons show "विश्लेषण करें — ₹20" in Hindi, (3) with a low wallet the 402 dialog shows the real price + balance with a working Add Money button and no retry, (4) after a successful paid analysis the wallet balance display drops by exactly the charged amount, (5) the manual Vastu form shows the Free badge and is never charged.
+
+## [2026-10-10] — NEW FEATURE: Shareable Reading Cards (Vastu / Palmistry / Face Reading / Kundali)
+
+Users can now share their readings as beautiful 1080x1920 portrait image cards through the Android system share sheet (WhatsApp, Telegram, etc.). A gold-outlined "Share" button sits under the result actions on every reading screen; tapping it renders the card on-device with Canvas (no server round-trip) and opens the share sheet. The history detail screen reuses the same result cards, so saved readings are shareable too.
+
+### Before
+- **No way to share a reading**: Palmistry, Vastu, and Face Reading results (and the Kundali summary) could only be viewed in-app or discussed via "Ask AI". Screenshots were the only sharing path — no branding, no clean layout.
+- **No share plumbing**: no `FileProvider` in the manifest, no card renderer, no bilingual share strings.
+
+### After
+- **Share button on four screens** (new `ui/share/ReadingCardShare.kt`):
+  - Palmistry result screen (`PalmistryScreen.kt` `PalmistryResultCard`): full-width Share button under New / Ask AI.
+  - Vastu result view (`VastuScreen.kt` `VastuResultView`): Share button under New / Ask AI (manual form, photo mode, and compass mode all flow through this view).
+  - Face Reading result screen (`FaceReadingScreen.kt` `FaceReadingResultCard`): Share button under New / Ask AI.
+  - Kundali summary (`KundaliExtendedTabs.kt` `birthInfoTab`, tab 0): Share button after the Ask-AI card; `KundaliScreen.kt` passes the subject name through.
+  - Reading history detail (`ReadingHistoryDetailScreen.kt`) reuses these cards, so saved readings get Share for free.
+- **Premium 1080x1920 card design** (`renderReadingCard`): deep-navy gradient + vignette + seeded star field, double gold frame with diamond accents, ॐ + "OmAstro" brand header in gold serif, reading type + date in the active language, optional Vastu score hero (big number + grade), 3–5 gold-label/white-value highlight rows with hairline separators (auto-fit: drops trailing rows rather than overflowing), footer "Generated by OmAstro" / "OmAstro द्वारा बनाया गया". No emojis. Devanagari renders through Android's system font fallback (no bundled font needed).
+- **Honesty — real data only**: every highlight is copied from the actual server result object (never fabricated). Palmistry/Face refusals (no palm / no face in photo) return null → the Share button hides itself. Vastu null-score renders honestly as "Score — Not computed / insufficient data" instead of a fake 0/100; if an analysis carries no score, no doshas, and no verdicts, no button appears. All values ellipsized, never invented.
+- **Bilingual**: 23 new `share_*` keys in `FeatureStrings.kt` (EN + हिन्दी); card titles, labels, severity/verdict names, dates (Hindi month names), and the footer all follow the Settings language via `W`/`LangPrefs`. No per-screen toggle.
+- **Share plumbing**: `androidx.core.content.FileProvider` (`${applicationId}.fileprovider`) added to `AndroidManifest.xml` with `res/xml/file_paths.xml` (`cache-path` `shared_cards/`); cards are PNGs in the app cache (no storage permission needed), URI shared with `FLAG_GRANT_READ_URI_PERMISSION` via `ACTION_SEND` chooser; only the 4 newest cards are retained. Rendering runs on `Dispatchers.Default` with a "Preparing your card…" state; failures show a bilingual toast.
+- Card content builders: `PalmistryReading.shareCardContent()` (hand, top 2 lines, top 2 observations, guidance), `VastuAnalysis.shareCardContent()` (score hero, top 3 doshas with localized severity, top 3 direction verdicts), `FaceReading.shareCardContent()` (personality, top 2 features, career, relationships), `KundaliResponse.shareCardContent(name)` (lagna + lord + degrees, moon sign, nakshatra + pada, current dasha, yogas summary — all from server `meta`).
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox intercepts HTTPS, so the Gradle wrapper cannot download the distribution — same limitation as previous entries). Substitute verification: brace/paren/bracket counts balanced in all 7 touched files; all 23 `share_*` keys resolve in both EN and HI maps (each exactly once per map); all imports resolve to real declarations (`Icons.Default.Share` in material-icons-extended, `FileProvider` in core-ktx 1.13.0, `W.faceFeatureName`, `SacredGold`); no stale references. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) each Share button renders a 1080x1920 card with real highlights and opens the system share sheet, (2) switching Settings language to हिन्दी re-labels card content, (3) a palmistry refusal shows no Share button, (4) a Vastu analysis with no score shows the honest "insufficient data" line, (5) shared PNG opens correctly in WhatsApp.
+
+## [2026-10-10] — AI Chat depth audit: multi-bubble replies, honest quota, conversation survives navigation
+
+Audited the full AI chat flow — message send → `POST /ai/chat` → rendering, birth-data/photo/Kundali context attach, quota display, saved sessions — from code (no live `/ai/chat` probes; that would spend quota/tokens). Six real defects found and fixed; no canned responses, fake typing, or placeholder AI messages exist anywhere in the chat code (verified by grep). The whole chat experience is now bilingual (EN/हिन्दी via `W`/`FeatureStrings`, auto-following the Settings language).
+
+### Before
+- **Single-bubble replies** (`AiChatScreen.kt` `ChatBubble`): every AI reply rendered as ONE bubble no matter how long. The website renders 1 sentence = 1 bubble with a typing simulation; the app had only the 3-dot "typing…" indicator while waiting, then dumped the whole reply at once. "Multi-bubble/typing simulation" was not actually working.
+- **History payload duplicated the outgoing message** (`AiChatViewModel.kt` `sendMessage`): history was built AFTER the new user message was appended to state, so the server received the user's message twice — once as `message` and again as the last history turn — wasting tokens and confusing the model on every turn.
+- **Conversation silently discarded on navigation** (`MainActivity.kt` / `DashboardScreen.kt`): every "Ask AI" / chat entry point used a plain `navigate(Screen.AiChat.route)`, and `AiChatScreen` used a per-back-stack-entry `viewModel()` — each navigation pushed a fresh screen with a FRESH `AiChatViewModel`, so leaving the chat for Kundali/Palmistry/Vastu and coming back silently wiped the conversation. Duplicate chat screens also stacked up.
+- **Quota exhaustion was a silent failure** (`ChatRepository.kt`, `AiChatScreen.kt`): the quota pill showed only while `limit > 0`; at zero questions left nothing changed in the UI, and a send just failed with the raw string "AI chat request failed: HTTP 4xx" — the server's own error message (e.g. quota exhausted) was discarded from the error body.
+- **Saved-session reopen dropped language and hid context** (`AiChatViewModel.kt` `loadSession`): reopening a saved chat reset the reply language to "en" even if the session was Hindi, and restored the stored `kundali_ctx` invisibly — the attachment chips row was empty, implying "no context attached" while context was actually being sent.
+- **English-only chat UI**: mode titles/subtitles, welcome texts, all 12 suggestion prompts, quota text ("N/M questions left"), "Reply in:", "typing…", every snackbar ("Birth data attached…", "Chat saved."…), all content descriptions, the Saved Chats dialog, and the entire Attach Birth Data dialog were hardcoded English.
+
+### After
+- **Multi-bubble replies with typing simulation** (`AiChatScreen.kt`): new `splitAiReplyIntoBubbles()` splits AI replies on sentence boundaries (`.`, `!`, `?`, Hindi `।`; paragraph breaks are hard boundaries) while protecting decimals (`3.5`), abbreviations (`Mr.`, `Dr.`, `e.g.`), and URLs; stray fragments merge into the previous bubble. New `AiMessageBubbles` renders one bubble per sentence (timestamp once, under the last bubble) and reveals newly arrived replies bubble-by-bubble with a 900ms pause + mini typing dots — the typing simulation. History/restored replies render all bubbles immediately (no fake re-typing of old messages); the list auto-scrolls as each bubble appears. The 3-dot indicator still shows while the server is thinking.
+- **History no longer duplicates the outgoing message** (`AiChatViewModel.kt`): `buildHistory()` now takes the message list explicitly and is called with the PRE-send list — the outgoing message is sent once, as `message`.
+- **Conversation survives navigation** (`AiChatScreen.kt`, `DivineChatScreen.kt`, `MainActivity.kt`, `DashboardScreen.kt`): `AiChatViewModel` is now activity-scoped (one instance shared by `AiChatScreen` and `DivineChatScreen`; per-mode state was already separated inside the VM), and all six chat entry points navigate with `launchSingleTop = true`. Leaving for Kundali and returning keeps the conversation. This also makes the `KxAskAiCard` → `PendingPhotoContextHolder` handoff reliable: the pending Kundali/photo context is consumed by the chat screen's open effect and attached to the live conversation.
+- **Honest quota handling** (`ChatRepository.kt`, `AiChatScreen.kt`, `AiChatViewModel.kt`): `serverErrorMessage()` now parses the WordPress REST error body (`{message}` / `{data:{message}}`) so server messages (e.g. quota exhausted) reach the user verbatim instead of "HTTP 4xx"; transport-only failures get the bilingual `chat_reply_failed` fallback. When the server reports `limit > 0 && left == 0`, a red bilingual banner states the limit plainly ("Question limit reached (N of M used)…") and tapping send shows the same message instead of burning a request.
+- **Saved sessions restore honestly** (`AiChatViewModel.kt`, `AiChatScreen.kt`): `loadSession()` restores the session's own reply language and sets `hasRestoredContext` when a stored `kundali_ctx` was restored — the chat shows a "Previous chat context restored" chip instead of an empty chips row implying no context.
+- **Bilingual chat**: 66 new `chat_*` keys in `FeatureStrings.kt` (EN + हिन्दी) wired through the chat screen (titles, subtitles, welcome, suggestions, quota, typing, snackbars, content descriptions, quota banner, restored-context chip), the Saved Chats dialog, and the Attach Birth Data dialog (title, subtitle, all field labels, gender toggle, all three validation errors, buttons). ViewModel error fallbacks use `W.t` (same pattern as `KundaliViewModel`). No emojis anywhere.
+
+### Verified correct (no change)
+- Birth-data attach sends the REAL context: `AttachBirthDataDialog` geocodes the place via the geocode API (manual edits clear the picked place so coords stay honest); `buildBirthDataContext()` rebuilds the labeled block(s) from all attachments and it is sent as `context` every turn; `autoKundali` auto-registers server-extracted birth data (website parity).
+- Photo context attach is real: `PhotoAttachDialog` → vision analysis → `toContextBlock()` renders actual parsed facts (palm lines/mounts, photo analysis facts, Vastu facts — refusal path included); `PendingPhotoContextHolder` handoff from Palmistry/Vastu/photo screens attaches via the chat open effect.
+- Kundali "Ask AI about this" (`KxAskAiCard`): builds a fresh context block from the real server-returned kundali data of that tab (lazily on click), sets it pending, and opens the chat — verified in `KundaliExtendedTabs.kt:402`.
+- `chatContext` is stored from every response and replayed verbatim on the next turn; `session_id` is threaded across turns (the server's tool-calculated memory).
+- Long replies are not truncated client-side: the bubble `Text` has no `maxLines`; truncation/auto-continuation is server-owned (max 2 attempts per the website contract).
+- Quota pill shows the REAL server values (`questions_left`/`questions_limit`) from every response; the app never invents quota (pill hidden when the server reports no limit).
+- Saved sessions list/load/save/delete/clear-all are all real `GET/POST/DELETE /ai/chats` calls; titles come from the first user message; delete refreshes the list.
+- Fabrication audit: grep found zero canned/dummy/placeholder AI replies; the 3-dot indicator renders ONLY while `isTyping` (a real server request is in flight); suggestion chips only fill the input box, never fabricate AI output.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox intercepts Java localhost TCP, breaking the Gradle daemon — same as previous entries). Substitute verification: open/close brace/paren/bracket counts balanced within every touched file; all 80 used `W.t[f]("chat_*")` keys resolve in both EN and HI maps (zero missing); no stale references to `modeSuggestions`, `"AI Jyotishi"`, `"typing..."`, or the old error strings; `buildHistory` has a single caller with the new signature. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) a long AI reply arrives as multiple bubbles with progressive reveal, (2) leaving the chat for Kundali → "Ask AI about this" keeps the conversation and attaches the Kundali context chip, (3) switching Settings language to हिन्दी re-labels the whole chat UI, (4) a saved Hindi chat reopens in Hindi with the restored-context chip.
+
+## [2026-10-10] — Money-path audit: fabricated recharge packs removed, wallet/astrologer billing bilingual
+
+Audited every rupee the app touches — astrologer directory rates, per-minute billing, free-trial display, wallet balance, Add Money → Razorpay, transaction history — against the production server (live probe of `GET /wp-json/omastro/v1/astrologers` confirmed `rate_paise`/`rate_label`, e.g. ₹5–₹100/min). One fabricated-money-data bug and one real balance-display bug found and fixed; the whole money path is now bilingual (EN/हिन्दी via `W`/`FeatureStrings`, auto-following the Settings language).
+
+### Before
+- **Fabricated recharge packs** (`WalletRepository.getRechargePacks()`): hardcoded coin packs — ₹99→100 coins, ₹199→250+25 "POPULAR", ₹499→600+100 "BEST VALUE", ₹999→1500+300 "DIVINE SAVER", ₹1999→3500+800 "VIP SPECIAL". Wrong three ways: prices matched nothing on the website, the coin system was retired on 2026-10-01 (wallet is INR now), and the badges were invented marketing. The Wallet screen also said "Use coins for Kundali…" and sent "Wallet Recharge — N Coins" as the Razorpay description.
+- **No bonus-slab / GST display**: the website's Add Money page shows the bonus slabs (₹25→₹35, ₹50→₹80, ₹100→₹200, above ₹100→double) and 18% GST — the app showed neither, only the fabricated packs.
+- **Drawer balance was always ₹0** (`MainActivity.kt:126`): the nav drawer read the dead `WalletRepository.coinBalance` (never updated, permanently 0) — every user saw ₹0 in the drawer regardless of their real balance.
+- **English-only money UI**: every string on the Astrologers directory, chat screen, rate-consent / birth-attach / Add-Money / review dialogs, wallet screen, and dashboard wallet hero was hardcoded English.
+- **Rate fallback could understate a price**: `displayRate`/`rateLabel` used integer paise division (`"₹${ratePaise / 100}/min"`) — e.g. 550 paise would render "₹5/min".
+
+### After
+- **Real bonus slabs** (`WalletModels.kt` / `WalletRepository.kt` / `WalletScreen.kt`): `RechargePack` is now `(id, payInr, creditInr)` — ₹25→₹35, ₹50→₹80, ₹100→₹200; pack cards read "Pay ₹25 → Get ₹35" with a "+₹10 bonus" chip; a new "Bonus slabs" card lists all four slabs (incl. "above ₹100 → double credit") plus the "18% GST included" note. Only the pay amount is sent to `POST /wallet/topup-order` — the bonus is computed and granted server-side on verify. Razorpay description now reads "Wallet Recharge — ₹35 credit". All coin language removed (dead `coinBalance` chain deleted from `WalletRepository`/`WalletViewModel`/`GetWalletBalanceUseCase`; `RechargeCoinsUseCase` renamed `RechargeUseCase`).
+- **Drawer shows the real balance** (`MainActivity.kt`, `NavigationDrawer.kt`): the drawer now reads `walletBalanceInr` and renders the server balance to 2 decimals; paid+bonus separated on the Wallet screen as before.
+- **Bilingual money path**: 102 new `money_*` keys in `FeatureStrings.kt` (EN + हिन्दी) + a `W.tf()` printf-format helper; wired through `AstrologersScreen` (title, search, sort chips, auto-match, consent dialog, list items, empty states), `ChatScreen` (header, FREE TRIAL badge, composer hints, End Chat, all four dialogs), `ConsultationViewModel` (join notices, greetings, nudges, low-balance/insufficient-balance/billing-failure messages — same `W.t`-in-ViewModel pattern as `KundaliViewModel`), `WalletScreen`/`WalletViewModel` (balance card, packs, slabs, GST, all payment messages), the nav drawer, and the dashboard wallet hero. No emojis anywhere.
+- **Exact paise formatting** (`AstrologerModels.kt`): new `formatPaiseRate()` — 500 paise → "₹5/min", 550 paise → "₹5.50/min"; the `rate_label` server value is still preferred (verified live against production).
+
+### Verified correct (no change)
+- Astrologer directory shows the server's `rate_label` per astrologer (live-probed: ₹5/min … ₹100/min, `rate_paise` 500–10000); auto-match prefers online ₹5/min; rate-consent dialog appears when offline or > ₹5/min (website parity).
+- Per-minute billing: server is the source of truth (30s tick); timer pill is display-only; insufficient balance on session start → Add Money dialog + locked input; proactive "about Ns of chat time left" warning at ≤60s coverage; hard close + final bill on balance exhaustion or tick failure; in-chat FREE TRIAL badge is server-driven via `free_seconds_left`.
+- Wallet balance: real server balance with paid vs bonus separated (Wallet screen + Dashboard); transaction history is real server data with an honest empty state; Razorpay flow (order → real checkout sheet → server verify) credits nothing until verified.
+- Gap (honest, not fabricated): the directory shows no first-time "FREE" badge — free-chat eligibility is server-owned and no endpoint exposes it to the client; adding one would be a guess. The in-chat FREE TRIAL badge (from `free_seconds_left`) is correct. Recommendation: expose `free_chat_available` on `GET /astrologers`.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox intercepts Java localhost TCP, breaking the Gradle daemon — same as previous entries). Substitute verification: brace/paren/bracket balance unchanged vs HEAD on all touched files (identical checker signatures); all 95 used `W.t[f]("money_*")` keys resolve in both EN and HI maps (102 keys each, zero missing); no stale references to `RechargeCoinsUseCase`, `coinBalance` (wallet path), `pack.coins/priceInr/bonusCoins/badge` remain; no emojis in the money screens. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) pack cards show the slab prices, (2) the drawer shows the real balance, (3) switching Settings language to हिन्दी re-labels the astrologers + wallet screens, (4) a real (small) recharge still completes end-to-end.
+
+## [2026-10-10] — Kundali 23-tab depth audit: real-data fixes + full bilingual UI
+
+Audited all 23 Kundali tabs (`KundaliScreen.kt` / `KundaliExtendedTabs.kt`) against the server response shapes in `KundaliModels.kt` — every tab renders real server data (no placeholders, no "coming soon", no emojis; only professional jyotish glyphs ♈☉ etc.). Four tabs were rendering a fraction of available data and are now fixed; all 23 tabs are now bilingual (EN/हिन्दी via `W`/`FeatureStrings`, auto-following the Settings language).
+
+### Before
+- **Birth Info tab**: the "Lucky Gemstone" card showed the label but never rendered the gemstone value (`lucky.gemstone` was computed and sent to AI context, but the UI column contained only the title `Text`). All labels hardcoded English.
+- **Karakamsha tab**: showed the Karakamsha chart and house analysis but never displayed the 7 Chara Karakas (planet + degree + rashi) that `POST /kundali/jaimini` returns — the data was only inside the "Ask AI" context block.
+- **Lal Kitab tab**: the server summary (`lalKitab.note`, `lalKitab.yogas`) was fetched and gated on (`note.isNotBlank() || yogas.isNotEmpty()`) but only `lagnaRashi` was ever rendered — note and yogas never reached the screen.
+- **Planets tab**: the 12-column table never showed `ruledHouses`/`ruledHousesFmt`, `aspects`, `baladiAvastha`, `charaKaraka`, or the `vargottama` flag — all present in `ApiPlanet` and already sent to AI context, but invisible in the UI.
+- **Birth Chart tab (D10)**: the D10 pill only looked up `divisionalCharts["Dashamsha"]`, while the Divisional tab lists vargas from `allDivisionalCharts` (keyed `"D10"`) — a key-style mismatch could leave the D10 chart empty even when the server returned it. `selectedDiv` is shared with the Divisional tab, so picking e.g. D12 there left the Birth Chart tab with no highlighted pill while silently rendering D1.
+- **Bilingual**: all 23 tab titles, every section header, every empty/loading/error/retry string, the chart legend, and the Remedies sub-tab copy were hardcoded English.
+
+### After
+- **Birth Info** (`KundaliExtendedTabs.kt:450`): gemstone value now renders (`lucky.gemstone`); all labels bilingual — Seeker Profile fields, Lagna & Moon, Lucky Elements (`kundali_lb_*`, `kundali_sec_*` keys).
+- **Karakamsha** (`KundaliExtendedTabs.kt:822`): new "Chara Karakas — Seven Soul Significators" section rendering each karaka's planet glyph + name, rashi glyph + name, and degree (from `JaiminiData.karakas.details.ordered()`); intro card and lagna badge bilingual.
+- **Lal Kitab** (`KundaliExtendedTabs.kt:lalKitabFullTab`): server `note` now renders as a "Lal Kitab Note" analysis block and `yogas` render as a "Lal Kitab Yogas" card list; lagna label bilingual.
+- **Planets** (`KundaliExtendedTabs.kt:planetsFullTab`): every planet row is now tappable — expands a "Chart Details" section showing Rules Houses, Aspects, Baladi Avastha, Chara Karaka, and Vargottama (Yes/No), all from `ApiPlanet`, bilingual labels; chevron affordance + header cell added; scroll hint updated.
+- **Birth Chart D10** (`KundaliScreen.kt:dashamshaChart`): new key-agnostic lookup tries `allDivisionalCharts`/`divisionalCharts` with `"D10"`/`"Dashamsha"` (any case) in `housesFor`, `northMarksFor`, `southPlanetsFor`, `southLagnaFor`. `chartsTab` normalizes `selectedDiv` to D1/D9/D10 so pill highlight, chart, and houses always agree.
+- **Bilingual**: 23 `kundali_tab_0..22` titles (tab bar now renders `KUNDALI_TAB_KEYS.map { W.t(it) }`; dead hardcoded `KUNDALI_TABS` list removed); ~150 new `kundali_*` keys in `FeatureStrings.kt` (EN + हिन्दी) covering every tab's section headers, all 18 empty states, lazy-report loading/error/retry, chart legend, lagna-chart titles/subtitles, SubjectHeader labels, Faladesh/Numerology intros, and the full Remedies sub-tab copy (Ratna/Rudraksh/Dhatu/Jad/Vedic Upay). Duplicate "Chart Legend" header removed (the legend card renders its own bilingual title now).
+- **Untouched (verified deep already)**: Navamsha, Chandra/Surya/Chalit lagna charts, Divisional (all vargas D1–D60 with significance), Dasha (7-level current chain + expandable timeline), Ashtakavarga (SAV + honest null total), Sodasvarga (16-varga × planets), Yogas, Doshas (honest "no major doshas" state), Personality, Panchang, Shadbal (Shadbala/Bhavabala/Vimshopaka + honest N/A), Bhrigu Nadi, Char Dasha, Faladesh, Remedies engine — all render full server payloads with honest loading/error/empty states and "Ask AI about this" context on every tab.
+
+### Honesty notes
+- Nothing is fabricated: Lucky Elements are standard Vedic lagna correspondences derived only from the server's lagna rashi + lord; remedy correspondences (gem/rudraksha/metal/root/mantra/daan/day) are static reference data applied to chart-detected weak/afflicted planets; Vimshopaka rows with no server `total` still show the honest "not returned" state instead of a fake 0/20 bar; SAV total still renders "—" when the server omits it.
+- No live chart generations were run (rate limits) — verified from code + the verified-live response-shape comments in `KundaliModels.kt`.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox intercepts Java localhost TCP, breaking the Gradle daemon — same as the previous entry). Substitute verification: brace/paren/bracket balance = 0 on all 4 touched files; per-function balance check clean; all 146 `W.t("kundali_*")` keys used resolve in both EN and HI maps (each exactly twice); `W` imported where used; no unresolved `KUNDALI_TABS` references remain. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) the Birth Info gemstone value shows, (2) Karakamsha lists 7 chara karakas, (3) Lal Kitab note/yogas render, (4) planet rows expand with chart details, (5) D10 renders in the Birth Chart tab, (6) switching Settings language to हिन्दी re-labels all 23 tabs and their sections.
+
+## [2026-10-10] — Vision Reading History: local Room history for Vastu / Palmistry / Face Reading
+
+Completed Vastu, Palmistry and Face Reading analyses used to vanish the moment the user left the screen — there was no persistence anywhere for vision results (before: result lived only in the screen's `ViewModel` state; leaving the screen discarded it). Now every successful analysis auto-saves to a local Room database, and a bilingual "Reading History" screen (reachable in 1 tap from each vision feature's top bar) lists saved readings as cards with thumbnail, feature icon, date and an editable label. Tapping a card re-renders the full saved result from the stored server JSON — no re-analysis, no network. Long-press deletes (with confirmation); a rename action edits the label. A "Saved on <date>" banner on the detail screen makes clear it is a past reading, not a fresh analysis.
+
+### Before
+- `PalmistryScreen` / `FaceReadingScreen` / `VastuScreen` held results only in `ViewModel` `StateFlow`s — navigating away destroyed the result; users had to re-photograph and re-analyze to see it again.
+- `VisionRepository.analyzePalmistry / analyzeFaceReading / analyzeVastu / analyzeVastuPhoto` discarded the raw server JSON after parsing; there was no way to re-render a past result faithfully.
+
+### After
+- **New local store** (`data/local/ReadingHistoryDatabase.kt`): Room `vision_readings` table — `id` (UUID), `featureType` (`vastu`|`palmistry`|`face`), `createdAt` (epoch ms), `label` (user-editable), `resultJson` (full server `data` JSON, verbatim), `thumbnailFile` (JPEG filename under `<filesDir>/reading_thumbs/`, null when the analysis had no photo, e.g. manual-form Vastu). Room 2.6.1 added via kapt (`org.jetbrains.kotlin.kapt` 1.9.23).
+- **New `ReadingHistoryRepository`** (`data/repository/ReadingHistoryRepository.kt`): `save` downscales the analyzed photo to 256px on the longest side (JPEG ~70%) and inserts the row; `list`/`get`/`rename`/`delete`; history capped at 100 entries — inserting beyond the cap prunes the oldest rows and deletes their thumbnail files, so storage stays bounded (~3 MB worst case: ~10–25 KB thumb + 2–8 KB JSON per entry).
+- **Auto-save on success only** (in `PalmistryViewModel`, `FaceReadingViewModel`, `VastuViewModel`): every completed analysis saves automatically. Palmistry refusals (`isRefusal`) and face no-face refusals (`!isFace`) are NEVER saved; network/HTTP errors are never saved. Vastu null-score "insufficient data" states ARE saved — they are successful analyses and render exactly as the server returned them.
+- **New UI** (`ui/screens/history/`): `ReadingHistoryScreen` — filter chips (All/Vastu/Palmistry/Face), cards with Coil-loaded thumbnail (feature-icon fallback when there is no photo), label, feature name + date; long-press → delete confirmation dialog; pencil → rename dialog; empty state. `ReadingHistoryDetailScreen` — "Saved on <date>" banner plus the same result cards the live screens use (`PalmistryResultCard` / `FaceReadingResultCard` / `VastuResultView`, now `internal` for reuse), with working "Ask AI" (attaches the saved reading's context block to AI Chat) and "New analysis" actions. New routes `reading_history` and `reading_history_detail/{readingId}`; each vision screen's top bar gained a history action (1 tap to history, 2 taps to any past result).
+- **Bilingual**: 22 new `history_*` keys in `FeatureStrings.kt`, EN + हिन्दी; the screens auto-switch with the Settings language (no per-screen toggle). No emojis anywhere in the new UI.
+
+### Honesty notes
+- Stored results render from the verbatim server JSON through the same `fromMap` parsers and the same result composables as live results — null scores, "insufficient data", disclaimers and refusal-shaped data (should any ever be stored) display exactly as the server returned them; nothing is re-inferred or re-fetched.
+- The detail banner ("Saved on <date>") distinguishes past readings from fresh analyses.
+
+### Verification
+- Full Gradle compile could NOT run in this environment: the sandbox intercepts Java localhost TCP (every Java socket read on 127.x returns an injected `muse: Other TCP connection...` message), which breaks the Gradle daemon protocol — verified with isolated Java/Python socket tests. This affects local builds only; CI (GitHub Actions) is unaffected.
+- Substitute verification performed: all 97 Kotlin sources compiled with the Kotlin 1.9.22 embeddable compiler (no Android SDK on the check classpath, so Android/Compose/Room/coroutine symbols are expected-unresolved). Triaged every non-"unresolved reference" error: all were cascade false-positives from the missing libraries EXCEPT 4 real bugs — suspend `ReadingHistoryRepository.save()` was called inside the non-suspend `Result.onSuccess {}` lambda in all three ViewModels (4 call sites). Fixed by moving the save into the `viewModelScope.launch` coroutine body (verified legal: `runCatching {}` inlines its block into the suspend context — proven with an isolated compile test). No `com.omastro.*` cross-file references are broken; Room entity/DAO annotations, navigation routes, and all 22 new `history_*` bilingual keys verified present in both EN and HI maps.
+- Room 2.6.1 artifacts verified downloadable from Google's Maven (`dl.google.com/dl/android/maven2`); kapt 1.9.23 matches the project's Kotlin 1.9.23; `exportSchema = false` so no schema dir is needed; release has minify off so no Room proguard rules are needed. CI (`assembleDebug` + `assembleRelease`) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) a completed Palmistry/Face/Vastu analysis appears in history with a thumbnail, (2) refusals do not appear, (3) tap re-renders the identical result, (4) rename persists, (5) long-press delete removes the card and its thumbnail file, (6) history survives app restart, (7) EN/हिन्दी switch re-labels the history UI.
+
+---
 
 ## [2026-10-10] — Vastu + Compass Depth Audit: 90° dial bug, stamp clipping, honest sensor states
 

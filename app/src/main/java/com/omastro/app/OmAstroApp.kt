@@ -4,6 +4,9 @@ import android.app.Application
 import com.google.firebase.messaging.FirebaseMessaging
 import com.omastro.app.data.local.ThemePrefs
 import com.omastro.app.di.AppContainer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class OmAstroApp : Application() {
 
@@ -28,7 +31,7 @@ class OmAstroApp : Application() {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val token = task.result
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    CoroutineScope(Dispatchers.IO).launch {
                         try {
                             AppContainer.authRepository.updateFcmToken(token)
                         } catch (e: Exception) {
