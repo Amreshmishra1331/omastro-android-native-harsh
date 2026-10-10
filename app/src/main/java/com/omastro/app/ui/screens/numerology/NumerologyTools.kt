@@ -6,12 +6,12 @@ import kotlin.math.abs
 
 /**
  * Pure numerology computations (Vedic/Chaldean reductions, client-side).
- * NOTE: equivalence with the website engine is NOT verified — these are local
- * derivations from the user's real inputs, no fabricated content. Where the
- * server exposes a field (POST /numerology: loshuGrid, personalYear/Month/Day,
- * luckyNumbers/Days/Colors, karmaNumbers, challenges, coreNumbers), the tool
- * ViewModel prefers the server value with local fallback. Server APIs remain
- * the source of truth for full-profile / compatibility / name-check analyses.
+ * Parity with the website engine (Cycle 9, 2026-10-10): Kua, Pinnacles and
+ * Challenges now follow the web formulas exactly; where the server exposes a
+ * per-tab analysis (`POST /numerology` with `tab=synthesis|kua|pinnacles|
+ * mobile|namefix`), the tool ViewModel renders the server's `analysis_text`
+ * as the authoritative section and these local functions are the honest
+ * on-device fallback. No fabricated content — server text or real math only.
  *
  * Display strings are bilingual via [W] and follow the Settings language.
  */
@@ -52,14 +52,14 @@ fun karmicDebts(day: Int, month: Int, year: Int): List<Int> {
 
 /**
  * Challenge numbers (Decoz method): |month-day|, |day-year|, |c1-c2|,
- * |month-year| — each reduced to a single digit, 0 kept as 0 (the
+ * |month-year| — matching the website engine (Cycle 9, 2026-10-10), which
+ * leaves the challenge DIFFERENCES UNREDUCED (0 is possible — the
  * "all-challenge"). Master numbers are NOT kept for challenges.
  */
 fun challengeNumbers(day: Int, month: Int, year: Int): List<Int> {
-    fun red(n: Int) = reduceNumber(abs(n), keepMasters = false)
-    val c1 = red(month - day)
-    val c2 = red(day - year)
-    return listOf(c1, c2, red(c1 - c2), red(month - year))
+    val c1 = abs(month - day)
+    val c2 = abs(day - year)
+    return listOf(c1, c2, abs(c1 - c2), abs(month - year))
 }
 
 /** Lo Shu 3x3 grid counts from all DOB digits. Positions: 4,9,2 / 3,5,7 / 8,1,6. */
@@ -111,23 +111,60 @@ fun personalDay(personalMonth: Int, calendarDay: Int): Int =
     reduceNumber(personalMonth + calendarDay)
 
 /**
- * Kua number. gender: "male" or "female".
+ * Kua number, matching the website engine EXACTLY (Cycle 9, 2026-10-10).
+ * gender: "male" or "female".
  *
- * The year digit-sum is reduced WITHOUT master-number preservation: a year
- * sum of 22 must become 4 — the old code kept 22 and produced Kua -11 for
- * males born in 1939/1948/1957/1966/1975/1984/1993. Kua 5 does not exist in
+ * Web formula (post-2000 rule, applied by the server to all years):
+ * take the LAST TWO digits of the birth year, sum them, then
+ * male: 10 − sum · female: sum + 9. Reduce a two-digit result to one digit
+ * (a non-positive male result wraps by adding 9). Kua 5 does not exist in
  * Feng Shui: males convert to 2, females to 8.
  */
 fun kuaNumber(year: Int, gender: String): Int {
     val isMale = gender.lowercase() == "male"
-    val sum = reduceNumber(year, keepMasters = false)
-    val raw = if (isMale) 11 - sum else 4 + sum
-    val k = reduceNumber(raw, keepMasters = false)
+    val lastTwo = abs(year) % 100
+    val sum = lastTwo / 10 + lastTwo % 10
+    var k = if (isMale) 10 - sum else sum + 9
+    while (k > 9) k = k.toString().map { it - '0' }.sum()
+    while (k <= 0) k += 9
     return when {
         k == 5 && isMale -> 2
         k == 5 -> 8
         else -> k
     }
+}
+
+/** Last-two-digit sum used by the web Kua formula (for the "show your work" line). */
+fun kuaYearDigitSum(year: Int): Int {
+    val lastTwo = abs(year) % 100
+    return lastTwo / 10 + lastTwo % 10
+}
+
+/** Reduce to a single digit, preserving master numbers 11, 22 AND 33. */
+fun reduceFinal(n: Int): Int {
+    var v = n
+    while (v > 9) {
+        if (v == 11 || v == 22 || v == 33) return v
+        v = v.toString().map { it - '0' }.sum()
+    }
+    return v
+}
+
+/**
+ * The four Pinnacles, matching the website engine (Cycle 9, 2026-10-10):
+ * day/month/year components are flattened FIRST (no masters kept), then
+ * each pinnacle sum keeps master numbers 11/22/33 only on the final sums.
+ * 1st = month+day · 2nd = day+year · 3rd = 1st+2nd · 4th = month+year.
+ */
+fun pinnacleNumbers(day: Int, month: Int, year: Int): List<Int> {
+    val d = reduceNumber(day, keepMasters = false)
+    val m = reduceNumber(month, keepMasters = false)
+    val y = reduceNumber(year, keepMasters = false)
+    val p1 = reduceFinal(d + m)
+    val p2 = reduceFinal(d + y)
+    val p3 = reduceFinal(p1 + p2)
+    val p4 = reduceFinal(m + y)
+    return listOf(p1, p2, p3, p4)
 }
 
 /**

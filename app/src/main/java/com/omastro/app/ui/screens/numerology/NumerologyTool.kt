@@ -1,7 +1,8 @@
 package com.omastro.app.ui.screens.numerology
 
 /**
- * The 12 numerology tools on omastroai.com, in website order.
+ * The 13 numerology tools on omastroai.com, in website order.
+ * (SYNTHESIS added 2026-10-10 — website's 13th tab, `tab=synthesis`.)
  */
 enum class NumerologyTool(
     val id: String,
@@ -20,7 +21,8 @@ enum class NumerologyTool(
     MOBILE_NUM("mobile_num", "Mobile / Lucky Number", "Mobile · Vehicle · Lucky Number Analysis", "#"),
     NAME_CORRECT("name_correct", "Name Correction", "Name Analysis, Suggestions & Correction", "Ab"),
     KUA("kua", "Kua Number", "Feng Shui · Ba Gua · Lucky Direction", "Kua"),
-    PLANETARY("planetary", "Planetary Numbers", "9 Planets · Missing · Career · Remedy", "9");
+    PLANETARY("planetary", "Planetary Numbers", "9 Planets · Missing · Career · Remedy", "9"),
+    SYNTHESIS("synthesis", "Complete Synthesis", "All Numbers United · Full Profile", "S");
 
     companion object {
         fun fromId(id: String): NumerologyTool =

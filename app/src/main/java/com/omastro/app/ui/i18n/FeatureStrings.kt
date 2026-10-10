@@ -683,6 +683,8 @@ object W {
         "num_tool_kua_sub" to "फेंग शुई · बा गुआ · शुभ दिशा",
         "num_tool_planetary_title" to "ग्रह अंक",
         "num_tool_planetary_sub" to "9 ग्रह · अनुपस्थित · करियर · उपाय",
+        "num_tool_synthesis_title" to "संपूर्ण विश्लेषण",
+        "num_tool_synthesis_sub" to "सभी अंक एक साथ · समग्र प्रोफाइल",
 
         // Form
         "num_form_name" to "पूरा नाम",
@@ -2100,6 +2102,8 @@ object W {
         "num_tool_kua_sub" to "Feng Shui · Ba Gua · Lucky Direction",
         "num_tool_planetary_title" to "Planetary Numbers",
         "num_tool_planetary_sub" to "9 Planets · Missing · Career · Remedy",
+        "num_tool_synthesis_title" to "Complete Synthesis",
+        "num_tool_synthesis_sub" to "All Numbers United · Full Profile",
 
         // Form
         "num_form_name" to "Full Name",

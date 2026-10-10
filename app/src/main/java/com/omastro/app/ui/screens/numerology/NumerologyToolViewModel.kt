@@ -11,7 +11,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
+
+/** Thrown by fully server-driven tools (Synthesis) with no on-device fallback. */
+class NumerologyServerUnavailable : Exception()
 
 sealed interface ToolUiState {
     data object Idle : ToolUiState
@@ -75,7 +79,8 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
      * dishonest friction (fixed 2026-10-10).
      */
     fun needsName(): Boolean = tool in setOf(
-        NumerologyTool.NAME_NUM, NumerologyTool.COMPAT, NumerologyTool.NAME_CORRECT
+        NumerologyTool.NAME_NUM, NumerologyTool.COMPAT, NumerologyTool.NAME_CORRECT,
+        NumerologyTool.SYNTHESIS
     )
     // Every tool needs DOB — including MOBILE_NUM, whose verdict is compared
     // against the user's real Moolank (previously hardcoded Triple(1,1,2000)).
@@ -130,6 +135,8 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                     } catch (_: Exception) {
                     }
                 }
+            } catch (e: NumerologyServerUnavailable) {
+                _uiState.value = ToolUiState.Error(W.t("num_server_analysis_unavailable"))
             } catch (e: Exception) {
                 _uiState.value = ToolUiState.Error(W.t("num_err_generic"))
             }
@@ -181,40 +188,39 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
             NumerologyTool.NAME_CORRECT -> nameCorrectResult()
             NumerologyTool.KUA -> kuaResult(year)
             NumerologyTool.PLANETARY -> planetaryResult(day, month, year)
+            NumerologyTool.SYNTHESIS -> synthesisResult()
         }
     }
 
-    // ---------- Server data (POST /numerology) ----------
-    // The server computes coreNumbers, personalYear/Month/Day, lifeCycles,
-    // pinnacles, challenges, nameAnalysis, loshuGrid, luckyNumbers/Days/Colors.
-    // Tools use server values where they map 1:1, with local fallback on failure.
-    // A null return is surfaced honestly ("server unavailable" note) — never
-    // silently papered over.
-    private suspend fun fetchServerNumerology(): Map<String, Any>? {
+    // ---------- Server data (POST /numerology, per-tab) ----------
+    // The website engine computes every tool's full analysis server-side.
+    // Each `tab=` returns {success, data:{analysis_text, context}} — the app
+    // renders analysis_text verbatim (bilingual via the `language` param) and
+    // keeps its own on-device math as the honest fallback, never fake data.
+    // NOTE (Cycle 9): the old code read structured fields the server never
+    // returns (coreNumbers, loshuGrid, personalYear/Month/Day, lifeCycles,
+    // karmaNumbers, challenges, luckyNumbers/Days/Colors) — all removed.
+    private suspend fun tabAnalysisText(tab: String, extra: Map<String, String> = emptyMap()): String? {
         return try {
-            val body = repo.getNumerology(mapOf(
+            val params = mutableMapOf(
+                "tab" to tab,
                 "dob" to _dob.value.trim(),
                 "name" to _name.value.trim(),
                 "language" to LangPrefs.language.value
-            )).getOrNull()
+            )
+            params.putAll(extra)
+            val body = repo.getNumerology(params).getOrNull()
             @Suppress("UNCHECKED_CAST")
-            body?.get("data") as? Map<String, Any>
+            val data = body?.get("data") as? Map<*, *>
+            (data?.get("analysis_text") as? String)?.takeIf { it.isNotBlank() }
         } catch (e: Exception) { null }
     }
 
-    /** Honest "server unavailable" section appended when the server fetch failed. */
-    private fun serverNoteSection(server: Map<String, Any>?): ResultSection? =
-        if (server == null) ResultSection(
-            W.t("num_sec_note"),
-            listOf(ResultLine("", W.t("num_server_note")))
-        ) else null
-
-    private fun numEntry(map: Map<String, Any>?, key: String): String {
-        val e = map?.get(key) as? Map<*, *> ?: return "—"
-        val v = e["value"] ?: e["number"] ?: "—"
-        val meaning = (e["meaning"] as? String).orEmpty()
-        return if (meaning.isBlank()) "$v" else "$v — $meaning"
-    }
+    /** Honest "server unavailable" section appended when the server tab fetch failed. */
+    private fun serverUnavailableSection(): ResultSection = ResultSection(
+        W.t("num_sec_note"),
+        listOf(ResultLine("", W.t("num_server_analysis_unavailable")))
+    )
 
     // ---------- Tool computations ----------
 
@@ -231,17 +237,12 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                 ResultLine("$b — ${planetRuler(b)}", W.t(traitKey(b)))
             ))
         )
-        // Server core numbers (authoritative) as an extra section.
-        val server = fetchServerNumerology()
-        (server?.get("coreNumbers") as? Map<String, Any>)?.let { core ->
-            sections.add(ResultSection(W.t("num_sec_server_core"), listOf(
-                ResultLine(W.t("num_lbl_life_path"), numEntry(core, "lifePathNumber"), true),
-                ResultLine(W.t("num_lbl_expression"), numEntry(core, "expressionNumber")),
-                ResultLine(W.t("num_lbl_soul_urge"), numEntry(core, "soulUrgeNumber")),
-                ResultLine(W.t("num_lbl_personality"), numEntry(core, "personalityNumber")),
-                ResultLine(W.t("num_lbl_birthday"), numEntry(core, "birthdayNumber")),
-                ResultLine(W.t("num_lbl_destiny"), numEntry(core, "destinyNumber"))
-            )))
+        // The website's full Moolank/Life-Path write-up is the Overview tab.
+        tabAnalysisText("overview")?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
+            ))
         }
         sections.add(ResultSection(W.t("num_sec_derived"), listOf(
             ResultLine(
@@ -257,31 +258,13 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                 "${W.t("num_day_month")} → $s. ${W.t("num_deriv_success_desc")}"
             )
         )))
-        serverNoteSection(server)?.let { sections.add(it) }
         return ToolResult(W.t("num_tool_moolank_title"), sections)
     }
 
     private suspend fun loshuResult(day: Int, month: Int, year: Int): ToolResult {
         val sections = mutableListOf<ResultSection>()
-        val server = fetchServerNumerology()
-        @Suppress("UNCHECKED_CAST")
-        val sGrid = server?.get("loshuGrid") as? Map<String, Any>
-        if (sGrid != null) {
-            val present = (sGrid["presentNumbers"] as? List<*>)?.joinToString(", ") ?: "—"
-            val absent = (sGrid["absentNumbers"] as? List<*>)?.joinToString(", ") ?: "—"
-            val arrows = (sGrid["arrows"] as? Map<String, Any>)
-                ?.filter { (_, v) -> v == true }?.keys?.joinToString(", ") ?: ""
-            sections.add(ResultSection(W.t("num_sec_grid_server"), listOf(
-                ResultLine(W.t("num_lbl_present_numbers"), present, true),
-                ResultLine(W.t("num_lbl_absent_numbers"), absent, true),
-                ResultLine(
-                    W.t("num_sec_arrows"),
-                    arrows.ifBlank { W.t("num_no_arrows") },
-                    true
-                )
-            )))
-        }
         // Local computation — always shown (it is real math from the DOB).
+        // The website's full Lo Shu reading is the `loshu` tab.
         val grid = loShuGrid(day, month, year)
         val rows = listOf(listOf(4, 9, 2), listOf(3, 5, 7), listOf(8, 1, 6))
         val gridLines = rows.map { row ->
@@ -311,7 +294,13 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
             W.t("num_sec_number_meanings"),
             (1..9).map { n -> ResultLine("$n — ${planetRuler(n)}", W.t(loShuMeaningKey(n))) }
         ))
-        serverNoteSection(server)?.let { sections.add(it) }
+        // The website's full Lo Shu reading is the `loshu` tab.
+        tabAnalysisText("loshu")?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
+            ))
+        }
         return ToolResult(W.t("num_tool_loshu_title"), sections)
     }
 
@@ -366,53 +355,27 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
 
     private suspend fun timeCyclesResult(day: Int, month: Int): ToolResult {
         val (td, tm, ty) = todayParts()
-        val server = fetchServerNumerology()
-        val sPy = (server?.get("personalYear") as? Map<*, *>)
-        val sPm = (server?.get("personalMonth") as? Map<*, *>)
-        val sPd = (server?.get("personalDay") as? Map<*, *>)
         val py = personalYear(day, month, ty)
-        val pyLine = if (sPy != null)
-            ResultLine(
-                "${W.t("num_lbl_personal_year")} ($ty)",
-                "${sPy["current"]} — ${(sPy["meaning"] as? String).orEmpty()}",
-                true
-            )
-        else
-            ResultLine(
-                "${W.t("num_lbl_personal_year")} ($ty)",
-                "$py — ${planetRuler(py)}: ${W.t(cycleMeaningKey(py))}",
-                true
-            )
-        val pmLine = if (sPm != null)
-            ResultLine(
-                W.t("num_lbl_personal_month"),
-                "${sPm["value"]} — ${(sPm["meaning"] as? String).orEmpty()}",
-                true
-            )
-        else {
-            val pm = personalMonth(py, tm)
-            ResultLine(
-                W.t("num_lbl_personal_month"),
-                "$pm — ${planetRuler(pm)}: ${W.t(cycleMeaningKey(pm))}",
-                true
-            )
-        }
-        val pdLine = if (sPd != null)
-            ResultLine(
-                "${W.t("num_lbl_personal_day")}",
-                "${sPd["value"]} — ${(sPd["meaning"] as? String).orEmpty()}",
-                true
-            )
-        else {
-            val pm = personalMonth(py, tm); val pd = personalDay(pm, td)
-            ResultLine(
-                W.t("num_lbl_personal_day"),
-                "$pd — ${planetRuler(pd)}: ${W.t(cycleMeaningKey(pd))}",
-                true
-            )
-        }
+        val pmNow = personalMonth(py, tm)
+        val pdNow = personalDay(pmNow, td)
         val sections = mutableListOf(
-            ResultSection(W.t("num_sec_cycles"), listOf(pyLine, pmLine, pdLine)),
+            ResultSection(W.t("num_sec_cycles"), listOf(
+                ResultLine(
+                    "${W.t("num_lbl_personal_year")} ($ty)",
+                    "$py — ${planetRuler(py)}: ${W.t(cycleMeaningKey(py))}",
+                    true
+                ),
+                ResultLine(
+                    W.t("num_lbl_personal_month"),
+                    "$pmNow — ${planetRuler(pmNow)}: ${W.t(cycleMeaningKey(pmNow))}",
+                    true
+                ),
+                ResultLine(
+                    W.t("num_lbl_personal_day"),
+                    "$pdNow — ${planetRuler(pdNow)}: ${W.t(cycleMeaningKey(pdNow))}",
+                    true
+                )
+            )),
             ResultSection(W.t("num_sec_next12"), (1..12).map { m ->
                 val v = personalMonth(py, m)
                 ResultLine(
@@ -421,7 +384,13 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                 )
             })
         )
-        serverNoteSection(server)?.let { sections.add(it) }
+        // The website's full cycles reading is the `cycles` tab.
+        tabAnalysisText("cycles")?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
+            ))
+        }
         return ToolResult(W.t("num_tool_time_cycles_title"), sections)
     }
 
@@ -439,39 +408,30 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                 else debts.map { ResultLine("$it", meanings[it] ?: "", true) }.toTypedArray())
             ))
         )
-        // Server karma numbers + challenges when available.
-        val server = fetchServerNumerology()
-        @Suppress("UNCHECKED_CAST")
-        val nameAnalysis = server?.get("nameAnalysis") as? Map<String, Any>
-        @Suppress("UNCHECKED_CAST")
-        val karmaNumbers = nameAnalysis?.get("karmaNumbers") as? List<*>
-        @Suppress("UNCHECKED_CAST")
-        val challenges = server?.get("challenges") as? List<Map<String, Any>>
-        if (!karmaNumbers.isNullOrEmpty() || !challenges.isNullOrEmpty()) {
-            val lines = mutableListOf<ResultLine>()
-            karmaNumbers?.forEach { k -> lines.add(ResultLine(W.t("num_lbl_debts"), "$k", true)) }
-            challenges?.forEach { c ->
-                lines.add(ResultLine(
-                    "${W.t("num_lbl_challenge")} ${c["number"]}",
-                    "${c["theme"]} (${c["years"]})"
-                ))
-            }
-            sections.add(ResultSection(W.t("num_sec_server_karmic"), lines))
+        // The website's authoritative Pinnacles reading is the `pinnacles` tab.
+        tabAnalysisText("pinnacles")?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
+            ))
         }
-        val p1 = reduceNumber(month + day)
-        val p2 = reduceNumber(day + year)
-        sections.add(ResultSection(W.t("num_sec_pinnacles"), listOf(
-            ResultLine(W.t("num_pinnacle_1"), "$p1 — ${planetRuler(p1)}"),
-            ResultLine(W.t("num_pinnacle_2"), "$p2 — ${planetRuler(p2)}"),
-            ResultLine(W.t("num_pinnacle_3"), "${reduceNumber(p1 + p2)} — ${planetRuler(reduceNumber(p1 + p2))}"),
-            ResultLine(W.t("num_pinnacle_4"), "${reduceNumber(month + year)} — ${planetRuler(reduceNumber(month + year))}")
-        )))
+        // Local Pinnacles — web formula (components flattened first, masters
+        // 11/22/33 kept only on the final sums). Shown even when the server
+        // text is present, as the on-device cross-check.
+        val pins = pinnacleNumbers(day, month, year)
+        val pinLabels = listOf("num_pinnacle_1", "num_pinnacle_2", "num_pinnacle_3", "num_pinnacle_4")
+        sections.add(ResultSection(W.t("num_sec_pinnacles"), pins.mapIndexed { i, p ->
+            ResultLine(W.t(pinLabels[i]), "$p — ${planetRuler(p)}", true)
+        }))
+        // Challenges — web formula: raw diffs, unreduced, 0 possible. Meaning
+        // lines exist only for single digits; larger raw diffs are shown
+        // honestly as-is with no fabricated meaning.
         val ch = challengeNumbers(day, month, year)
         val chLabels = listOf("num_challenge_first", "num_challenge_second", "num_challenge_third", "num_challenge_main")
         sections.add(ResultSection(W.t("num_sec_challenges"), ch.mapIndexed { i, v ->
-            ResultLine(W.t(chLabels[i]), "$v — ${W.t("num_challenge_$v")}", true)
+            val value = if (v in 0..9) "$v — ${W.t("num_challenge_$v")}" else "$v"
+            ResultLine(W.t(chLabels[i]), value, true)
         }))
-        serverNoteSection(server)?.let { sections.add(it) }
         return ToolResult(W.t("num_tool_karmic_title"), sections)
     }
 
@@ -577,17 +537,10 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
         val m = moolank(day)
         val (td, tm, ty) = todayParts()
         val py = personalYear(day, month, ty)
-        val server = fetchServerNumerology()
-        @Suppress("UNCHECKED_CAST")
-        val luckyNumbers = (server?.get("luckyNumbers") as? List<*>)?.joinToString(", ")
-        @Suppress("UNCHECKED_CAST")
-        val luckyDaysSrv = (server?.get("luckyDays") as? List<*>)?.joinToString(", ")
-        @Suppress("UNCHECKED_CAST")
-        val luckyColors = (server?.get("luckyColors") as? List<*>)?.joinToString(", ")
         val dayLines = mutableListOf(
             ResultLine(
                 W.t("num_lbl_weekdays"),
-                luckyDaysSrv ?: luckyDays(m).joinToString(", "),
+                luckyDays(m).joinToString(", "),
                 true
             ),
             ResultLine(
@@ -596,8 +549,6 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                 else "Dates reducing to $m, ${reduceNumber(m * 2)} in any month"
             )
         )
-        if (!luckyNumbers.isNullOrBlank()) dayLines.add(ResultLine(W.t("num_lbl_lucky_numbers_srv"), luckyNumbers, true))
-        if (!luckyColors.isNullOrBlank()) dayLines.add(ResultLine(W.t("num_lbl_lucky_colors_srv"), luckyColors, true))
         val sections = mutableListOf(
             ResultSection(W.t("num_sec_lucky_days"), dayLines),
             ResultSection(W.t("num_sec_lucky_dates"), listOf(
@@ -618,11 +569,31 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
                 )
             ))
         )
-        serverNoteSection(server)?.let { sections.add(it) }
+        // The website's full lucky-numbers reading is the `lucky` tab.
+        tabAnalysisText("lucky")?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
+            ))
+        }
         return ToolResult(W.t("num_tool_lucky_cal_title"), sections)
     }
 
-    private fun mobileResult(day: Int): ToolResult {
+    /**
+     * Mobile number — the website computes the full server-side analysis via
+     * `tab=mobile` with `name=<mobile digits>` (previously the app never
+     * called it). Server text is authoritative; the on-device digit-sum
+     * verdict stays as the honest fallback.
+     */
+    private suspend fun mobileResult(day: Int): ToolResult {
+        val digits = _phone.value.filter { it.isDigit() }
+        val sections = mutableListOf<ResultSection>()
+        tabAnalysisText("mobile", mapOf("name" to digits))?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
+            ))
+        }
         val m = moolank(day)
         val (sum, tier) = numberCompatibility(_phone.value, m)
         val verdict = when {
@@ -630,69 +601,108 @@ class NumerologyToolViewModel(val toolId: String) : ViewModel() {
             tier == PairTier.EXCELLENT && sum == m -> W.t("num_verdict_resonates")
             else -> "${W.t(pairTierKey(tier))} — ${W.t(pairTierDescKey(tier))}"
         }
-        val digits = _phone.value.filter { it.isDigit() }.map { it - '0' }.distinct()
-        return ToolResult(W.t("num_tool_mobile_num_title"), listOf(
-            ResultSection(W.t("num_sec_number_analysis"), listOf(
-                ResultLine(W.t("num_lbl_digit_sum"), "$sum — ${planetRuler(sum)}", true),
-                ResultLine(W.t("num_lbl_your_moolank"), "$m — ${planetRuler(m)}"),
-                ResultLine(W.t("num_lbl_verdict"), verdict, true)
-            )),
-            ResultSection(W.t("num_sec_digit_influences"), digits.map { d ->
-                ResultLine(
-                    "${W.t("num_lbl_digit")} $d",
-                    if (d == 0) W.t("num_zero_note") else planetRuler(d)
-                )
-            })
-        ))
+        sections.add(ResultSection(W.t("num_sec_number_analysis"), listOf(
+            ResultLine(W.t("num_lbl_digit_sum"), "$sum — ${planetRuler(sum)}", true),
+            ResultLine(W.t("num_lbl_your_moolank"), "$m — ${planetRuler(m)}"),
+            ResultLine(W.t("num_lbl_verdict"), verdict, true)
+        )))
+        sections.add(ResultSection(W.t("num_sec_digit_influences"), digits.map { it - '0' }.distinct().map { d ->
+            ResultLine(
+                "${W.t("num_lbl_digit")} $d",
+                if (d == 0) W.t("num_zero_note") else planetRuler(d)
+            )
+        }))
+        return ToolResult(W.t("num_tool_mobile_num_title"), sections)
     }
 
     /**
      * Name correction — current name numbers computed ON-DEVICE (the
      * 2026-10-10 honesty fix holds: a missing server "expression" never
-     * renders as a fabricated 0). Server analysis appended when available.
+     * renders as a fabricated 0). The website's correction guidance —
+     * Harmony Score, add/remove-letter guidance, office-use suggestion —
+     * comes from `tab=namefix` (NOT `/numerology/name-check`, which is
+     * numbers-only), rendered verbatim when available.
      */
     private suspend fun nameCorrectResult(): ToolResult {
         val nn = nameNumbers(_name.value.trim())
         val dob = parseDob(_dob.value)
         val luckyM = dob?.let { moolank(it.first) }
         val luckyB = dob?.let { bhagyank(it.first, it.second, it.third) }
-        val sections = mutableListOf(
-            ResultSection(W.t("num_sec_current_name"), listOf(
-                ResultLine(W.t("num_lbl_expression"), "${nn.expression} — ${planetRuler(nn.expression)}", true),
-                ResultLine(W.t("num_lbl_soul_urge"), "${nn.soulUrge} — ${planetRuler(nn.soulUrge)}"),
-                ResultLine(W.t("num_lbl_personality"), "${nn.personality} — ${planetRuler(nn.personality)}"),
-                ResultLine(W.t("num_lbl_chaldean"), "${nn.chaldean} — ${planetRuler(nn.chaldean)}")
-            )),
-            ResultSection(W.t("num_sec_lucky_targets"), listOf(
-                ResultLine(W.t("num_lbl_moolank_driver"), luckyM?.toString() ?: W.t("honesty_not_available"), true),
-                ResultLine(W.t("num_lbl_bhagyank"), luckyB?.toString() ?: W.t("honesty_not_available"), true)
+        val sections = mutableListOf<ResultSection>()
+        tabAnalysisText("namefix")?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
             ))
-        )
-        appendServerNameAnalysis(sections)
+        } ?: sections.add(serverUnavailableSection())
+        sections.add(ResultSection(W.t("num_sec_current_name"), listOf(
+            ResultLine(W.t("num_lbl_expression"), "${nn.expression} — ${planetRuler(nn.expression)}", true),
+            ResultLine(W.t("num_lbl_soul_urge"), "${nn.soulUrge} — ${planetRuler(nn.soulUrge)}"),
+            ResultLine(W.t("num_lbl_personality"), "${nn.personality} — ${planetRuler(nn.personality)}"),
+            ResultLine(W.t("num_lbl_chaldean"), "${nn.chaldean} — ${planetRuler(nn.chaldean)}")
+        )))
+        sections.add(ResultSection(W.t("num_sec_lucky_targets"), listOf(
+            ResultLine(W.t("num_lbl_moolank_driver"), luckyM?.toString() ?: W.t("honesty_not_available"), true),
+            ResultLine(W.t("num_lbl_bhagyank"), luckyB?.toString() ?: W.t("honesty_not_available"), true)
+        )))
         sections.add(ResultSection(W.t("num_sec_guidance"), listOf(
             ResultLine(W.t("num_lbl_tip"), W.t("num_tip_match"))
         )))
         return ToolResult(W.t("num_tool_name_correct_title"), sections)
     }
 
-    private fun kuaResult(year: Int): ToolResult {
+    /**
+     * Kua — server-authoritative via `tab=kua` (dob, gender, language);
+     * the local section below is the on-device cross-check using the web
+     * formula exactly (last-two-digits rule), not the old full-year one.
+     */
+    private suspend fun kuaResult(year: Int): ToolResult {
         val isMale = _gender.value.lowercase() == "male"
-        val sum = reduceNumber(year, keepMasters = false)
+        val digitSum = kuaYearDigitSum(year)
+        val lastTwo = abs(year) % 100
         val kua = kuaNumber(year, _gender.value)
         val (groupKey, dirs) = kuaInfo(kua)
-        val formula = "${W.t(if (isMale) "num_form_male" else "num_form_female")}: " +
-            "${if (isMale) "11" else "4"} ${if (isMale) "−" else "+"} $sum = $kua"
-        return ToolResult(W.t("num_tool_kua_title"), listOf(
-            ResultSection(W.t("num_sec_kua"), listOf(
-                ResultLine(W.t("num_lbl_kua_number"), "$kua", true),
-                ResultLine(W.t("num_lbl_group"), W.t(groupKey), true),
-                ResultLine(W.t("num_lbl_element"), W.t(kuaElement(kua)), true),
-                ResultLine(W.t("num_lbl_formula"), formula)
-            )),
-            ResultSection(W.t("num_sec_directions"), dirs.map { (dirKey, epithet) ->
-                ResultLine(W.t("num_lbl_direction"), "${W.t(dirKey)} ($epithet)")
-            })
-        ))
+        val formula = if (isMale)
+            "${W.t("num_form_male")}: 10 − ($lastTwo → $digitSum) = $kua"
+        else
+            "${W.t("num_form_female")}: $digitSum + 9 = $kua"
+        val sections = mutableListOf<ResultSection>()
+        tabAnalysisText("kua", mapOf("gender" to _gender.value.lowercase()))?.let { text ->
+            sections.add(ResultSection(
+                W.t("num_sec_server_analysis"),
+                listOf(ResultLine(W.t("num_lbl_detail"), text))
+            ))
+        } ?: sections.add(serverUnavailableSection())
+        sections.add(ResultSection(W.t("num_sec_kua"), listOf(
+            ResultLine(W.t("num_lbl_kua_number"), "$kua", true),
+            ResultLine(W.t("num_lbl_group"), W.t(groupKey), true),
+            ResultLine(W.t("num_lbl_element"), W.t(kuaElement(kua)), true),
+            ResultLine(W.t("num_lbl_formula"), formula)
+        )))
+        sections.add(ResultSection(W.t("num_sec_directions"), dirs.map { (dirKey, epithet) ->
+            ResultLine(W.t("num_lbl_direction"), "${W.t(dirKey)} ($epithet)")
+        }))
+        return ToolResult(W.t("num_tool_kua_title"), sections)
+    }
+
+    /**
+     * Complete Synthesis — the 13th tool. Fully server-driven:
+     * `tab=synthesis` with dob + name + language. No on-device fallback
+     * exists for a combined profile, so an unreachable server is an honest
+     * error (never fabricated numbers).
+     */
+    private suspend fun synthesisResult(): ToolResult {
+        val text = tabAnalysisText("synthesis")
+        return if (text != null) {
+            ToolResult(W.t("num_tool_synthesis_title"), listOf(
+                ResultSection(
+                    W.t("num_sec_server_analysis"),
+                    listOf(ResultLine(W.t("num_lbl_detail"), text))
+                )
+            ))
+        } else {
+            throw NumerologyServerUnavailable()
+        }
     }
 
     private fun planetaryResult(day: Int, month: Int, year: Int): ToolResult {

@@ -4,6 +4,39 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Audit Loop Cycle 9: Numerology parity (Synthesis 13th tool, Kua/Pinnacles/Challenges web formulas, server-tab analyses, dead structured-field removal)
+
+### Added — Synthesis (13th numerology tool, `tab=synthesis`)
+**Before:** The app had 12 numerology tools; the website's 13th tool (Synthesis — complete combined profile) had no app surface.
+**After:** New `NumerologyTool.SYNTHESIS` ("synthesis", glyph "S") renders automatically in the hub grid. Needs name + DOB. Fully server-driven: `POST /numerology` with `tab=synthesis, dob, name, language` → renders the server's `analysis_text` verbatim (bilingual via the `language` param). No on-device fallback exists for a combined profile, so an unreachable server is an honest error state (`num_server_analysis_unavailable`) — never fabricated numbers. New `num_tool_synthesis_title/sub` EN+HI keys; `NumerologyServerUnavailable` exception maps to the honest Error view.
+
+### Fixed — Kua formula divergence (web formula now exact; server tab primary)
+**Before:** App reduced the FULL birth year and used `11−sum` (male) / `4+sum` (female) — diverging from the website engine.
+**After:** Two layers. (1) Primary: `tab=kua` with `dob, gender, language` → server `analysis_text` rendered as the authoritative section, honest "server unavailable" note on failure. (2) The on-device cross-check now implements the web formula exactly: last-two-digits sum; male `10−sum`, female `sum+9`; reduce >9, wrap ≤0 by +9; Kua 5 → 2 (male) / 8 (female). Hand-verified: 1990M→1, 1984M→7, 1990F→9, 2000M→1, 2000F→9, 2005M→2, 2005F→8. The "show your work" formula line now displays the last-two-digit math.
+
+### Fixed — Pinnacles formula divergence (web formula + `tab=pinnacles`)
+**Before:** App reduced raw month+day / day+year sums, keeping 11/22 on raw sums — diverging from the website engine.
+**After:** `tab=pinnacles` (dob, name, language) → server `analysis_text` as the authoritative section. The on-device fallback now matches the web rule exactly via new `pinnacleNumbers()`: components flattened first (no masters), masters 11/22/33 kept only on the final sums (new `reduceFinal()`). Verified: 15/08/1995 → [5,3,8,5]; 05/06/1988 → p1 keeps 11.
+
+### Fixed — Challenges now unreduced like the website
+**Before:** App reduced every challenge diff to 1–9.
+**After:** `challengeNumbers()` returns the raw Decoz diffs unreduced (|month−day|, |day−year|, |c1−c2|, |month−year|); 0 possible. Meaning lines (`num_challenge_0..9`) shown only for single-digit values; larger raw diffs render honestly as the number with no fabricated meaning.
+
+### Fixed — Mobile tool now calls the website's full analysis (`tab=mobile`)
+**Before:** The app never called the server's mobile analysis; verdict was on-device only.
+**After:** `tab=mobile` with `dob` + `name=<mobile digits>` + `language` → server `analysis_text` rendered as the authoritative section; the on-device digit-sum-vs-Moolank verdict stays as the honest fallback.
+
+### Fixed — Name Correction now uses `tab=namefix` (was `/numerology/name-check`)
+**Before:** Name Correction called `POST /numerology/name-check`, which is numbers-only — it never returned the website's Harmony Score / add-remove guidance / office suggestion.
+**After:** `tab=namefix` (dob, name, language) → server `analysis_text` rendered as the authoritative section; on-device name numbers (Expression/Soul Urge/Personality/Chaldean) + lucky Moolank/Bhagyank targets + guidance tip stay as the honest fallback. (`/numerology/name-check` is kept only for the Name Numerology tool, where numbers-only is appropriate.)
+
+### Removed — dead code expecting structured JSON fields the server never returns
+**Before:** Tools read `coreNumbers`, `loshuGrid`, `personalYear/Month/Day`, `lifeCycles`, `karmaNumbers`, `challenges`, `nameAnalysis`, `luckyNumbers/Days/Colors` from the default-tab response — fields the server never returns, so these were dead branches (plus the honest-note plumbing around them).
+**After:** All removed (`fetchServerNumerology`, `numEntry`, `serverNoteSection` gone). Each tool now pairs its real on-device math with the matching server tab: `overview` (Moolank), `loshu` (Lo Shu), `cycles` (Time Cycles), `pinnacles` (Karmic), `lucky` (Lucky Calendar), `mobile`, `namefix`, `kua`, `synthesis`. New `tabAnalysisText(tab, extra)` helper; `serverUnavailableSection()` for the honest note. (`tab=quick_cards` was not adopted — its response shape is unverified from here; nothing fabricates structured values.)
+
+### Not verifiable without a device
+On-device rendering of the new Synthesis card and server-analysis sections, the `tab=` round-trips against a real Bearer session (endpoint contract per the audit; not curl-probed from here), and the Hindi/English switch on the new strings.
+
 ## [2026-10-10] — Audit Loop Cycle 7: Delete Account (honest website handoff) + Refer & Earn (real wallet data)
 
 ### Added — Delete Account (store-review requirement, REAL endpoint)
