@@ -101,6 +101,8 @@ import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
 import com.omastro.app.ui.screens.aichat.saveBitmapToCache
 import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.ui.i18n.W
+import com.omastro.app.ui.share.ReadingCardShareButton
+import com.omastro.app.ui.share.shareCardContent
 import com.omastro.app.ui.theme.CosmicCharcoal
 import com.omastro.app.ui.theme.CosmicDeepBlue
 import com.omastro.app.ui.theme.CosmicNavy
@@ -1103,6 +1105,10 @@ internal fun VastuResultView(
                 Text(W.t("vastu_ask_ai"), fontWeight = FontWeight.Bold)
             }
         }
+        // Shareable card from the REAL server analysis. The button hides
+        // itself when there is nothing meaningful to share; a null score
+        // is rendered honestly as "insufficient data", never faked.
+        ReadingCardShareButton(content = analysis.shareCardContent())
         Spacer(modifier = Modifier.height(24.dp))
     }
 }

@@ -71,6 +71,8 @@ import com.omastro.app.data.model.PalmistryReading
 import com.omastro.app.data.model.PendingPhotoContextHolder
 import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.model.renderFactLines
+import com.omastro.app.ui.share.ReadingCardShareButton
+import com.omastro.app.ui.share.shareCardContent
 import com.omastro.app.data.repository.VisionRepository
 import com.omastro.app.data.local.ReadingFeatureType
 import com.omastro.app.data.repository.ReadingHistoryRepository
@@ -659,6 +661,10 @@ internal fun PalmistryResultCard(
                 Text(W.t("palm_ask"), fontWeight = FontWeight.Bold)
             }
         }
+
+        // Shareable card: renders only from the REAL server reading;
+        // the button hides itself on refusals (nothing honest to share).
+        ReadingCardShareButton(content = reading.shareCardContent())
     }
 }
 

@@ -464,7 +464,7 @@ private fun KundaliResults(
             item { SubjectHeader(kundali, subjectName) }
 
             when (selectedTab) {
-                0 -> birthInfoTab(kundali, onNavigateToAiChat)
+                0 -> birthInfoTab(kundali, onNavigateToAiChat, subjectName)
                 1 -> birthChartTab(viewModel, kundali, selectedDiv, chartStyle, onNavigateToAiChat)
                 2 -> navamshaTab(kundali, chartStyle, onNavigateToAiChat)
                 3 -> karakamshaTab(jaiminiState, { viewModel.retryReport(3) }, chartStyle, kundali, onNavigateToAiChat)

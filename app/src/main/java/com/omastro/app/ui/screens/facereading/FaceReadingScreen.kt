@@ -71,6 +71,8 @@ import com.omastro.app.data.repository.VisionRepository
 import com.omastro.app.data.local.ReadingFeatureType
 import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.i18n.W
+import com.omastro.app.ui.share.ReadingCardShareButton
+import com.omastro.app.ui.share.shareCardContent
 import com.omastro.app.ui.screens.aichat.copyUriToCache
 import com.omastro.app.ui.screens.aichat.rememberPermissionRequest
 import com.omastro.app.ui.screens.aichat.saveBitmapToCache
@@ -626,6 +628,9 @@ internal fun FaceReadingResultCard(
                 Text(W.t("palm_ask"), fontWeight = FontWeight.Bold)
             }
         }
+        // Shareable card from the REAL server reading; hidden on refusals
+        // (no face visible) — nothing is fabricated.
+        ReadingCardShareButton(content = reading.shareCardContent())
     }
 }
 

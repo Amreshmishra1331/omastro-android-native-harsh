@@ -45,6 +45,18 @@
             </intent-filter>
         </activity>
 
+        <!-- Shareable reading cards: FileProvider serves the rendered PNG
+             from cacheDir/shared_cards/ to the system share sheet -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- Encrypted token store auto-initialisation (runs before Application.onCreate) -->
         <provider
             android:name=".data.remote.SecureStoreInitProvider"

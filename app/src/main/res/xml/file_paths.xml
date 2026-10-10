@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider paths for shareable reading cards (ui/share/ReadingCardShare.kt).
+     Cards are rendered to cacheDir/shared_cards/ and shared via content URI. -->
+<paths>
+    <cache-path name="shared_cards" path="shared_cards/" />
+</paths>

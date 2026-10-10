@@ -26,6 +26,8 @@ import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.components.PlanetMark
 import com.omastro.app.ui.components.VedicDiamondChart
 import com.omastro.app.ui.i18n.W
+import com.omastro.app.ui.share.ReadingCardShareButton
+import com.omastro.app.ui.share.shareCardContent
 import com.omastro.app.ui.theme.*
 
 // ---------------------------------------------------------------------------
@@ -449,7 +451,8 @@ internal fun KxAskAiCard(
 
 internal fun LazyListScope.birthInfoTab(
     kundali: KundaliResponse?,
-    onOpenAiChat: () -> Unit
+    onOpenAiChat: () -> Unit,
+    subjectName: String = ""
 ) {
     item { KxSectionTitle(W.t("kundali_sec_birth_info")) }
     if (kundali == null) {
@@ -557,6 +560,13 @@ internal fun LazyListScope.birthInfoTab(
                 .append(", gemstone=").append(lucky.gemstone).append('\n')
             sb.toString()
         }
+    }
+
+    // Shareable Kundali summary card — built only from the REAL server
+    // meta (lagna, moon sign, nakshatra, dasha, yogas). Hidden when the
+    // meta carries nothing meaningful.
+    item {
+        ReadingCardShareButton(content = kundali?.shareCardContent(subjectName))
     }
 }
 
