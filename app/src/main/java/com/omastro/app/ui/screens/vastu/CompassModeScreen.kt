@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -61,7 +60,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -93,17 +91,45 @@ import kotlinx.coroutines.withContext
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Switchable compass visual styles. All render on top of the camera preview. */
-enum class CompassStyle { CLASSIC, MINIMAL, MANDALA, DIGITAL }
+/**
+ * Compass direction granularity (direction count), selected by the user.
+ * TEN renders the 8-direction ring plus a center Urdhva/Adho (up/down)
+ * indicator — up/down cannot be sensor-measured, so the live heading always
+ * maps to one of the 8 ring sectors.
+ */
+enum class CompassGranularity(val sectors: Int) {
+    FOUR(4),
+    EIGHT(8),
+    TEN(10),
+    SIXTEEN(16);
+
+    /** Ring sectors actually drawn and sensor-mapped (TEN renders 8). */
+    val ringSectors: Int get() = if (this == TEN) 8 else sectors
+
+    /** Sector codes in clockwise order starting at North. */
+    fun sectorCodes(): List<String> = when (this) {
+        FOUR -> listOf("N", "E", "S", "W")
+        EIGHT, TEN -> listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+        SIXTEEN -> listOf(
+            "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+        )
+    }
+}
 
 /**
  * Compass Mode — real-time magnetometer compass over a live camera preview.
  *
  * The user points the top of the phone at their main entrance; the dial shows
- * the direction it faces. "Use this direction" fills the Vastu form's
- * facing-direction field with the live 8-sector direction code. The shutter
- * button captures a photo stamped with the live direction + degrees, saves it
- * to the gallery, and can hand it to the Vastu house-map analysis.
+ * the direction it faces at the selected granularity (4/8/10/16 directions).
+ * "Use this direction" fills the Vastu form's facing-direction field with the
+ * live 8-direction code — the form and the backend engine use the classical 8
+ * directions (same as the website's 8-option facing select), so the nearest
+ * 8-direction sector is passed at every granularity. The dial, the readout,
+ * and the photo stamp show the precise granular sector (e.g. NNE at 16).
+ * The shutter button captures a photo stamped with the live direction +
+ * degrees, saves it to the gallery, and can hand it to the Vastu house-map
+ * analysis.
  */
 @Composable
 fun CompassModeScreen(
@@ -133,7 +159,7 @@ fun CompassModeScreen(
         )
     }
 
-    var style by remember { mutableStateOf(CompassStyle.CLASSIC) }
+    var granularity by remember { mutableStateOf(CompassGranularity.EIGHT) }
     var capturing by remember { mutableStateOf(false) }
     var captureError by remember { mutableStateOf(false) }
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -153,7 +179,13 @@ fun CompassModeScreen(
     // reading — the initial UNRELIABLE state before first delivery is not
     // a real interference signal.
     val hasReading by compass.hasReading.collectAsState()
-    val directionCode = CompassSensorManager.directionCode(heading)
+    // Code passed to the Vastu form: the classical 8 directions are what the
+    // form's facing field and the backend engine accept.
+    val passCode = CompassSensorManager.directionCode(heading)
+    // Precise sector code for the selected granularity: shown on the dial,
+    // in the readout, and stamped on captured photos.
+    val granularCode =
+        CompassSensorManager.granularCode(heading, granularity.ringSectors)
     val degrees = CompassSensorManager.roundedDegrees(heading)
     val needsCalibration =
         hasReading && accuracy <= SensorManager.SENSOR_STATUS_ACCURACY_LOW
@@ -162,8 +194,10 @@ fun CompassModeScreen(
         if (capturing) return
         capturing = true
         captureError = false
-        // Snapshot the live reading for the stamp.
-        val snapCode = CompassSensorManager.directionCode(compass.heading.value)
+        // Snapshot the live reading for the stamp (granular sector shown).
+        val snapCode = CompassSensorManager.granularCode(
+            compass.heading.value, granularity.ringSectors
+        )
         val snapDeg = CompassSensorManager.roundedDegrees(compass.heading.value)
         val snapName = W.dirName(snapCode)
         compassCamera.takePhoto { bitmap ->
@@ -271,43 +305,38 @@ fun CompassModeScreen(
                 )
             }
 
-            // Style switcher
-            CompassStyleSwitcher(
-                style = style,
-                onStyle = { style = it }
+            // Direction-count (granularity) selector
+            CompassGranularitySelector(
+                granularity = granularity,
+                onSelect = { granularity = it }
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Compass visual (all styles overlay the camera preview)
+            // Compass dial — renders exactly the selected number of sectors.
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                when (style) {
-                    CompassStyle.CLASSIC -> CompassDialClassic(
-                        heading = heading,
-                        currentCode = directionCode,
-                        modifier = Modifier.size(250.dp)
-                    )
-                    CompassStyle.MINIMAL -> CompassDialMinimal(
-                        heading = heading,
-                        degrees = degrees,
-                        currentCode = directionCode,
-                        modifier = Modifier.size(250.dp)
-                    )
-                    CompassStyle.MANDALA -> CompassDialMandala(
-                        heading = heading,
-                        currentCode = directionCode,
-                        modifier = Modifier.size(270.dp)
-                    )
-                    CompassStyle.DIGITAL -> CompassDialDigital(
-                        heading = heading,
-                        degrees = degrees,
-                        currentCode = directionCode,
-                        modifier = Modifier.size(250.dp)
-                    )
-                }
+                CompassDialGranular(
+                    heading = heading,
+                    degrees = degrees,
+                    granularity = granularity,
+                    currentCode = granularCode,
+                    modifier = Modifier.size(260.dp)
+                )
+            }
+
+            // 10-direction: honest note — up/down cannot be sensor-measured.
+            if (granularity == CompassGranularity.TEN) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    W.t("vastu_compass_up_down_note"),
+                    color = StarlightWhite.copy(alpha = 0.55f),
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 40.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -393,9 +422,10 @@ fun CompassModeScreen(
                         )
                     }
                 }
-                // Use-this-direction CTA
+                // Use-this-direction CTA — passes the 8-direction code the
+                // Vastu form accepts; the label shows the granular sector.
                 Button(
-                    onClick = { onUseDirection(directionCode) },
+                    onClick = { onUseDirection(passCode) },
                     modifier = Modifier
                         .weight(1f)
                         .height(54.dp),
@@ -409,7 +439,7 @@ fun CompassModeScreen(
                     )
                     Spacer(modifier = Modifier.size(8.dp))
                     Text(
-                        W.t("vastu_compass_use") + " — ${W.dirName(directionCode)}",
+                        W.t("vastu_compass_use") + " — ${W.dirName(granularCode)}",
                         color = Color(0xFF1A1005),
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
@@ -480,45 +510,49 @@ private fun CompassUnavailable(onBack: () -> Unit) {
     }
 }
 
-/** Four switchable compass styles. */
+/** Direction-count (granularity) selector: 4 / 8 / 10 / 16 buttons. */
 @Composable
-private fun CompassStyleSwitcher(
-    style: CompassStyle,
-    onStyle: (CompassStyle) -> Unit
+private fun CompassGranularitySelector(
+    granularity: CompassGranularity,
+    onSelect: (CompassGranularity) -> Unit
 ) {
-    val items = listOf(
-        CompassStyle.CLASSIC to W.t("vastu_compass_style_classic"),
-        CompassStyle.MINIMAL to W.t("vastu_compass_style_minimal"),
-        CompassStyle.MANDALA to W.t("vastu_compass_style_mandala"),
-        CompassStyle.DIGITAL to W.t("vastu_compass_style_digital")
-    )
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        items.forEach { (s, label) ->
-            val selected = s == style
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (selected) SacredGold.copy(alpha = 0.9f)
-                        else Color.White.copy(alpha = 0.14f)
+        Text(
+            W.t("vastu_compass_granularity"),
+            color = StarlightWhite.copy(alpha = 0.7f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CompassGranularity.values().forEach { g ->
+                val selected = g == granularity
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (selected) SacredGold.copy(alpha = 0.9f)
+                            else Color.White.copy(alpha = 0.14f)
+                        )
+                        .clickable { onSelect(g) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${g.sectors}",
+                        color = if (selected) Color(0xFF1A1005) else StarlightWhite,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 14.sp,
+                        maxLines = 1
                     )
-                    .clickable { onStyle(s) }
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    label,
-                    color = if (selected) Color(0xFF1A1005) else StarlightWhite,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                    fontSize = 12.sp,
-                    maxLines = 1
-                )
+                }
             }
         }
     }
@@ -856,36 +890,52 @@ private fun CapturedPhotoDialog(
 }
 
 // ------------------------------------------------------------------
-// Compass dial styles
+// Compass dial (granularity-driven)
 // ------------------------------------------------------------------
 
-private val DIAL_CODES = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
-
 /**
- * STYLE 1 — Classic dial. Rotating ring; all 8 directions shown; the live
- * facing direction is highlighted (gold wedge + enlarged gold label).
+ * Single granularity-driven dial rendered over the camera preview.
+ *
+ * Draws exactly [granularity] ring sectors; the live sector glows gold and
+ * the fixed gold dot at the top marks the direction the phone points to.
+ * EIGHT/TEN show the Ashta-Dikpala (guardian deity) name under each sector
+ * code; TEN additionally shows the Urdhva/Adho (up/down) indicator in the
+ * center — display-only, since up/down cannot be sensor-measured. The center
+ * always shows the live degrees plus the precise granular direction.
  */
 @Composable
-private fun CompassDialClassic(
+private fun CompassDialGranular(
     heading: Float,
+    degrees: Int,
+    granularity: CompassGranularity,
     currentCode: String,
     modifier: Modifier = Modifier
 ) {
+    val dirName = W.dirName(currentCode)
+    val showDeities = granularity == CompassGranularity.EIGHT ||
+        granularity == CompassGranularity.TEN
+    val upDownLine = if (granularity == CompassGranularity.TEN)
+        W.t("vastu_compass_up_down") else null
+
     Canvas(modifier = modifier) {
+        val codes = granularity.sectorCodes()
+        val n = codes.size
+        val sectorW = 360f / n
         val cx = size.width / 2f
         val cy = size.height / 2f
         val radius = size.minDimension / 2f - 8f
         val center = Offset(cx, cy)
         val rotation = -heading
 
-        // Highlight wedge for the live 45° sector.
-        val curIdx = DIAL_CODES.indexOf(currentCode).coerceAtLeast(0)
-        val wedgePath = androidx.compose.ui.graphics.Path().apply {
+        // Live-sector highlight wedge.
+        val curIdx = codes.indexOf(currentCode).coerceAtLeast(0)
+        val wedge = androidx.compose.ui.graphics.Path().apply {
             moveTo(cx, cy)
             val steps = 24
             for (s in 0..steps) {
                 val a = Math.toRadians(
-                    (curIdx * 45f - 22.5f + s * (45f / steps) + rotation - 90f).toDouble()
+                    (curIdx * sectorW - sectorW / 2f + s * (sectorW / steps) +
+                        rotation - 90f).toDouble()
                 )
                 lineTo(
                     cx + cos(a).toFloat() * (radius - 4f),
@@ -894,10 +944,9 @@ private fun CompassDialClassic(
             }
             close()
         }
-        drawPath(wedgePath, SacredGold.copy(alpha = 0.22f))
-        // (wedgeStart kept for readability of the sector math above)
+        drawPath(wedge, SacredGold.copy(alpha = 0.22f))
 
-        // Outer ring
+        // Outer ring.
         drawCircle(
             color = Color.White.copy(alpha = 0.15f),
             radius = radius,
@@ -910,51 +959,67 @@ private fun CompassDialClassic(
             center = center
         )
 
-        // Tick marks (dial angle a, clockwise from North, maps to screen
-        // angle a - 90 + rotation, matching the wedge above).
-        for (deg in 0 until 360 step 15) {
-            val rad = Math.toRadians((deg + rotation - 90f).toDouble())
-            val isCardinal = deg % 90 == 0
-            val tickLen = if (isCardinal) 22f else 12f
+        // Sector dividers (dial angle a, clockwise from North, maps to
+        // screen angle a - 90 + rotation, matching the wedge above).
+        for (i in 0 until n) {
+            val a = Math.toRadians(
+                (i * sectorW - sectorW / 2f + rotation - 90f).toDouble()
+            )
             drawLine(
-                color = if (isCardinal) SacredGold else Color.White.copy(alpha = 0.5f),
-                start = Offset(
-                    cx + cos(rad).toFloat() * (radius - tickLen),
-                    cy + sin(rad).toFloat() * (radius - tickLen)
-                ),
+                color = Color.White.copy(alpha = 0.35f),
+                start = center,
                 end = Offset(
-                    cx + cos(rad).toFloat() * radius,
-                    cy + sin(rad).toFloat() * radius
+                    cx + cos(a).toFloat() * radius,
+                    cy + sin(a).toFloat() * radius
                 ),
-                strokeWidth = if (isCardinal) 4f else 2f
+                strokeWidth = 2f
             )
         }
 
-        // All 8 direction labels; live one highlighted.
-        // (Same -90f screen mapping as the wedge/ticks: North at top when
+        // Sector code labels; the live one is highlighted.
+        // (Same -90f screen mapping as the wedge/dividers: North at top when
         // heading = 0.)
-        DIAL_CODES.forEachIndexed { i, code ->
-            val deg = i * 45f + rotation - 90f
-            val rad = Math.toRadians(deg.toDouble())
-            val labelR = radius - 44f
+        val labelR = radius - if (n == 16) 36f else 46f
+        codes.forEachIndexed { i, code ->
+            val a = Math.toRadians((i * sectorW + rotation - 90f).toDouble())
             val pos = Offset(
-                cx + cos(rad).toFloat() * labelR,
-                cy + sin(rad).toFloat() * labelR
+                cx + cos(a).toFloat() * labelR,
+                cy + sin(a).toFloat() * labelR
             )
             val isLive = code == currentCode
             val isNorth = code == "N"
             drawContext.canvas.nativeCanvas.apply {
-                val paint = android.graphics.Paint().apply {
+                val codePaint = android.graphics.Paint().apply {
                     color = when {
                         isLive -> android.graphics.Color.parseColor("#FFD54F")
                         isNorth -> android.graphics.Color.parseColor("#D4AF37")
                         else -> android.graphics.Color.argb(200, 255, 255, 255)
                     }
-                    textSize = if (isLive) 46f else if (isNorth) 42f else 32f
+                    textSize = when {
+                        n == 16 && isLive -> 32f
+                        n == 16 -> 24f
+                        n == 4 -> 52f
+                        isLive -> 48f
+                        isNorth -> 42f
+                        else -> 32f
+                    }
                     textAlign = android.graphics.Paint.Align.CENTER
                     isFakeBoldText = true
                 }
-                drawText(code, pos.x, pos.y + 12f, paint)
+                drawText(code, pos.x, pos.y + 12f, codePaint)
+                if (showDeities) {
+                    val deityPaint = android.graphics.Paint().apply {
+                        color = if (isLive)
+                            android.graphics.Color.parseColor("#1A1005")
+                        else
+                            android.graphics.Color.argb(210, 212, 175, 55)
+                        textSize = 24f
+                        textAlign = android.graphics.Paint.Align.CENTER
+                    }
+                    drawText(
+                        W.vastuDeityName(code), pos.x, pos.y + 42f, deityPaint
+                    )
+                }
             }
         }
 
@@ -962,301 +1027,36 @@ private fun CompassDialClassic(
         val markerTop = Offset(cx, cy - radius - 14f)
         drawCircle(SacredGold, radius = 10f, center = markerTop)
         drawCircle(Color.White, radius = 4f, center = markerTop)
-        drawCircle(SacredGold.copy(alpha = 0.9f), radius = 8f, center = center)
-    }
-}
 
-/**
- * STYLE 2 — Modern minimal ring. Thin ring, cardinal ticks only, large
- * digital degrees in the center with the direction name.
- */
-@Composable
-private fun CompassDialMinimal(
-    heading: Float,
-    degrees: Int,
-    currentCode: String,
-    modifier: Modifier = Modifier
-) {
-    val dirName = W.dirName(currentCode)
-    Canvas(modifier = modifier) {
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val radius = size.minDimension / 2f - 8f
-        val center = Offset(cx, cy)
-        val rotation = -heading
-
-        drawCircle(
-            color = Color.White.copy(alpha = 0.35f),
-            radius = radius,
-            center = center,
-            style = Stroke(width = 3f)
-        )
-        // Progress arc showing heading (gold, from top clockwise to heading).
-        drawArc(
-            color = SacredGold,
-            startAngle = -90f,
-            sweepAngle = ((heading % 360f) + 360f) % 360f,
-            useCenter = false,
-            topLeft = Offset(cx - radius, cy - radius),
-            size = androidx.compose.ui.geometry.Size(radius * 2f, radius * 2f),
-            style = Stroke(width = 7f)
-        )
-        // 8 minimal ticks (same -90f screen mapping as the other dials).
-        for (i in 0 until 8) {
-            val rad = Math.toRadians((i * 45f + rotation - 90f).toDouble())
-            val isLive = DIAL_CODES[i] == currentCode
-            drawLine(
-                color = if (isLive) SacredGold else Color.White.copy(alpha = 0.45f),
-                start = Offset(
-                    cx + cos(rad).toFloat() * (radius - 16f),
-                    cy + sin(rad).toFloat() * (radius - 16f)
-                ),
-                end = Offset(
-                    cx + cos(rad).toFloat() * radius,
-                    cy + sin(rad).toFloat() * radius
-                ),
-                strokeWidth = if (isLive) 6f else 3f
-            )
-        }
-        // Center digital readout
+        // Center digital readout: degrees + precise granular direction.
         drawContext.canvas.nativeCanvas.apply {
             val degPaint = android.graphics.Paint().apply {
                 color = android.graphics.Color.WHITE
-                textSize = 96f
+                textSize = 88f
                 textAlign = android.graphics.Paint.Align.CENTER
                 isFakeBoldText = true
             }
-            drawText("$degrees°", cx, cy + 10f, degPaint)
+            drawText("$degrees°", cx, cy + 8f, degPaint)
             val dirPaint = android.graphics.Paint().apply {
                 color = android.graphics.Color.parseColor("#D4AF37")
-                textSize = 40f
+                textSize = 36f
                 textAlign = android.graphics.Paint.Align.CENTER
                 isFakeBoldText = true
             }
-            drawText("$dirName ($currentCode)", cx, cy + 62f, dirPaint)
-        }
-    }
-}
-
-/**
- * STYLE 3 — Vastu mandala. Eight direction sectors with their dikpala
- * (guardian deity); the live sector glows gold.
- */
-@Composable
-private fun CompassDialMandala(
-    heading: Float,
-    currentCode: String,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val radius = size.minDimension / 2f - 8f
-        val center = Offset(cx, cy)
-        val rotation = -heading
-
-        // 8 sectors
-        DIAL_CODES.forEachIndexed { i, code ->
-            val isLive = code == currentCode
-            val path = androidx.compose.ui.graphics.Path().apply {
-                moveTo(cx, cy)
-                val steps = 24
-                for (s in 0..steps) {
-                    val a = Math.toRadians(
-                        (i * 45f - 22.5f + s * (45f / steps) + rotation - 90f).toDouble()
-                    )
-                    lineTo(
-                        cx + cos(a).toFloat() * radius,
-                        cy + sin(a).toFloat() * radius
-                    )
-                }
-                close()
-            }
-            drawPath(
-                path,
-                if (isLive) SacredGold.copy(alpha = 0.55f)
-                else if (i % 2 == 0) Color.White.copy(alpha = 0.07f)
-                else Color.White.copy(alpha = 0.03f)
-            )
-            // Sector divider
-            val divA = Math.toRadians((i * 45f - 22.5f + rotation - 90f).toDouble())
-            drawLine(
-                color = Color.White.copy(alpha = 0.35f),
-                start = center,
-                end = Offset(
-                    cx + cos(divA).toFloat() * radius,
-                    cy + sin(divA).toFloat() * radius
-                ),
-                strokeWidth = 2f
-            )
-            // Direction code + deity name
-            val midA = Math.toRadians((i * 45f + rotation - 90f).toDouble())
-            val labelR = radius * 0.62f
-            val pos = Offset(
-                cx + cos(midA).toFloat() * labelR,
-                cy + sin(midA).toFloat() * labelR
-            )
-            drawContext.canvas.nativeCanvas.apply {
-                val codePaint = android.graphics.Paint().apply {
-                    color = if (isLive) android.graphics.Color.parseColor("#1A1005")
-                    else android.graphics.Color.argb(235, 255, 255, 255)
-                    textSize = if (isLive) 40f else 34f
+            // Long direction names (e.g. Hindi) must not clip at the dial
+            // edges: shrink the text to fit.
+            val dirText = "$dirName ($currentCode)"
+            fitTextToWidth(dirPaint, dirText, radius * 1.5f)
+            drawText(dirText, cx, cy + 58f, dirPaint)
+            if (upDownLine != null) {
+                val udPaint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.argb(200, 255, 255, 255)
+                    textSize = 24f
                     textAlign = android.graphics.Paint.Align.CENTER
-                    isFakeBoldText = true
                 }
-                drawText(code, pos.x, pos.y, codePaint)
+                fitTextToWidth(udPaint, upDownLine, radius * 1.5f)
+                drawText(upDownLine, cx, cy + 94f, udPaint)
             }
-        }
-
-        // Outer ring
-        drawCircle(
-            color = SacredGold.copy(alpha = 0.7f),
-            radius = radius,
-            center = center,
-            style = Stroke(width = 3f)
-        )
-        drawCircle(
-            color = Color.Black.copy(alpha = 0.25f),
-            radius = radius - 2f,
-            center = center
-        )
-        // Brahmasthan center
-        drawCircle(SacredGold.copy(alpha = 0.85f), radius = 26f, center = center)
-        drawContext.canvas.nativeCanvas.apply {
-            val p = android.graphics.Paint().apply {
-                color = android.graphics.Color.parseColor("#1A1005")
-                textSize = 26f
-                textAlign = android.graphics.Paint.Align.CENTER
-                isFakeBoldText = true
-            }
-            drawText("ॐ", cx, cy + 9f, p)
-        }
-    }
-    // Deity labels need W (composition context) — overlay them in a Box.
-    MandalaDeityOverlay(heading = heading, currentCode = currentCode)
-}
-
-/**
- * Deity-name overlay for the mandala style. Positioned with the same
- * sector math so names sit inside their sectors and rotate with heading.
- */
-@Composable
-private fun MandalaDeityOverlay(heading: Float, currentCode: String) {
-    Box(
-        modifier = Modifier.size(270.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        // Names are placed by angle using offset math in dp. The radius must
-        // match the canvas label circle: (270/2 - 8) * 0.62, where the -8f is
-        // the same inset CompassDialMandala applies to its ring.
-        val radiusDp = (270f / 2f - 8f) * 0.62f
-        DIAL_CODES.forEachIndexed { i, code ->
-            val a = Math.toRadians((i * 45f - heading - 90f).toDouble())
-            val dx = (cos(a) * radiusDp).dp
-            val dy = (sin(a) * radiusDp).dp
-            Box(
-                modifier = Modifier
-                    .offset(x = dx, y = dy + 14.dp)
-                    .padding(horizontal = 2.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    W.vastuDeityName(code),
-                    color = if (code == currentCode) Color(0xFF1A1005)
-                    else SacredGold.copy(alpha = 0.9f),
-                    fontSize = 11.sp,
-                    fontWeight = if (code == currentCode) FontWeight.Bold
-                    else FontWeight.Normal,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-/**
- * STYLE 4 — Digital readout. Big degrees, direction arrow rotating with
- * heading, direction name — like a digital instrument.
- */
-@Composable
-private fun CompassDialDigital(
-    heading: Float,
-    degrees: Int,
-    currentCode: String,
-    modifier: Modifier = Modifier
-) {
-    val dirName = W.dirName(currentCode)
-    Canvas(modifier = modifier) {
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val radius = size.minDimension / 2f - 8f
-        val center = Offset(cx, cy)
-
-        // Instrument panel
-        drawCircle(
-            color = Color.Black.copy(alpha = 0.55f),
-            radius = radius,
-            center = center
-        )
-        drawCircle(
-            color = SacredGold.copy(alpha = 0.8f),
-            radius = radius,
-            center = center,
-            style = Stroke(width = 3f)
-        )
-
-        // Rotating arrow (points to current heading).
-        rotate(degrees = heading, pivot = center) {
-            val arrowLen = radius * 0.72f
-            // Shaft
-            drawLine(
-                color = Color.White.copy(alpha = 0.85f),
-                start = Offset(cx, cy + arrowLen * 0.35f),
-                end = Offset(cx, cy - arrowLen),
-                strokeWidth = 10f
-            )
-            // Head
-            val headPath = androidx.compose.ui.graphics.Path().apply {
-                moveTo(cx, cy - arrowLen - 26f)
-                lineTo(cx - 22f, cy - arrowLen + 14f)
-                lineTo(cx + 22f, cy - arrowLen + 14f)
-                close()
-            }
-            drawPath(headPath, SacredGold)
-            // Tail
-            drawCircle(
-                Color.White.copy(alpha = 0.85f),
-                radius = 12f,
-                center = Offset(cx, cy + arrowLen * 0.35f)
-            )
-        }
-
-        // Fixed "N" marker at top for reference
-        drawContext.canvas.nativeCanvas.apply {
-            val p = android.graphics.Paint().apply {
-                color = android.graphics.Color.argb(160, 255, 255, 255)
-                textSize = 30f
-                textAlign = android.graphics.Paint.Align.CENTER
-            }
-            drawText("N", cx, cy - radius + 36f, p)
-        }
-
-        // Digital readout
-        drawContext.canvas.nativeCanvas.apply {
-            val degPaint = android.graphics.Paint().apply {
-                color = android.graphics.Color.WHITE
-                textSize = 84f
-                textAlign = android.graphics.Paint.Align.CENTER
-                isFakeBoldText = true
-            }
-            drawText("$degrees°", cx, cy + radius - 28f, degPaint)
-            val dirPaint = android.graphics.Paint().apply {
-                color = android.graphics.Color.parseColor("#D4AF37")
-                textSize = 38f
-                textAlign = android.graphics.Paint.Align.CENTER
-                isFakeBoldText = true
-            }
-            drawText("$dirName ($currentCode)", cx, cy + radius + 14f, dirPaint)
         }
     }
 }

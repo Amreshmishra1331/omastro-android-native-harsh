@@ -90,6 +90,11 @@ class CompassSensorManager(context: Context) : SensorEventListener {
     }
 
     companion object {
+        private val SIXTEEN_CODES = listOf(
+            "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+            "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+        )
+
         /** 8-sector Vastu direction code for a compass heading. */
         fun directionCode(heading: Float): String {
             val h = ((heading % 360f) + 360f) % 360f
@@ -108,5 +113,25 @@ class CompassSensorManager(context: Context) : SensorEventListener {
         /** Rounded whole degrees for display. */
         fun roundedDegrees(heading: Float): Int =
             (((heading % 360f) + 360f) % 360f).roundToInt() % 360
+
+        /**
+         * Granular sector code for a compass heading at the given ring sector
+         * count (4, 8, or 16). A 10-direction compass renders an 8-sector ring
+         * (Urdhva/Adho are display-only — the sensor cannot measure up/down),
+         * so callers pass 8 for it.
+         */
+        fun granularCode(heading: Float, ringSectors: Int): String {
+            val h = ((heading % 360f) + 360f) % 360f
+            return when (ringSectors) {
+                4 -> when {
+                    h < 45f || h >= 315f -> "N"
+                    h < 135f -> "E"
+                    h < 225f -> "S"
+                    else -> "W"
+                }
+                16 -> SIXTEEN_CODES[((h + 11.25f) / 22.5f).toInt() % 16]
+                else -> directionCode(heading)
+            }
+        }
     }
 }

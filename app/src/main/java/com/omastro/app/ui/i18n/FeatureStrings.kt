@@ -298,10 +298,9 @@ object W {
         "vastu_compass_cam_rationale" to "प्रवेश द्वार की दिशा देखते समय लाइव कैमरा प्रीव्यू के लिए कैमरा एक्सेस आवश्यक है।",
         "vastu_compass_unavailable_title" to "कम्पास उपलब्ध नहीं",
         "vastu_compass_unavailable_msg" to "इस डिवाइस में कम्पास सेंसर नहीं है, इसलिए लाइव दिशा नहीं दिखाई जा सकती। कृपया दिशा मैन्युअल रूप से चुनें।",
-        "vastu_compass_style_classic" to "क्लासिक",
-        "vastu_compass_style_minimal" to "मिनिमल",
-        "vastu_compass_style_mandala" to "वास्तु मंडल",
-        "vastu_compass_style_digital" to "डिजिटल",
+        "vastu_compass_granularity" to "कम्पास दिशाएँ",
+        "vastu_compass_up_down" to "↑ ऊर्ध्व (ऊपर) · ↓ अधो (नीचे)",
+        "vastu_compass_up_down_note" to "ऊपर (ऊर्ध्व) और नीचे (अधो) फ़ोन के सेंसर से नहीं मापी जा सकतीं — केवल वास्तु संदर्भ हेतु दिखाई गई हैं।",
         "vastu_compass_capture_cd" to "दिशा फोटो लें",
         "vastu_compass_photo_title" to "दिशा फोटो",
         "vastu_compass_saved" to "फोटो गैलरी में सहेजी गई।",
@@ -1325,10 +1324,9 @@ object W {
         "vastu_compass_cam_rationale" to "Camera access is needed for the live preview while you check your entrance direction.",
         "vastu_compass_unavailable_title" to "Compass not available",
         "vastu_compass_unavailable_msg" to "This device has no compass sensor, so live direction cannot be shown. Please choose the direction manually.",
-        "vastu_compass_style_classic" to "Classic",
-        "vastu_compass_style_minimal" to "Minimal",
-        "vastu_compass_style_mandala" to "Vastu Mandala",
-        "vastu_compass_style_digital" to "Digital",
+        "vastu_compass_granularity" to "Compass directions",
+        "vastu_compass_up_down" to "↑ Urdhva (Up) · ↓ Adho (Down)",
+        "vastu_compass_up_down_note" to "Up (Urdhva) and Down (Adho) cannot be measured by the phone's sensor — shown for Vastu reference only.",
         "vastu_compass_capture_cd" to "Capture direction photo",
         "vastu_compass_photo_title" to "Direction photo",
         "vastu_compass_saved" to "Photo saved to gallery.",
@@ -2110,11 +2108,21 @@ object W {
     private val DIR_HI = mapOf(
         "N" to "उत्तर", "NE" to "उत्तर-पूर्व", "E" to "पूर्व", "SE" to "दक्षिण-पूर्व",
         "S" to "दक्षिण", "SW" to "दक्षिण-पश्चिम", "W" to "पश्चिम", "NW" to "उत्तर-पश्चिम",
+        "NNE" to "उत्तर-उत्तरपूर्व", "ENE" to "पूर्व-उत्तरपूर्व",
+        "ESE" to "पूर्व-दक्षिणपूर्व", "SSE" to "दक्षिण-दक्षिणपूर्व",
+        "SSW" to "दक्षिण-दक्षिणपश्चिम", "WSW" to "पश्चिम-दक्षिणपश्चिम",
+        "WNW" to "पश्चिम-उत्तरपश्चिम", "NNW" to "उत्तर-उत्तरपश्चिम",
+        "UP" to "ऊपर (ऊर्ध्व)", "DOWN" to "नीचे (अधो)",
         "C" to "केंद्र (ब्रह्मस्थान)"
     )
     private val DIR_EN = mapOf(
         "N" to "North", "NE" to "North-East", "E" to "East", "SE" to "South-East",
         "S" to "South", "SW" to "South-West", "W" to "West", "NW" to "North-West",
+        "NNE" to "North-North-East", "ENE" to "East-North-East",
+        "ESE" to "East-South-East", "SSE" to "South-South-East",
+        "SSW" to "South-South-West", "WSW" to "West-South-West",
+        "WNW" to "West-North-West", "NNW" to "North-North-West",
+        "UP" to "Up (Urdhva)", "DOWN" to "Down (Adho)",
         "C" to "Centre (Brahmasthan)"
     )
 

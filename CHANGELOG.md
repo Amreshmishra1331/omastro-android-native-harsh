@@ -4,6 +4,30 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Vastu compass: direction-granularity selector (4/8/10/16) replaces style switcher
+
+User directive (correction): "He did NOT want 4 visual styles. He wants compasses by DIRECTION COUNT." The website already does this — the compass now offers 4 / 8 / 10 / 16 direction counts instead of the classic/minimal/mandala/digital visual styles.
+
+### Before
+- **Wrong concept**: the compass had a 4-way *visual style* switcher (Classic, Minimal, Mandala, Digital) — four different looks at the same 8 directions. The user never asked for styles; he asked for compasses by direction count.
+- **No 4/16-direction support**: only 8 sectors (N, NE, E, SE, S, SW, W, NW) existed; no 4-direction (90° sectors), no 16-direction (22.5° sectors), no 10-direction (8 + Urdhva/Adho).
+- **Dikpala lords only on one style**: guardian-deity names appeared only in the Mandala visual style.
+
+### After
+- **Granularity selector** (`CompassModeScreen.kt`): 4 / 8 / 10 / 16 buttons with a bilingual "Compass directions" / "कम्पास दिशाएँ" label. One dial renders exactly the selected number of sectors; the live sector glows gold.
+  - **4-direction**: N/E/S/W only (90° sectors).
+  - **8-direction**: N, NE, E, SE, S, SW, W, NW (45° sectors) with dikpala lord names (Kubera, Ishana, Indra, Agni, Yama, Nirriti, Varuna, Vayu) under each sector.
+  - **10-direction**: the 8-direction ring plus a center ↑ Urdhva (Up) · ↓ Adho (Down) indicator, with an honest note: up/down cannot be measured by the phone's sensor — shown for Vastu reference only. The live heading always maps to one of the 8 ring sectors.
+  - **16-direction**: N, NNE, NE, ENE, E, ESE, SE, SSE, S, SSW, SW, WSW, W, WNW, NW, NNW (22.5° sectors).
+- **Correct sector mapping** (`CompassSensor.kt`, new `granularCode()`): the live heading maps to the exact sector for the selected granularity at every degree; the dial, the readout, and the photo stamp all show the precise granular sector (e.g. NNE).
+- **"Use This Direction" passes the right code**: the Vastu form's facing field and the backend engine use the classical 8 directions (same as the website's 8-option facing select — a 16-direction code would be silently dropped by the backend), so the button passes the nearest 8-direction code at every granularity while its label shows the precise granular direction.
+- **Photo capture unchanged**: shutter button, direction-stamped photo (now stamped with the granular direction name + code + degrees), gallery save, and hand-off to house-map analysis all work as before.
+- **Bilingual**: new `vastu_compass_granularity`, `vastu_compass_up_down`, `vastu_compass_up_down_note` keys plus 16-direction direction names (EN + हिन्दी) in `FeatureStrings.kt`; dead `vastu_compass_style_*` keys removed. No emojis.
+
+### Verification
+- Full Gradle compile could NOT run in this environment (sandbox blocks inter-process TCP, so the Gradle daemon handshake fails — same limitation class as previous entries). Substitute verification: brace/paren/bracket deltas are 0 in all 3 edited files; zero remaining references to `CompassStyle`, the 4 deleted dials, or `vastu_compass_style_*` keys; all 3 new string keys resolve exactly once in each of the HI and EN maps; all 10 new direction codes resolve exactly once in each of the DIR_HI/DIR_EN maps; the sector math was verified independently in Python against the Kotlin formulas — an exhaustive 0.1° sweep over 0–360° maps every heading to its nearest sector center for 4/8/16, and exact boundary checks pass (4-direction boundaries at 45°/135°/225°/315°; 16-direction sector edges at ±11.25°, e.g. 11.25°→NNE, 348.75°→N). CI (`assembleDebug` + `assembleRelease` on push to main) is the compile gate — must be green after push.
+- Not device-verified (no device in this environment): confirm on a physical device that (1) each granularity button renders the correct sector count, (2) rotating the phone highlights the correct sector including NNE etc. at 16, (3) "Use This Direction" fills the facing field with the nearest 8-direction code, (4) the captured photo stamp shows the granular direction + degrees, (5) हिन्दी switches all new strings.
+
 ## [2026-10-10] — App storage: on-device "My Data" for Kundali + readings + numerology
 
 User directive: "Native Apps me App storage ko focus karna. Recent kundali yesab data device storage me select honi chahiye. AI chat cloud me." The existing Room store (`reading_history.db`, vision readings only) is extended into a unified on-device "My Data": Kundali charts, numerology results, and reusable birth profiles are now saved on the device automatically. AI chat is deliberately NOT moved — it stays cloud-based, no chat changes in this entry.
