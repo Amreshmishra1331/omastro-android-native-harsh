@@ -197,6 +197,19 @@ object W {
         "vision_err_rate" to "बहुत अधिक फोटो विश्लेषण। कृपया एक मिनट रुककर पुनः प्रयास करें।",
         "vision_err_photo" to "फोटो समझी नहीं जा सकी। स्पष्ट फोटो से प्रयास करें।",
         "vision_err_http" to "अनुरोध विफल रहा",
+        "vision_err_402" to "वॉलेट में पर्याप्त बैलेंस नहीं है।",
+        // ---- Paid vision/photo AI billing (wallet) ----
+        // %s = price, e.g. "₹20". Defaults from backend options
+        // kg_rate_palmistry_paise / kg_rate_facereading_paise /
+        // kg_rate_vastu_photo_paise (default 2000 paise each).
+        "vision_btn_price" to "विश्लेषण करें — %s",
+        "vision_free" to "मुफ़्त",
+        "vision_price_word" to "कीमत",
+        "vision_balance_word" to "बैलेंस",
+        "vision_insuf_title" to "अपर्याप्त बैलेंस",
+        "vision_insuf_body" to "इस AI विश्लेषण की कीमत %s है, लेकिन आपके वॉलेट में केवल %s है। जारी रखने के लिए पैसे जोड़ें — विश्लेषण पुनः प्रयास नहीं किया गया है।",
+        "vision_insuf_add" to "पैसे जोड़ें",
+        "vision_insuf_later" to "अभी नहीं",
 
         // ---- Face reading ----
         "face_title" to "चेहरा विश्लेषण",
@@ -1178,6 +1191,19 @@ object W {
         "vision_err_rate" to "Too many photo analyses. Please wait a minute and try again.",
         "vision_err_photo" to "The photo could not be understood. Try a clearer photo.",
         "vision_err_http" to "Request failed",
+        "vision_err_402" to "Insufficient wallet balance.",
+        // ---- Paid vision/photo AI billing (wallet) ----
+        // %s = price, e.g. "₹20". Defaults from backend options
+        // kg_rate_palmistry_paise / kg_rate_facereading_paise /
+        // kg_rate_vastu_photo_paise (default 2000 paise each).
+        "vision_btn_price" to "Analyze — %s",
+        "vision_free" to "Free",
+        "vision_price_word" to "Price",
+        "vision_balance_word" to "Balance",
+        "vision_insuf_title" to "Insufficient balance",
+        "vision_insuf_body" to "This AI analysis costs %s, but your wallet balance is only %s. Add money to continue — the analysis was not retried.",
+        "vision_insuf_add" to "Add Money",
+        "vision_insuf_later" to "Not now",
         "face_title" to "Face Reading",
         "face_sub" to "Samudrika Shastra face reading from your photo",
         "face_capture_title" to "Photograph your face",

@@ -301,30 +301,36 @@ interface OmAstroApiService {
     @GET("vastu/reference")
     suspend fun getVastuReference(): Response<Map<String, Any>>
 
-    /** POST /vastu/analyze-photo — house-map photo → vision parse → engine (auth, multipart). */
+    /** POST /vastu/analyze-photo — house-map photo → vision parse → engine (auth, multipart).
+     * `language` = app Settings language ("en"|"hi"); the server replies in that language. */
     @Multipart
     @POST("vastu/analyze-photo")
     suspend fun analyzeVastuPhoto(
         @Part photo: MultipartBody.Part,
-        @Part("notes") notes: okhttp3.RequestBody? = null
+        @Part("notes") notes: okhttp3.RequestBody? = null,
+        @Part("language") language: okhttp3.RequestBody? = null
     ): Response<Map<String, Any>>
 
-    /** POST /ai/vision — image + question → Gemini vision analysis + parsed_facts (auth, multipart). */
+    /** POST /ai/vision — image + question → Gemini vision analysis + parsed_facts (auth, multipart).
+     * `language` = app Settings language ("en"|"hi"); the server replies in that language. */
     @Multipart
     @POST("ai/vision")
     suspend fun analyzeVision(
         @Part image: MultipartBody.Part,
         @Part("question") question: okhttp3.RequestBody,
-        @Part("context") context: okhttp3.RequestBody? = null
+        @Part("context") context: okhttp3.RequestBody? = null,
+        @Part("language") language: okhttp3.RequestBody? = null
     ): Response<Map<String, Any>>
 
-    /** POST /palmistry/analyze — palm photo → structured reading (auth, multipart). */
+    /** POST /palmistry/analyze — palm photo → structured reading (auth, multipart).
+     * `language` = app Settings language ("en"|"hi"); the server replies in that language. */
     @Multipart
     @POST("palmistry/analyze")
     suspend fun analyzePalmistry(
         @Part image: MultipartBody.Part,
         @Part("hand") hand: okhttp3.RequestBody? = null,
-        @Part("notes") notes: okhttp3.RequestBody? = null
+        @Part("notes") notes: okhttp3.RequestBody? = null,
+        @Part("language") language: okhttp3.RequestBody? = null
     ): Response<Map<String, Any>>
 
     /**
@@ -332,12 +338,14 @@ interface OmAstroApiService {
      * (auth, multipart). Returns per-feature observation + interpretation,
      * overall_personality, career, relationships, health_indications, guidance,
      * parsed_facts, and an honesty refusal when no clear face is visible.
+     * `language` = app Settings language ("en"|"hi"); the server replies in that language.
      */
     @Multipart
     @POST("face-reading/analyze")
     suspend fun analyzeFaceReading(
         @Part image: MultipartBody.Part,
-        @Part("notes") notes: okhttp3.RequestBody? = null
+        @Part("notes") notes: okhttp3.RequestBody? = null,
+        @Part("language") language: okhttp3.RequestBody? = null
     ): Response<Map<String, Any>>
 }
 

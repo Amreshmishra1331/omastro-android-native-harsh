@@ -93,7 +93,11 @@ import com.omastro.app.data.model.VastuAnalyzeRequest
 import com.omastro.app.data.model.VastuDosha
 import com.omastro.app.data.model.VastuPadaInfo
 import com.omastro.app.data.model.VastuRoomInput
+import com.omastro.app.data.repository.InsufficientBalanceException
 import com.omastro.app.data.repository.VisionRepository
+import com.omastro.app.ui.components.FreeBadge
+import com.omastro.app.ui.components.InsufficientBalanceDialog
+import com.omastro.app.ui.components.formatRs
 import com.omastro.app.data.local.ReadingFeatureType
 import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
@@ -131,7 +135,9 @@ data class VastuUiState(
     val error: String? = null,
     val padaReference: List<VastuPadaInfo> = emptyList(),
     /** `photo_parse` from /vastu/analyze-photo (parsed house-map inputs). */
-    val photoParse: Map<String, Any?> = emptyMap()
+    val photoParse: Map<String, Any?> = emptyMap(),
+    /** Set when the paid photo endpoint answered HTTP 402 — shows the Add-Money dialog. */
+    val insufficientBalance: InsufficientBalanceException? = null
 )
 
 class VastuViewModel : ViewModel() {
@@ -205,10 +211,18 @@ class VastuViewModel : ViewModel() {
                     )
                 }
                 .onFailure { e ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = e.message ?: W.t("vastu_photo_err_failed")
-                    )
+                    // HTTP 402: show the bilingual Add-Money dialog — never retry.
+                    if (e is InsufficientBalanceException) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            insufficientBalance = e
+                        )
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = e.message ?: W.t("vastu_photo_err_failed")
+                        )
+                    }
                 }
             // Auto-save completed photo analyses to local history,
             // with a downscaled thumbnail of the house-map photo.
@@ -230,6 +244,10 @@ class VastuViewModel : ViewModel() {
             analysis = null, error = null, photoParse = emptyMap()
         )
     }
+
+    fun clearInsufficientBalance() {
+        _uiState.value = _uiState.value.copy(insufficientBalance = null)
+    }
 }
 
 // ------------------------------------------------------------------
@@ -242,6 +260,7 @@ fun VastuScreen(
     onBack: () -> Unit,
     onOpenAiChat: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenWallet: () -> Unit,
     viewModel: VastuViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -295,6 +314,18 @@ fun VastuScreen(
         },
         containerColor = CosmicDeepBlue
     ) { padding ->
+        // HTTP 402: bilingual insufficient-balance dialog with Add Money.
+        uiState.insufficientBalance?.let { insuf ->
+            InsufficientBalanceDialog(
+                pricePaise = insuf.pricePaise,
+                balancePaise = insuf.balancePaise,
+                onAddMoney = {
+                    viewModel.clearInsufficientBalance()
+                    onOpenWallet()
+                },
+                onDismiss = { viewModel.clearInsufficientBalance() }
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -604,7 +635,10 @@ private fun VastuManualForm(
                 contentColor = Color(0xFF1A1005)
             )
         ) {
+            // Manual form runs the classical Vastu engine — always free.
             Text(W.t("vastu_analyze"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Spacer(modifier = Modifier.width(8.dp))
+            FreeBadge()
         }
         Spacer(modifier = Modifier.height(24.dp))
     } // end form Column
@@ -993,7 +1027,12 @@ private fun VastuPhotoForm(
                     contentColor = Color(0xFF1A1005)
                 )
             ) {
-                Text(W.t("vastu_analyze_map"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                // House-map photo flows through paid AI vision — price on the button.
+                Text(
+                    W.tf("vision_btn_price", formatRs(VisionRepository.PRICE_VASTU_PHOTO_PAISE)),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
             }
         }
         Spacer(modifier = Modifier.height(24.dp))

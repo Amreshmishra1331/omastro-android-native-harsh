@@ -54,6 +54,17 @@ class WalletRepository(
     }
 
     /**
+     * Update the local balance from a server-returned authoritative figure
+     * (e.g. `wallet_balance_paise` on paid vision/photo-AI responses), without
+     * a `/wallet/balance` round-trip. Paid/bonus splits stay as last loaded;
+     * the next [refreshBalance] restores them.
+     */
+    fun applyServerBalance(totalPaise: Int) {
+        _walletBalancePaise.value = totalPaise
+        _walletBalanceInr.value = totalPaise / 100.0
+    }
+
+    /**
      * Add-money slabs — website parity (verified 2026-10-02):
      * ₹25 → ₹35 credit, ₹50 → ₹80, ₹100 → ₹200, above ₹100 → double.
      * The server computes and grants the bonus on verify; the app only

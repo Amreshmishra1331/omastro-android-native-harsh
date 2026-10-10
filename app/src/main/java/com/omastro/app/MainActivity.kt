@@ -339,6 +339,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onOpenHistory = {
                                     navController.navigate(Screen.ReadingHistory.route)
+                                },
+                                onOpenWallet = {
+                                    navController.navigate(Screen.Wallet.route) { launchSingleTop = true }
                                 }
                             )
                         }
@@ -350,6 +353,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onOpenHistory = {
                                     navController.navigate(Screen.ReadingHistory.route)
+                                },
+                                onOpenWallet = {
+                                    navController.navigate(Screen.Wallet.route) { launchSingleTop = true }
                                 }
                             )
                         }
@@ -361,6 +367,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onOpenHistory = {
                                     navController.navigate(Screen.ReadingHistory.route)
+                                },
+                                onOpenWallet = {
+                                    navController.navigate(Screen.Wallet.route) { launchSingleTop = true }
                                 }
                             )
                         }

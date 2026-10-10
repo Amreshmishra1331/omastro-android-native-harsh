@@ -73,7 +73,10 @@ import com.omastro.app.data.model.PhotoContextAttachment
 import com.omastro.app.data.model.renderFactLines
 import com.omastro.app.ui.share.ReadingCardShareButton
 import com.omastro.app.ui.share.shareCardContent
+import com.omastro.app.data.repository.InsufficientBalanceException
 import com.omastro.app.data.repository.VisionRepository
+import com.omastro.app.ui.components.InsufficientBalanceDialog
+import com.omastro.app.ui.components.formatRs
 import com.omastro.app.data.local.ReadingFeatureType
 import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.screens.aichat.copyUriToCache
@@ -92,7 +95,9 @@ import kotlinx.coroutines.launch
 data class PalmistryUiState(
     val isLoading: Boolean = false,
     val reading: PalmistryReading? = null,
-    val error: String? = null
+    val error: String? = null,
+    /** Set when the paid endpoint answered HTTP 402 — shows the Add-Money dialog. */
+    val insufficientBalance: InsufficientBalanceException? = null
 )
 
 class PalmistryViewModel : ViewModel() {
@@ -109,9 +114,14 @@ class PalmistryViewModel : ViewModel() {
                     _uiState.value = PalmistryUiState(reading = reading)
                 }
                 .onFailure { e ->
-                    _uiState.value = PalmistryUiState(
-                        error = e.message ?: W.t("palm_err_failed")
-                    )
+                    // HTTP 402: show the bilingual Add-Money dialog — never retry.
+                    if (e is InsufficientBalanceException) {
+                        _uiState.value = PalmistryUiState(insufficientBalance = e)
+                    } else {
+                        _uiState.value = PalmistryUiState(
+                            error = e.message ?: W.t("palm_err_failed")
+                        )
+                    }
                 }
             // Auto-save completed readings to local history.
             // Refusals are NEVER saved — only real readings.
@@ -131,6 +141,10 @@ class PalmistryViewModel : ViewModel() {
     fun reset() {
         _uiState.value = PalmistryUiState()
     }
+
+    fun clearInsufficientBalance() {
+        _uiState.value = _uiState.value.copy(insufficientBalance = null)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -139,6 +153,7 @@ fun PalmistryScreen(
     onBack: () -> Unit,
     onOpenAiChat: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenWallet: () -> Unit,
     viewModel: PalmistryViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -240,6 +255,18 @@ fun PalmistryScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = CosmicDeepBlue
     ) { padding ->
+        // HTTP 402: bilingual insufficient-balance dialog with Add Money.
+        uiState.insufficientBalance?.let { insuf ->
+            InsufficientBalanceDialog(
+                pricePaise = insuf.pricePaise,
+                balancePaise = insuf.balancePaise,
+                onAddMoney = {
+                    viewModel.clearInsufficientBalance()
+                    onOpenWallet()
+                },
+                onDismiss = { viewModel.clearInsufficientBalance() }
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -460,7 +487,11 @@ private fun PalmistryCaptureCard(
                 disabledContainerColor = SacredGold.copy(alpha = 0.3f)
             )
         ) {
-            Text(W.t("palm_analyze"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(
+                W.tf("vision_btn_price", formatRs(VisionRepository.PRICE_PALMISTRY_PAISE)),
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
         }
     }
 }

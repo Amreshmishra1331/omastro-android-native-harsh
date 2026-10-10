@@ -67,7 +67,10 @@ import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.FaceReading
 import com.omastro.app.data.model.PendingPhotoContextHolder
 import com.omastro.app.data.model.PhotoContextAttachment
+import com.omastro.app.data.repository.InsufficientBalanceException
 import com.omastro.app.data.repository.VisionRepository
+import com.omastro.app.ui.components.InsufficientBalanceDialog
+import com.omastro.app.ui.components.formatRs
 import com.omastro.app.data.local.ReadingFeatureType
 import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.ui.i18n.W
@@ -87,7 +90,9 @@ import kotlinx.coroutines.launch
 data class FaceReadingUiState(
     val isLoading: Boolean = false,
     val reading: FaceReading? = null,
-    val error: String? = null
+    val error: String? = null,
+    /** Set when the paid endpoint answered HTTP 402 — shows the Add-Money dialog. */
+    val insufficientBalance: InsufficientBalanceException? = null
 )
 
 class FaceReadingViewModel : ViewModel() {
@@ -104,9 +109,14 @@ class FaceReadingViewModel : ViewModel() {
                     _uiState.value = FaceReadingUiState(reading = reading)
                 }
                 .onFailure { e ->
-                    _uiState.value = FaceReadingUiState(
-                        error = e.message ?: W.t("face_err_failed")
-                    )
+                    // HTTP 402: show the bilingual Add-Money dialog — never retry.
+                    if (e is InsufficientBalanceException) {
+                        _uiState.value = FaceReadingUiState(insufficientBalance = e)
+                    } else {
+                        _uiState.value = FaceReadingUiState(
+                            error = e.message ?: W.t("face_err_failed")
+                        )
+                    }
                 }
             // Auto-save completed readings to local history.
             // No-face refusals are NEVER saved — only real readings.
@@ -126,6 +136,10 @@ class FaceReadingViewModel : ViewModel() {
     fun reset() {
         _uiState.value = FaceReadingUiState()
     }
+
+    fun clearInsufficientBalance() {
+        _uiState.value = _uiState.value.copy(insufficientBalance = null)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,6 +148,7 @@ fun FaceReadingScreen(
     onBack: () -> Unit,
     onOpenAiChat: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenWallet: () -> Unit,
     viewModel: FaceReadingViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -234,6 +249,18 @@ fun FaceReadingScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = CosmicDeepBlue
     ) { padding ->
+        // HTTP 402: bilingual insufficient-balance dialog with Add Money.
+        uiState.insufficientBalance?.let { insuf ->
+            InsufficientBalanceDialog(
+                pricePaise = insuf.pricePaise,
+                balancePaise = insuf.balancePaise,
+                onAddMoney = {
+                    viewModel.clearInsufficientBalance()
+                    onOpenWallet()
+                },
+                onDismiss = { viewModel.clearInsufficientBalance() }
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -419,7 +446,11 @@ private fun FaceReadingCaptureCard(
                 disabledContainerColor = SacredGold.copy(alpha = 0.3f)
             )
         ) {
-            Text(W.t("face_analyze"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(
+                W.tf("vision_btn_price", formatRs(VisionRepository.PRICE_FACE_READING_PAISE)),
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
         }
     }
 }
