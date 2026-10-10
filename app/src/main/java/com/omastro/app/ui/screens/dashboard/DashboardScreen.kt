@@ -268,7 +268,8 @@ fun DashboardScreen(
                         onNumerologyClick = { navController.navigate(Screen.Numerology.route) },
                         onAstroHealthClick = { navController.navigate(Screen.AstroHealth.route) },
                         // App storage: My Data is 1 tap from the dashboard.
-                        onMyDataClick = { navController.navigate(Screen.MyData.route) }
+                        onMyDataClick = { navController.navigate(Screen.MyData.route) },
+                        onDeleteChart = { viewModel.deleteSavedChart(it) }
                     )
                 }
             }
@@ -417,7 +418,8 @@ private fun HomeTabContent(
     onNumerologyClick: () -> Unit,
     onAstroHealthClick: () -> Unit,
     // App storage: unified on-device My Data (Kundalis, readings, numerology).
-    onMyDataClick: () -> Unit
+    onMyDataClick: () -> Unit,
+    onDeleteChart: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Wallet hero card (orange gradient like website)
@@ -639,7 +641,8 @@ private fun HomeTabContent(
             savedCharts.take(5).forEach { chart ->
                 SavedChartRow(
                     chart = chart,
-                    onClick = { onKundaliClick(chart.id) }
+                    onClick = { onKundaliClick(chart.id) },
+                    onDelete = { onDeleteChart(chart.id) }
                 )
             }
         }
@@ -732,7 +735,7 @@ private fun AiReadingCard(
 private fun SavedChartRow(
     chart: SavedChart,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: (() -> Unit)? = null
 ) {
     CosmicCard(
         modifier = Modifier
@@ -758,13 +761,15 @@ private fun SavedChartRow(
                     fontSize = 12.sp
                 )
             }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = W.t("dashboard_delete_chart"),
-                    tint = Color(0xFFE53935),
-                    modifier = Modifier.size(20.dp)
-                )
+            onDelete?.let { del ->
+                IconButton(onClick = del) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = W.t("dashboard_delete_chart"),
+                        tint = Color(0xFFE53935),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Icon(
                 imageVector = Icons.Default.PlayArrow,
