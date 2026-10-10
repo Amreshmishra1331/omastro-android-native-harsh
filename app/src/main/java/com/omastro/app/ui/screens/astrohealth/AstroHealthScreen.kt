@@ -1,5 +1,6 @@
 package com.omastro.app.ui.screens.astrohealth
 
+import com.omastro.app.ui.i18n.W
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape

@@ -1,5 +1,6 @@
 package com.omastro.app.ui.screens.savedcharts
 
+import com.omastro.app.ui.i18n.W
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items

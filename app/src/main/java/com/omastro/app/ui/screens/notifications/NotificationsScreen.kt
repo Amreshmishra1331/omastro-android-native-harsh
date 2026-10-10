@@ -1,5 +1,6 @@
 package com.omastro.app.ui.screens.notifications
 
+import com.omastro.app.ui.i18n.W
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

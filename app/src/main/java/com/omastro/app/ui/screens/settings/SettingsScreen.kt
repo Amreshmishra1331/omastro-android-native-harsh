@@ -1,5 +1,6 @@
 package com.omastro.app.ui.screens.settings
 
+import com.omastro.app.ui.i18n.W
 import android.app.Activity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

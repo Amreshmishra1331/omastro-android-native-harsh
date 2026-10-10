@@ -1,5 +1,6 @@
 package com.omastro.app.ui.screens.panchang
 
+import com.omastro.app.ui.i18n.W
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
