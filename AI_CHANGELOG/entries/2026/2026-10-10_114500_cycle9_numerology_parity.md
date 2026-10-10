@@ -1,6 +1,6 @@
 # Cycle 9 — Numerology parity fixes (Android)
 
-- **Status**: COMPLETED — implementation done, pushed to origin/main; CI check pending (GitHub Actions "Android Build"). Local Gradle unusable in this environment (same as Cycles 4–5: runtime blocks JVM loopback TCP; wrapper cannot download Gradle). Compile verification left to CI.
+- **Status**: COMPLETED — CI GREEN (GitHub Actions "Android Build": run 38030358496 on commit 0e108c5, `completed success`). Local Gradle unusable in this environment (same as Cycles 4–5: runtime blocks JVM loopback TCP; wrapper cannot download Gradle) — compile verified by CI.
 - **1. Synthesis (13th tool) — FIXED (server-tab)**: new `NumerologyTool.SYNTHESIS` renders in the hub automatically; `POST /numerology` `tab=synthesis` (+dob, name, language) → server `analysis_text` verbatim. No on-device fallback → honest Error state via new `NumerologyServerUnavailable`. New `num_tool_synthesis_title/sub` HI+EN keys.
 - **2. Kua — FIXED (server-tab primary + local formula fixed)**: `tab=kua` (dob, gender, language) rendered as authoritative section; local `kuaNumber()` rewritten to the web formula exactly (last-two digits; male 10−sum, female sum+9; 5→2 M / 5→8 F). Hand-verified 8 reference cases.
 - **3. Pinnacles — FIXED (server-tab + local formula fixed)**: `tab=pinnacles` authoritative; new `pinnacleNumbers()` flattens components first, keeps 11/22/33 only on final sums (new `reduceFinal()`).
