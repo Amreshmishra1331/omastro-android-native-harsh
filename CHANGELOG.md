@@ -4,6 +4,36 @@ All notable changes to the native Android app. Each entry lists what was broken 
 
 ---
 
+## [2026-10-10] — Audit Loop Cycle 4: missed-items fixes (Gochar/Matching/Password/Prashna/Wallet)
+
+### Fixed — Gochar "New Delhi" silent fallback
+**Before:** `GocharRequest`/`KundaliRequest` carried Delhi-coordinate defaults (`lat=28.6139, lon=77.2090, pob="New Delhi"`); Gochar submit silently no-op'd on blank name/dob/transitDate and faked `pob="New Delhi"` when the place was blank.
+**After:** lat/lon defaults removed → `Double.NaN` + `init require(lat.isFinite() && lon.isFinite())` so any omission fails loudly instead of silently calculating a Delhi chart; blank name/dob/place/transitDate now show bilingual error highlights (`gochar_err_*`) and block submit — never a silent fake. Invalid lat/lon still blocked with `honesty_gochar_coords`. Muhurat's "New Delhi" is a *visible* prefilled default the user can see and change — left as-is.
+
+### Fixed — Matchmaking silent no-op on blank form
+**Before:** Tapping "Calculate Compatibility" with empty fields did nothing — no message, no highlight.
+**After:** All 8 fields validated; missing fields get red borders + bilingual "This field is required" hints, and a summary error (`match_err_missing`) shows above the button. Errors clear as the user types.
+
+### Fixed — Dead password inputs
+**Before:** Dashboard → Profile → Password tab showed Current/New/Confirm password fields that did nothing (no change-password REST route exists — probed `/wp-json/omastro/v1` 2026-10-09: forgot-password / reset-password-otp / set-password exist, no change-password).
+**After:** The dead fields are removed. The tab keeps the email card + honest explainer and the "Send Password Reset Link" button, which routes to the real forgot-password flow (`Screen.Auth.FORGOT_ROUTE`).
+
+### Added — Prashna Kundali (website parity, server-fed)
+**Before:** Website supports Prashna (horary) Kundali; the app had no trace of it.
+**After:** `POST /prashna-kundali` is live-verified (2026-10-10) and wired end-to-end: new `PrashnaRequest/Response` models, `AstroRepository.getPrashnaKundali`, `GetPrashnaKundaliUseCase`, `PrashnaViewModel`, and `PrashnaScreen` (route `prashna`, drawer entry). Question is required (bilingual validation); place is optional — the screen honestly discloses that the server defaults to New Delhi coordinates when no place is picked. Renders verdict/score/summary, lagna info, panchang, planetary positions, house analysis, KP + Moon analysis, planetary strength, timing, yogas, remedies, key factors — only keys actually present in the payload; server emoji icons skipped (no-emoji rule).
+
+### Fixed — Wallet packs now server-driven
+**Before:** `WalletRepository.getRechargePacks()` hardcoded the four "Pay ₹X → Get ₹Y" slabs (₹25→₹35, ₹50→₹80, ₹100→₹200, ₹200→₹400).
+**After:** Hardcoded credit list deleted. `WalletViewModel.loadPackQuotes()` fetches `POST /checkout/validate-coupon` (`{product_id:704, coins}` — no `qty`, which the server ignores/mangles) per slab and parses the authoritative "₹X Credit" figure from the server's `item_title` (live-verified 2026-10-10: 2500→₹35, 5000→₹80, 10000→₹200, 20000→₹400). Pack cards + bonus-slab explainer render from these quotes; loading shows "Pay ₹X" + a loading note, and a quote failure shows an honest error instead of a guessed number. Refresh button re-fetches quotes. The checkout sheet was already server-quoted in Cycle 3.
+
+### Blocked — Festivals (no server data, no website feature found)
+The website has no discoverable Festivals feature: no `/festivals` page (404), no `festivals` REST route (full route index probed 2026-10-10 — 97 routes, none festival-related), no festivals key in the `/panchang` payload, and no festival entries in the WP sitemap. Per the no-fake-data rule, no Festivals screen was added (a hardcoded festival list would be invented data). What's needed: a server endpoint (e.g. `GET /festivals`) or the actual website festivals page URL — then the screen can be built server-fed.
+
+### Not verifiable without a device
+Prashna screen on a real device (endpoint verified via curl only); wallet pack quotes on-device with a logged-in session (quotes probed unauthenticated — create-order/verify still need Bearer <redacted>).
+
+---
+
 ## [2026-10-10] — Audit Loop Cycle 3: Flutter-exact Razorpay payment flow
 
 ### Added (user directive: payment EXACTLY as the Flutter app has it — no redesign)

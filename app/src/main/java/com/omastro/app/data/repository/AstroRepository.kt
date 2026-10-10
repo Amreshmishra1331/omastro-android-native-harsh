@@ -122,6 +122,21 @@ class AstroRepository(
         }
     }
 
+    /** Prashna Kundali (horary) — POST /prashna-kundali, live-verified 2026-10-10. */
+    suspend fun getPrashnaKundali(request: PrashnaRequest): Result<PrashnaResponse> {
+        return try {
+            val res = api.getPrashnaKundali(request)
+            val body = res.body()
+            if (res.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                Result.failure(IOException("Prashna Kundali request failed: HTTP ${res.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getNumerology(params: Map<String, String>): Result<Map<String, Any>> {
         return try {
             val res = api.getNumerology(params)

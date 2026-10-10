@@ -81,6 +81,22 @@ interface OmAstroApiService {
         @Body request: GocharRequest
     ): Response<GocharResponse>
 
+    /**
+     * Prashna Kundali (horary) — POST /prashna-kundali.
+     * Live-verified 2026-10-10: accepts {question, lat?, lon?, category?,
+     * language?}; returns {success, data:{question, prashn_time, location,
+     * answer, lagna_num, lagna_info{...}, panchang{...}, planets[...],
+     * house_analysis[...], kp_analysis{...}, moon_analysis, dasha_analysis{...},
+     * planetary_strengths[...], timing{...}, special_yogas[...], remedies[...],
+     * analysis_text{verdict, summary, timing, score, max, factors}}}.
+     * Omitted lat/lon -> server defaults to New Delhi coordinates; the app
+     * discloses that on the screen instead of hiding it.
+     */
+    @POST("prashna-kundali")
+    suspend fun getPrashnaKundali(
+        @Body request: PrashnaRequest
+    ): Response<PrashnaResponse>
+
     // Astrologers — real envelope: {"success":true,"data":{"astrologers":[...]}}
     @GET("astrologers")
     suspend fun getAstrologers(
@@ -452,7 +468,7 @@ data class SavedChart(
             tobHr = hr,
             tobMn = mn,
             tob = "%02d:%02d".format(hr, mn),
-            pob = birthPlace.ifBlank { "New Delhi" },
+            pob = birthPlace.ifBlank { "" },
             lat = latitude,
             lon = longitude,
             gender = gender
@@ -493,17 +509,43 @@ data class GocharRequest(
     @SerializedName("name") val name: String,
     @SerializedName("dob") val dob: String, // YYYY-MM-DD
     @SerializedName("tob") val tob: String = "08:30", // HH:MM
-    @SerializedName("pob") val pob: String = "New Delhi",
-    @SerializedName("lat") val lat: Double = 28.6139,
-    @SerializedName("lon") val lon: Double = 77.2090,
+    // Cycle 4 honesty: no silent Delhi fallback. lat/lon have NO coordinate
+    // default — omission fails loudly instead of silently calculating a
+    // New Delhi transit chart. The screen validates coords before calling.
+    @SerializedName("pob") val pob: String = "",
+    @SerializedName("lat") val lat: Double = Double.NaN,
+    @SerializedName("lon") val lon: Double = Double.NaN,
     @SerializedName("gender") val gender: String = "male",
     @SerializedName("transit_date") val transitDate: String // YYYY-MM-DD
-)
+) {
+    init {
+        require(lat.isFinite() && lon.isFinite()) {
+            "GocharRequest requires explicit coordinates — silent Delhi fallback removed."
+        }
+    }
+}
 
 // Defensive envelope: {success, data{...}}. Nested detail blocks are kept as
 // generic maps because the backend transit payload shape is rich and evolving;
 // the screen renders only keys that are present, never invented values.
 data class GocharResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: Map<String, Any>? = null
+)
+
+// Prashna Kundali (horary) models — POST /prashna-kundali.
+// Defensive: nested detail blocks are generic maps/lists; the screen renders
+// only keys actually present in the payload, never invented values.
+data class PrashnaRequest(
+    @SerializedName("question") val question: String,
+    @SerializedName("lat") val lat: Double? = null,
+    @SerializedName("lon") val lon: Double? = null,
+    @SerializedName("category") val category: String = "general",
+    @SerializedName("language") val language: String = "en"
+)
+
+data class PrashnaResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("message") val message: String? = null,
     @SerializedName("data") val data: Map<String, Any>? = null

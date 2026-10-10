@@ -3,6 +3,8 @@ package com.omastro.app.domain.usecase
 import com.omastro.app.data.model.*
 import com.omastro.app.data.remote.GocharRequest
 import com.omastro.app.data.remote.GocharResponse
+import com.omastro.app.data.remote.PrashnaRequest
+import com.omastro.app.data.remote.PrashnaResponse
 import com.omastro.app.data.repository.AstroRepository
 
 class GetKundaliUseCase(private val repository: AstroRepository) {
@@ -33,6 +35,12 @@ class CalculateMatchmakingUseCase(private val repository: AstroRepository) {
 class GetGocharUseCase(private val repository: AstroRepository) {
     suspend operator fun invoke(request: GocharRequest): Result<GocharResponse> =
         repository.getGochar(request)
+}
+
+/** Prashna Kundali (horary) — POST /prashna-kundali (live-verified 2026-10-10). */
+class GetPrashnaKundaliUseCase(private val repository: AstroRepository) {
+    suspend operator fun invoke(request: PrashnaRequest): Result<PrashnaResponse> =
+        repository.getPrashnaKundali(request)
 }
 
 class GetMuhuratUseCase(private val repository: AstroRepository) {

@@ -28,6 +28,7 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     }
     object SavedCharts : Screen("saved_charts", "Saved Charts", Icons.Default.Bookmarks)
     object Gochar : Screen("gochar", "Gochar", Icons.Default.Public)
+    object Prashna : Screen("prashna", "Prashna Kundali", Icons.Default.QuestionAnswer)
     object Muhurat : Screen("muhurat", "Muhurat", Icons.Default.Schedule)
     object Palmistry : Screen("palmistry", "Palmistry", Icons.Default.PanTool)
     object FaceReading : Screen("face_reading", "Face Reading", Icons.Default.Face)

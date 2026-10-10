@@ -38,6 +38,11 @@ fun MatchmakingScreen(
 
     var showForm by remember { mutableStateOf(true) }
 
+    // Cycle 4: blank-form submit no longer silently no-ops — missing fields
+    // are highlighted with bilingual error text.
+    var fieldErrors by remember { mutableStateOf(setOf<String>()) }
+    var formError by remember { mutableStateOf<String?>(null) }
+
     // Birth detail inputs
     var boyName by remember { mutableStateOf("") }
     var boyDob by remember { mutableStateOf("") }
@@ -149,25 +154,39 @@ fun MatchmakingScreen(
                     item {
                         Text("GROOM (VARA) DETAILS", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
-                    item { BirthInputField("Full Name", boyName, { boyName = it }) }
+                    item {
+                        BirthInputField(
+                            "Full Name", boyName,
+                            { boyName = it; fieldErrors = fieldErrors - "boyName"; formError = null },
+                            isError = fieldErrors.contains("boyName")
+                        )
+                    }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Box(Modifier.weight(1f)) {
-                                DatePickerField(boyDob, { boyDob = it }, "Date of Birth")
+                                DatePickerField(boyDob, { boyDob = it; fieldErrors = fieldErrors - "boyDob"; formError = null }, "Date of Birth")
                             }
                             Box(Modifier.weight(1f)) {
-                                TimePickerField(boyTob, { boyTob = it }, "Time")
+                                TimePickerField(boyTob, { boyTob = it; fieldErrors = fieldErrors - "boyTob"; formError = null }, "Time")
                             }
                         }
                     }
                     item {
                         PlaceSearchField(
                             value = boyPob,
-                            onValueChange = { boyPob = it },
-                            onPlaceSelected = { /* server geocodes the place name */ },
+                            onValueChange = { boyPob = it; fieldErrors = fieldErrors - "boyPob"; formError = null },
+                            onPlaceSelected = { fieldErrors = fieldErrors - "boyPob"; formError = null /* server geocodes the place name */ },
                             label = "Place of Birth",
                             placeholder = "Type city name, e.g. Jaipur"
                         )
+                        if (fieldErrors.contains("boyPob")) {
+                            Text(
+                                text = W.t("field_required"),
+                                color = Color(0xFFFF8A80),
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                            )
+                        }
                     }
 
                     // Bride details
@@ -175,37 +194,77 @@ fun MatchmakingScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text("BRIDE (KANYA) DETAILS", color = SacredGold, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
-                    item { BirthInputField("Full Name", girlName, { girlName = it }) }
+                    item {
+                        BirthInputField(
+                            "Full Name", girlName,
+                            { girlName = it; fieldErrors = fieldErrors - "girlName"; formError = null },
+                            isError = fieldErrors.contains("girlName")
+                        )
+                    }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Box(Modifier.weight(1f)) {
-                                DatePickerField(girlDob, { girlDob = it }, "Date of Birth")
+                                DatePickerField(girlDob, { girlDob = it; fieldErrors = fieldErrors - "girlDob"; formError = null }, "Date of Birth")
                             }
                             Box(Modifier.weight(1f)) {
-                                TimePickerField(girlTob, { girlTob = it }, "Time")
+                                TimePickerField(girlTob, { girlTob = it; fieldErrors = fieldErrors - "girlTob"; formError = null }, "Time")
                             }
                         }
                     }
                     item {
                         PlaceSearchField(
                             value = girlPob,
-                            onValueChange = { girlPob = it },
-                            onPlaceSelected = { /* server geocodes the place name */ },
+                            onValueChange = { girlPob = it; fieldErrors = fieldErrors - "girlPob"; formError = null },
+                            onPlaceSelected = { fieldErrors = fieldErrors - "girlPob"; formError = null /* server geocodes the place name */ },
                             label = "Place of Birth",
                             placeholder = "Type city name, e.g. Jaipur"
                         )
+                        if (fieldErrors.contains("girlPob")) {
+                            Text(
+                                text = W.t("field_required"),
+                                color = Color(0xFFFF8A80),
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                            )
+                        }
                     }
 
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
+                        formError?.let { err ->
+                            Text(
+                                text = err,
+                                color = Color(0xFFFF8A80),
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            )
+                        }
                         Button(
                             onClick = {
-                                if (boyName.isNotBlank() && boyDob.isNotBlank() && boyTob.isNotBlank() && boyPob.isNotBlank() &&
-                                    girlName.isNotBlank() && girlDob.isNotBlank() && girlTob.isNotBlank() && girlPob.isNotBlank()
-                                ) {
-                                    showForm = false
-                                    viewModel.calculate(boyName, boyDob, boyTob, boyPob, girlName, girlDob, girlTob, girlPob)
+                                formError = null
+                                // Cycle 4: validate every field — missing fields are
+                                // highlighted in red with a bilingual message instead
+                                // of the button silently doing nothing.
+                                val missing = buildSet {
+                                    if (boyName.isBlank()) add("boyName")
+                                    if (boyDob.isBlank()) add("boyDob")
+                                    if (boyTob.isBlank()) add("boyTob")
+                                    if (boyPob.isBlank()) add("boyPob")
+                                    if (girlName.isBlank()) add("girlName")
+                                    if (girlDob.isBlank()) add("girlDob")
+                                    if (girlTob.isBlank()) add("girlTob")
+                                    if (girlPob.isBlank()) add("girlPob")
                                 }
+                                fieldErrors = missing
+                                if (missing.isNotEmpty()) {
+                                    formError = W.t("match_err_missing")
+                                    return@Button
+                                }
+                                showForm = false
+                                viewModel.calculate(boyName, boyDob, boyTob, boyPob, girlName, girlDob, girlTob, girlPob)
                             },
                             modifier = Modifier.fillMaxWidth().height(52.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
@@ -377,18 +436,24 @@ private fun BirthInputField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isError: Boolean = false
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label, color = StarlightWhite.copy(alpha = 0.6f), fontSize = 12.sp) },
+        supportingText = if (isError) {
+            { Text(W.t("field_required"), color = Color(0xFFFF8A80), fontSize = 11.sp) }
+        } else null,
+        isError = isError,
         modifier = modifier.fillMaxWidth(),
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = SacredGold,
             unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f),
+            errorBorderColor = Color(0xFFFF8A80),
             focusedTextColor = StarlightWhite,
             unfocusedTextColor = StarlightWhite,
             cursorColor = SacredGold

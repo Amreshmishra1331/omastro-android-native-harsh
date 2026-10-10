@@ -445,6 +445,7 @@ private fun drawerMenuEntries(
             nav("Face Reading", Icons.Default.Face, Screen.FaceReading.route, "AI face reading"),
             nav("Vastu Shastra", Icons.Default.HomeWork, Screen.Vastu.route, "Home-energy analysis"),
             nav("Gochar", Icons.Default.Public, Screen.Gochar.route, "Planetary transits"),
+            nav("Prashna Kundali", Icons.Default.QuestionAnswer, Screen.Prashna.route, "Horary — chart of the question's moment"),
             nav("Muhurat", Icons.Default.Schedule, Screen.Muhurat.route, "Auspicious timings"),
             // 2026-10-10 navigation audit: Astro Health had a route + screen but
             // zero entry points — it was unreachable from anywhere. Now 2 taps via drawer.

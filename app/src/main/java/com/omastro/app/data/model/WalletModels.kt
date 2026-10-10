@@ -26,10 +26,15 @@ data class WalletBalanceResponse(
 )
 
 /**
- * Add-money option — website bonus-slab parity (verified 2026-10-02):
- * pay ₹25 → ₹35 credit, pay ₹50 → ₹80, pay ₹100 → ₹200, above ₹100 → double.
- * 18% GST is included in the price the user pays. The bonus slab itself is
- * computed server-side on verify — the app only sends the pay amount.
+ * Add-money option (legacy direct-topup binding — Cycle 3 moved screens to
+ * the checkout sheet; kept as a truthful API binding for
+ * `wallet/topup-order`).
+ *
+ * NOTE: the UI no longer constructs these from a hardcoded slab list.
+ * Pack credits shown on the Wallet screen come from
+ * [com.omastro.app.ui.screens.wallet.PackQuote], fetched per slab from
+ * POST /checkout/validate-coupon. Only [payInr] is sent to the server;
+ * the bonus/credit is computed server-side on verify.
  */
 data class RechargePack(
     val id: String,

@@ -49,7 +49,9 @@ fun GocharScreen(
 
     // Honest form error: coordinates are never silently defaulted to Delhi —
     // an invalid/blank lat/lon blocks the calculation with a clear message.
+    // Cycle 4: blank name/dob/pob/transitDate no longer silently no-op either.
     var formError by remember { mutableStateOf<String?>(null) }
+    var fieldErrors by remember { mutableStateOf(setOf<String>()) }
 
     // Birth detail inputs
     var name by remember { mutableStateOf("") }
@@ -167,11 +169,11 @@ fun GocharScreen(
                             letterSpacing = 1.sp
                         )
                     }
-                    item { GocharInputField("Full Name", name, { name = it }) }
+                    item { GocharInputField("Full Name", name, { name = it; fieldErrors = fieldErrors - "name"; formError = null }, isError = fieldErrors.contains("name"), errorText = if (fieldErrors.contains("name")) W.t("gochar_err_name") else null) }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Box(Modifier.weight(1f)) {
-                                DatePickerField(dob, { dob = it }, "Date of Birth")
+                                DatePickerField(dob, { dob = it; fieldErrors = fieldErrors - "dob"; formError = null }, "Date of Birth")
                             }
                             Box(Modifier.weight(1f)) {
                                 TimePickerField(tob, { tob = it }, "Time")
@@ -181,16 +183,25 @@ fun GocharScreen(
                     item {
                         PlaceSearchField(
                             value = pob,
-                            onValueChange = { pob = it },
+                            onValueChange = { pob = it; fieldErrors = fieldErrors - "pob"; formError = null },
                             onPlaceSelected = { place: GeocodePlace ->
                                 pob = place.displayName
                                 lat = place.lat.toString()
                                 lon = place.lon.toString()
+                                fieldErrors = fieldErrors - "pob"
                                 formError = null
                             },
                             label = "Place of Birth",
                             placeholder = "Type city name, e.g. Jaipur"
                         )
+                        if (fieldErrors.contains("pob")) {
+                            Text(
+                                text = W.t("gochar_err_pob"),
+                                color = Color(0xFFFF8A80),
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                            )
+                        }
                     }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -239,9 +250,17 @@ fun GocharScreen(
                     item {
                         DatePickerField(
                             transitDate,
-                            { transitDate = it },
+                            { transitDate = it; fieldErrors = fieldErrors - "transitDate"; formError = null },
                             "Transit Date"
                         )
+                        if (fieldErrors.contains("transitDate")) {
+                            Text(
+                                text = W.t("gochar_err_date"),
+                                color = Color(0xFFFF8A80),
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                            )
+                        }
                     }
 
                     item {
@@ -260,7 +279,23 @@ fun GocharScreen(
                         Button(
                             onClick = {
                                 formError = null
-                                if (name.isBlank() || dob.isBlank() || transitDate.isBlank()) {
+                                // Cycle 4: every required field gets a bilingual error
+                                // highlight — the submit button never silently no-ops
+                                // and never fakes a "New Delhi" location.
+                                val missing = buildSet {
+                                    if (name.isBlank()) add("name")
+                                    if (dob.isBlank()) add("dob")
+                                    if (pob.isBlank()) add("pob")
+                                    if (transitDate.isBlank()) add("transitDate")
+                                }
+                                fieldErrors = missing
+                                if (missing.isNotEmpty()) {
+                                    formError = when {
+                                        missing.contains("name") -> W.t("gochar_err_name")
+                                        missing.contains("dob") -> W.t("gochar_err_dob")
+                                        missing.contains("pob") -> W.t("gochar_err_pob")
+                                        else -> W.t("gochar_err_date")
+                                    }
                                     return@Button
                                 }
                                 val latVal = lat.toDoubleOrNull()
@@ -276,7 +311,7 @@ fun GocharScreen(
                                     name = name.trim(),
                                     dob = dob.trim(),
                                     tob = tob.trim().ifBlank { "08:30" },
-                                    pob = pob.trim().ifBlank { "New Delhi" },
+                                    pob = pob.trim(),
                                     lat = latVal,
                                     lon = lonVal,
                                     gender = gender,
@@ -529,13 +564,18 @@ private fun GocharInputField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    supportingText: String? = null
+    supportingText: String? = null,
+    isError: Boolean = false,
+    errorText: String? = null
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label, color = TextSecondary, fontSize = 12.sp) },
-        supportingText = supportingText?.let { { Text(it, color = TextSecondary, fontSize = 11.sp) } },
+        supportingText = (errorText ?: supportingText)?.let {
+            { Text(it, color = if (isError) Color(0xFFFF8A80) else TextSecondary, fontSize = 11.sp) }
+        },
+        isError = isError,
         modifier = modifier.fillMaxWidth(),
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
@@ -543,6 +583,7 @@ private fun GocharInputField(
             unfocusedTextColor = StarlightWhite,
             focusedBorderColor = SacredGold,
             unfocusedBorderColor = CosmicBorder,
+            errorBorderColor = Color(0xFFFF8A80),
             cursorColor = SacredGold
         ),
         shape = RoundedCornerShape(12.dp)

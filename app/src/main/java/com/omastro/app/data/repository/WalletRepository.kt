@@ -65,19 +65,15 @@ class WalletRepository(
     }
 
     /**
-     * Add-money slabs — website parity (verified 2026-10-02):
-     * ₹25 → ₹35 credit, ₹50 → ₹80, ₹100 → ₹200, above ₹100 → double.
-     * The server computes and grants the bonus on verify; the app only
-     * sends the pay amount. Never invent prices or badges here.
+     * Cycle 4: the hardcoded add-money slab list (₹25→₹35, ₹50→₹80,
+     * ₹100→₹200, ₹200→₹400) is REMOVED. Pack credits are now server-driven:
+     * [com.omastro.app.ui.screens.wallet.WalletViewModel.loadPackQuotes]
+     * fetches POST /checkout/validate-coupon per slab and parses the
+     * authoritative "₹X Credit" figure from the server's item_title. The
+     * offered pay amounts live in [com.omastro.app.ui.screens.wallet.WalletViewModel.packPayAmounts]
+     * (website parity); only the pay amount is sent to the server — bonus is
+     * computed server-side on verify.
      */
-    fun getRechargePacks(): List<RechargePack> {
-        return listOf(
-            RechargePack("slab_25", 25.0, 35.0),
-            RechargePack("slab_50", 50.0, 80.0),
-            RechargePack("slab_100", 100.0, 200.0),
-            RechargePack("slab_200", 200.0, 400.0)
-        )
-    }
 
     suspend fun getTransactions(limit: Int = 20, offset: Int = 0): Result<List<WalletTransaction>> {
         return try {

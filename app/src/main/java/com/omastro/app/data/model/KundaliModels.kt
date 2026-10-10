@@ -12,12 +12,22 @@ data class KundaliRequest(
     @SerializedName("tob_hr") val tobHr: Int = 8,
     @SerializedName("tob_mn") val tobMn: Int = 30,
     @SerializedName("tob") val tob: String = "08:30",
-    @SerializedName("pob") val pob: String = "New Delhi",
-    @SerializedName("lat") val lat: Double = 28.6139,
-    @SerializedName("lon") val lon: Double = 77.2090,
+    // Cycle 4 honesty: no silent Delhi fallback. lat/lon have NO coordinate
+    // default — any caller that forgets them fails loudly in init instead of
+    // silently calculating a New Delhi chart. Every screen validates coords
+    // before constructing this request.
+    @SerializedName("pob") val pob: String = "",
+    @SerializedName("lat") val lat: Double = Double.NaN,
+    @SerializedName("lon") val lon: Double = Double.NaN,
     @SerializedName("gender") val gender: String = "male",
     @SerializedName("ayanamsa") val ayanamsa: String = "lahiri"
-)
+) {
+    init {
+        require(lat.isFinite() && lon.isFinite()) {
+            "KundaliRequest requires explicit coordinates — silent Delhi fallback removed."
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Envelope: POST /kundali returns {"success": true, "data": {...}}

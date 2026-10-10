@@ -331,6 +331,11 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() }
                             )
                         }
+                        composable(Screen.Prashna.route) {
+                            com.omastro.app.ui.screens.prashna.PrashnaScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
                         composable(Screen.Palmistry.route) {
                             com.omastro.app.ui.screens.palmistry.PalmistryScreen(
                                 onBack = { navController.popBackStack() },

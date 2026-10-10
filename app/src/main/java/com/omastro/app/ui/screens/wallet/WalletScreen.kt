@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.omastro.app.data.local.LangPrefs
 import com.omastro.app.data.model.CheckoutItem
-import com.omastro.app.data.model.RechargePack
 import com.omastro.app.data.model.WalletTransaction
 import com.omastro.app.ui.components.CosmicCard
 import com.omastro.app.ui.i18n.W
@@ -42,6 +41,8 @@ fun WalletScreen(
     val transactions by viewModel.transactions.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val message by viewModel.message.collectAsState()
+    val packQuotes by viewModel.packQuotes.collectAsState()
+    val packQuotesFailed by viewModel.packQuotesFailed.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -84,6 +85,7 @@ fun WalletScreen(
                     IconButton(onClick = {
                         viewModel.refreshBalance()
                         viewModel.refreshTransactions()
+                        viewModel.loadPackQuotes()
                     }) {
                         Icon(Icons.Default.Refresh, contentDescription = W.t("money_refresh"), tint = SacredGold)
                     }
@@ -174,27 +176,32 @@ fun WalletScreen(
                 }
             }
 
-            // Recharge Packs Section
+            // Recharge Packs Section — Cycle 4: credit figures are server-driven
+            // (POST /checkout/validate-coupon per slab); the old hardcoded
+            // "Pay ₹X → Get ₹Y" list is gone.
             item {
                 Text(text = W.t("money_add_money"), color = StarlightWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
-            items(viewModel.rechargePacks) { pack ->
+            items(viewModel.packPayAmounts) { payInr ->
+                val quote = packQuotes?.get(payInr)
                 RechargePackCard(
-                    pack = pack,
+                    payInr = payInr,
+                    quote = quote,
+                    quoteFailed = packQuotesFailed,
                     isProcessing = isProcessing,
                     // Flutter-exact flow: pack -> checkout bottom sheet (server
-                    // quote) -> Razorpay -> verify. Server coins = pay x 100.
+                    // quote) -> Razorpay -> verify.
                     onBuyClick = {
                         checkoutVm.openSheet(
                             CheckoutViewModel.SheetSelection(
-                                item = CheckoutItem.walletPack(pack.payInr.toInt()),
-                                titleFallback = W.tf(
+                                item = CheckoutItem.walletPack(payInr),
+                                titleFallback = if (quote != null) W.tf(
                                     "money_pack_pay_get",
-                                    "₹${pack.payInr.toInt()}",
-                                    "₹${pack.creditInr.toInt()}"
-                                ),
-                                priceFallback = pack.payInr,
+                                    "₹$payInr",
+                                    "₹${quote.creditInr.toInt()}"
+                                ) else W.tf("money_pack_pay_only", "₹$payInr"),
+                                priceFallback = payInr.toDouble(),
                                 isCoinRecharge = true
                             )
                         )
@@ -214,8 +221,9 @@ fun WalletScreen(
                 )
             }) }
 
-            // Bonus slabs + GST note (website Add Money parity).
-            item { BonusSlabCard() }
+            // Bonus slabs + GST note (website Add Money parity) — Cycle 4:
+            // rendered from the server quotes, never hardcoded.
+            item { BonusSlabCard(quotes = packQuotes, failed = packQuotesFailed) }
 
             // Recent Transactions Section
             item {
@@ -249,47 +257,83 @@ fun WalletScreen(
 
 @Composable
 private fun RechargePackCard(
-    pack: RechargePack,
+    payInr: Int,
+    quote: PackQuote?,
+    quoteFailed: Boolean,
     isProcessing: Boolean,
     onBuyClick: () -> Unit
 ) {
-    // Website bonus-slab parity: "Pay ₹X → Get ₹Y credit" (+bonus chip).
-    // The bonus itself is computed and granted by the server on verify.
-    val payLabel = "₹${pack.payInr.toInt()}"
-    val creditLabel = "₹${pack.creditInr.toInt()}"
-    val bonusLabel = "₹${pack.bonusInr.toInt()}"
+    // Cycle 4: credit figures are server-driven (PackQuote from
+    // POST /checkout/validate-coupon). Until the quote arrives the card shows
+    // "Pay ₹X" with a loading note; on failure an honest note replaces the
+    // credit line — the app never invents a credit amount.
+    val payLabel = "₹$payInr"
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = W.tf("money_pack_pay_get", payLabel, creditLabel),
-                        color = StarlightWhite,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    if (pack.bonusInr > 0) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = RadiantAmber
-                        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                when {
+                    quote != null -> {
+                        val creditLabel = "₹${quote.creditInr.toInt()}"
+                        val bonusLabel = "₹${quote.bonusInr.toInt()}"
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = W.tf("money_pack_bonus", bonusLabel),
-                                color = CosmicDeepBlue,
+                                text = W.tf("money_pack_pay_get", payLabel, creditLabel),
+                                color = StarlightWhite,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                fontSize = 16.sp
                             )
+                            if (quote.bonusInr > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = RadiantAmber
+                                ) {
+                                    Text(
+                                        text = W.tf("money_pack_bonus", bonusLabel),
+                                        color = CosmicDeepBlue,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
+                    }
+                    quoteFailed -> {
+                        Text(
+                            text = payLabel,
+                            color = StarlightWhite,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = W.t("money_pack_quote_fail"),
+                            color = Color(0xFFFF8A80),
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = payLabel,
+                            color = StarlightWhite,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = W.t("money_pack_loading"),
+                            color = StarlightWhite.copy(alpha = 0.5f),
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
 
+            Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = onBuyClick,
                 enabled = !isProcessing,
@@ -312,11 +356,12 @@ private fun RechargePackCard(
 }
 
 /**
- * Bonus-slab explainer (website Add Money parity): the exact slabs plus the
- * 18% GST note. Informational only — the server owns the real bonus.
+ * Bonus-slab explainer (website Add Money parity) — Cycle 4: rows are
+ * rendered from the server quotes, never hardcoded. If quotes failed, an
+ * honest unavailable note shows instead of stale numbers.
  */
 @Composable
-private fun BonusSlabCard() {
+private fun BonusSlabCard(quotes: Map<Int, PackQuote>?, failed: Boolean) {
     CosmicCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -326,17 +371,37 @@ private fun BonusSlabCard() {
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            listOf(
-                W.t("money_slab_25"),
-                W.t("money_slab_50"),
-                W.t("money_slab_100"),
-                W.t("money_slab_above")
-            ).forEach { line ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "•  ", color = SacredGold, fontSize = 13.sp)
-                    Text(text = line, color = StarlightWhite, fontSize = 13.sp)
+            when {
+                quotes != null && quotes.isNotEmpty() -> {
+                    quotes.entries.sortedBy { it.key }.forEach { (pay, q) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "•  ", color = SacredGold, fontSize = 13.sp)
+                            Text(
+                                text = W.tf("money_pack_pay_get", "₹$pay", "₹${q.creditInr.toInt()}"),
+                                color = StarlightWhite,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                failed -> {
+                    Text(
+                        text = W.t("money_slabs_unavailable"),
+                        color = Color(0xFFFF8A80),
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                else -> {
+                    Text(
+                        text = W.t("money_pack_loading"),
+                        color = StarlightWhite.copy(alpha = 0.5f),
+                        fontSize = 12.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(

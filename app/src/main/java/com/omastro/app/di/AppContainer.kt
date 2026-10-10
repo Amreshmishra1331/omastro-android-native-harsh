@@ -37,6 +37,7 @@ object AppContainer {
     val getHoraUseCase by lazy { GetHoraUseCase(astroRepository) }
     val calculateMatchmakingUseCase by lazy { CalculateMatchmakingUseCase(astroRepository) }
     val getGocharUseCase by lazy { GetGocharUseCase(astroRepository) }
+    val getPrashnaKundaliUseCase by lazy { GetPrashnaKundaliUseCase(astroRepository) }
     val getMuhuratUseCase by lazy { GetMuhuratUseCase(astroRepository) }
 
     val getAstrologersUseCase by lazy { GetAstrologersUseCase(consultationRepository) }

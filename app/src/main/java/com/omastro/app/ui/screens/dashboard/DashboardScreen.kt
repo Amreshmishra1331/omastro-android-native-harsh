@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,8 +18,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -1219,10 +1216,6 @@ private fun PasswordTabContent(
     currentEmail: String,
     navController: NavController
 ) {
-    var currentPassword by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CosmicCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -1241,54 +1234,11 @@ private fun PasswordTabContent(
             }
         }
 
-        OutlinedTextField(
-            value = currentPassword,
-            onValueChange = { currentPassword = it },
-            label = { Text(W.t("Current Password"), color = StarlightWhite.copy(alpha = 0.6f)) },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = StarlightWhite,
-                unfocusedTextColor = StarlightWhite,
-                focusedBorderColor = SacredGold,
-                unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f)
-            )
-        )
-
-        OutlinedTextField(
-            value = newPassword,
-            onValueChange = { newPassword = it },
-            label = { Text(W.t("New Password (8+ chars)"), color = StarlightWhite.copy(alpha = 0.6f)) },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = StarlightWhite,
-                unfocusedTextColor = StarlightWhite,
-                focusedBorderColor = SacredGold,
-                unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f)
-            )
-        )
-
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text(W.t("Confirm New Password"), color = StarlightWhite.copy(alpha = 0.6f)) },
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = StarlightWhite,
-                unfocusedTextColor = StarlightWhite,
-                focusedBorderColor = SacredGold,
-                unfocusedBorderColor = StarlightWhite.copy(alpha = 0.3f)
-            )
-        )
-
-        // No REST endpoint exists for in-app password change (probed 2026-10-09:
-        // /wp-json/omastro/v1 has forgot-password / reset-password-otp / set-password
-        // but no change-password route). Honest flow: send a reset link instead.
+        // Cycle 4: the old Current/New/Confirm password fields were dead UI —
+        // no REST endpoint exists for in-app password change (probed 2026-10-09:
+        // /wp-json/omastro/v1 has forgot-password / reset-password-otp /
+        // set-password but no change-password route). Removed rather than
+        // faking it. Honest flow: send a secure reset link to the email.
         Text(
             text = W.t("Password change is handled via a secure reset link sent to your email."),
             color = StarlightWhite.copy(alpha = 0.6f),
