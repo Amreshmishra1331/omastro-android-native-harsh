@@ -5,6 +5,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector? = null) {
+    object Splash : Screen("splash", "Splash")
+    object Onboarding : Screen("onboarding", "Onboarding")
     object Home : Screen("home", "Home", Icons.Default.Home)
     object Kundali : Screen("kundali", "Kundali", Icons.Default.AutoAwesome)
     object Horoscope : Screen("horoscope", "Rashifal", Icons.Default.WbSunny)

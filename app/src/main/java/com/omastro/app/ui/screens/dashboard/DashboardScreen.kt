@@ -1,1064 +1,250 @@
 package com.omastro.app.ui.screens.dashboard
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
 import androidx.navigation.NavController
-import com.omastro.app.data.local.LangPrefs
-import com.omastro.app.data.model.CheckoutItem
-import com.omastro.app.data.model.MEMBERSHIP_PLANS
-import com.omastro.app.data.model.MembershipPlan
-import com.omastro.app.data.model.SavedChatSession
-import com.omastro.app.data.model.WalletTransaction
-import com.omastro.app.data.remote.SavedChart
+import coil.compose.AsyncImage
+import com.omastro.app.data.local.ReadingFeatureType
+import com.omastro.app.data.model.Astrologer
+import com.omastro.app.data.repository.ReadingHistoryRepository
 import com.omastro.app.di.AppContainer
-import com.omastro.app.ui.components.CosmicCard
-import com.omastro.app.ui.i18n.W
+import com.omastro.app.ui.components.*
 import com.omastro.app.ui.navigation.PendingChartHolder
 import com.omastro.app.ui.navigation.Screen
-import com.omastro.app.ui.screens.checkout.CheckoutSheetHost
-import com.omastro.app.ui.screens.checkout.CheckoutViewModel
 import com.omastro.app.ui.theme.*
-import kotlinx.coroutines.launch
+import com.omastro.app.ui.theme.CosmicBackground as CosmicBgColor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Dashboard Screen — website parity (/dashboard/).
+ * Advanced Dashboard (Home) Screen for OmAstro AI.
  *
- * Matches the website's user dashboard exactly:
- * - Header: avatar, name, email, wallet balance
- * - Tabs: Home, Activity, Profile, Password, Plan, Billing, Account
- * - Home: wallet hero, add money, quick actions, recent kundalis
- * - Activity: sub-tabs (Kundali, Chats, Wallet, Stats)
- * - Profile: user info
- * - Password: change password
- * - Plan: membership/wallet info
- * - Billing: wallet + transaction history
- * - Account: danger zone (logout, etc.)
+ * Implements modern Cosmic Vedic aesthetic with complete production sections:
+ * 1. CosmicTopBar with greeting, avatar & notification badge
+ * 2. Today's Cosmic Energy Card (AnimatedGlassCard) with Moon phase, Nakshatra, Panchang, Graha transits
+ * 3. Quick Actions Grid (2x4 GlassCard grid)
+ * 4. Today's Horoscope Strip (LazyRow of 12 signs + selected preview)
+ * 5. AI Chat Promo Card (PremiumCard with gradient CTA)
+ * 6. Live Astrologers Strip (LazyRow with online badges & ratings)
+ * 7. Premium Features Section (Palmistry, Face Reading, Vastu)
+ * 8. Reading History (recent analyses from local DB with fallback)
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    navController: NavController,
-    viewModel: DashboardViewModel = viewModel(),
-    checkoutVm: CheckoutViewModel = viewModel(),
-    onMenuClick: (() -> Unit)? = null
+    onNavigateToKundali: () -> Unit,
+    onNavigateToHoroscope: () -> Unit,
+    onNavigateToAiChat: () -> Unit,
+    onNavigateToMatching: () -> Unit,
+    onNavigateToPanchang: () -> Unit,
+    onNavigateToNumerology: () -> Unit,
+    onNavigateToVastu: () -> Unit,
+    onNavigateToAstrologers: () -> Unit,
+    onNavigateToPalmistry: () -> Unit,
+    onNavigateToFaceReading: () -> Unit,
+    onNavigateToWallet: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
+    viewModel: DashboardViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
     val user by viewModel.currentUser.collectAsState()
-    val walletRepo = viewModel.walletRepository
-    val totalInr by walletRepo.walletBalanceInr.collectAsState()
-    val paidInr by walletRepo.paidBalanceInr.collectAsState()
-    val bonusInr by walletRepo.bonusBalanceInr.collectAsState()
-    val transactions by walletRepo.transactions.collectAsState()
+    val totalInr by viewModel.walletRepository.walletBalanceInr.collectAsState()
     val savedCharts by viewModel.savedCharts.collectAsState()
     val aiChats by viewModel.aiChats.collectAsState()
+    val liveAstrologers by viewModel.astrologers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    // Recompose on Settings language change so W.t() strings (AI Readings cards) switch live.
-    val lang by LangPrefs.language.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(DashTab.HOME) }
-    var activitySubTab by remember { mutableStateOf(ActivitySubTab.KUNDALI) }
+    // Notification bell badge
+    val notificationRepo = AppContainer.notificationRepository
+    val unreadCount by notificationRepo.unreadCount.collectAsState()
+    LaunchedEffect(Unit) {
+        try { notificationRepo.refresh() } catch (_: Exception) {}
+    }
+
+    // Local reading history repository
+    val historyRepo = remember(context) { ReadingHistoryRepository(context) }
+    var localReadings by remember { mutableStateOf<List<ReadingHistoryRepository.SavedReading>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        try {
+            localReadings = historyRepo.list().take(3)
+        } catch (_: Exception) {}
+    }
 
     val displayName = profile?.name?.takeIf { it.isNotBlank() }
         ?: profile?.displayName?.takeIf { it.isNotBlank() }
         ?: user?.name?.takeIf { it.isNotBlank() }
         ?: "Seeker"
-    val displayEmail = profile?.email ?: user?.email ?: ""
-    val avatarUrl = profile?.avatar ?: ""
-    val isPro = profile?.plan?.isPro == true
-    val isMax = profile?.plan?.isMax == true
-    val planName = profile?.plan?.name ?: "Free"
+    val avatarUrl = profile?.avatar.orEmpty()
 
-    // Notification bell badge (website parity). Refreshed with the dashboard.
-    val notificationRepo = AppContainer.notificationRepository
-    val unreadCount by notificationRepo.unreadCount.collectAsState()
-    LaunchedEffect(Unit) {
-        try { notificationRepo.refresh() } catch (e: Exception) { /* badge stays hidden */ }
-    }
+    // Horoscope strip selection state (0 = Aries default)
+    var selectedZodiacIndex by remember { mutableIntStateOf(0) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
-    // Flutter-exact checkout flow for membership plans. After a payment
-    // finishes the dashboard reloads (Flutter parity: home reload), which
-    // refreshes the plan status.
-    CheckoutSheetHost(
-        vm = checkoutVm,
-        onPaymentFinished = { viewModel.loadDashboard() },
-        onEvent = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
-    )
-
-    Box(modifier = Modifier.fillMaxSize()) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CosmicDeepBlue)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // ============ HEADER ============
-        item {
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (onMenuClick != null) {
-                    IconButton(onClick = onMenuClick) {
-                        Icon(
-                            imageVector = Icons.Default.Menu,
-                            contentDescription = W.t("Menu"),
-                            tint = SacredGold,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                // Avatar
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(CosmicNavy),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (avatarUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = avatarUrl,
-                            contentDescription = W.t("Avatar"),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(CircleShape)
-                        )
-                    } else {
-                        Text(
-                            text = displayName.take(1).uppercase(),
-                            color = SacredGold,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = displayName,
-                        color = StarlightWhite,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = displayEmail,
-                        color = StarlightWhite.copy(alpha = 0.6f),
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                // Wallet balance pill
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = CosmicCharcoal,
-                    modifier = Modifier.clickable { selectedTab = DashTab.BILLING }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+    SimpleCosmicBg(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // 1. CosmicTopBar
+            CosmicTopBar(
+                title = "OmAstro AI",
+                userName = displayName,
+                userAvatar = avatarUrl.ifBlank { null },
+                notificationCount = unreadCount,
+                onAvatarClick = onNavigateToProfile,
+                onNotificationClick = onNavigateToNotifications,
+                showLogo = true,
+                actions = {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = CosmicCardBg.copy(alpha = 0.85f),
+                        border = BorderStroke(1.dp, SacredGold.copy(alpha = 0.5f)),
+                        modifier = Modifier.clickable { onNavigateToWallet() }
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountBalanceWallet,
-                            contentDescription = W.t("Wallet"),
-                            tint = SacredGold,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "₹${String.format("%.2f", totalInr)}",
-                            color = SacredGold,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                // Notification bell with unread badge (website parity).
-                Box {
-                    IconButton(onClick = { navController.navigate(Screen.Notifications.route) }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = W.t("Notifications"),
-                            tint = SacredGold,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                    if (unreadCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 2.dp, y = 2.dp)
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFE53935)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (unreadCount > 99) "99+" else "$unreadCount",
-                                color = StarlightWhite,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // ============ TAB NAVIGATION ============
-        item {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(DashTab.values()) { tab ->
-                    DashTabButton(
-                        tab = tab,
-                        isSelected = selectedTab == tab,
-                        isPro = isPro,
-                        isMax = isMax,
-                        onClick = { selectedTab = tab }
-                    )
-                }
-            }
-        }
-
-        // ============ TAB CONTENT ============
-        when (selectedTab) {
-            DashTab.HOME -> {
-                item {
-                    HomeTabContent(
-                        totalInr = totalInr,
-                        paidInr = paidInr,
-                        bonusInr = bonusInr,
-                        savedCharts = savedCharts,
-                        isLoading = isLoading,
-                        onTabSelect = { selectedTab = it },
-                        onKundaliClick = { chartId ->
-                            // Load the tapped chart into the holder so KundaliScreen
-                            // opens that chart instead of a blank form.
-                            savedCharts.find { it.id == chartId }?.let {
-                                PendingChartHolder.set(it)
-                            }
-                            navController.navigate(Screen.Kundali.route)
-                        },
-                        onAddMoney = {
-                            navController.navigate(Screen.Wallet.route)
-                        },
-                        onVastuClick = { navController.navigate(Screen.Vastu.route) },
-                        onPalmistryClick = { navController.navigate(Screen.Palmistry.route) },
-                        onFaceReadingClick = { navController.navigate(Screen.FaceReading.route) },
-                        onNumerologyClick = { navController.navigate(Screen.Numerology.route) },
-                        onAstroHealthClick = { navController.navigate(Screen.AstroHealth.route) },
-                        // App storage: My Data is 1 tap from the dashboard.
-                        onMyDataClick = { navController.navigate(Screen.MyData.route) },
-                        onDeleteChart = { viewModel.deleteSavedChart(it) }
-                    )
-                }
-            }
-            DashTab.ACTIVITY -> {
-                item {
-                    ActivityTabContent(
-                        subTab = activitySubTab,
-                        onSubTabSelect = { activitySubTab = it },
-                        savedCharts = savedCharts,
-                        aiChats = aiChats,
-                        transactions = transactions,
-                        totalInr = totalInr,
-                        onDeleteChat = { viewModel.deleteAiChat(it) },
-                        onClearAllChats = { viewModel.clearAllAiChats() },
-                        onDeleteChart = { viewModel.deleteSavedChart(it) },
-                        onKundaliClick = { chartId ->
-                            savedCharts.find { it.id == chartId }?.let {
-                                PendingChartHolder.set(it)
-                            }
-                            navController.navigate(Screen.Kundali.route)
-                        },
-                        onChatClick = { navController.navigate(Screen.AiChat.route) { launchSingleTop = true } },
-                        onAddMoney = { navController.navigate(Screen.Wallet.route) }
-                    )
-                }
-            }
-            DashTab.PROFILE -> {
-                item {
-                    ProfileTabContent(
-                        displayName = displayName,
-                        username = profile?.username ?: "",
-                        email = displayEmail,
-                        avatarUrl = avatarUrl
-                    )
-                }
-            }
-            DashTab.PASSWORD -> {
-                item {
-                    PasswordTabContent(
-                        currentEmail = displayEmail,
-                        navController = navController
-                    )
-                }
-            }
-            DashTab.PLAN -> {
-                item {
-                    PlanTabContent(
-                        planName = planName,
-                        isPro = isPro,
-                        isMax = isMax,
-                        onAddMoney = { navController.navigate(Screen.Wallet.route) },
-                        onBuyPlan = { plan ->
-                            checkoutVm.openSheet(
-                                CheckoutViewModel.SheetSelection(
-                                    item = CheckoutItem.membershipPlan(plan.planKey),
-                                    titleFallback = W.t(plan.titleKey),
-                                    priceFallback = plan.displayPriceInr,
-                                    isCoinRecharge = false
-                                )
-                            )
-                        }
-                    )
-                }
-            }
-            DashTab.BILLING -> {
-                item {
-                    BillingTabContent(
-                        totalInr = totalInr,
-                        paidInr = paidInr,
-                        bonusInr = bonusInr,
-                        transactions = transactions,
-                        onAddMoney = { navController.navigate(Screen.Wallet.route) }
-                    )
-                }
-            }
-            DashTab.ACCOUNT -> {
-                item {
-                    AccountTabContent(
-                        navController = navController
-                    )
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
-        )
-    }
-}
-
-// ============ TAB DEFINITIONS ============
-
-enum class DashTab(val key: String) {
-    HOME("dash_tab_home"),
-    ACTIVITY("dash_tab_activity"),
-    PROFILE("dash_tab_profile"),
-    PASSWORD("dash_tab_password"),
-    PLAN("dash_tab_plan"),
-    BILLING("dash_tab_billing"),
-    ACCOUNT("dash_tab_account");
-
-    val title: String get() = W.t(key)
-}
-
-enum class ActivitySubTab(val key: String) {
-    KUNDALI("dash_sub_kundali"),
-    CHATS("dash_sub_chats"),
-    WALLET("dash_sub_wallet"),
-    STATS("dash_sub_stats");
-
-    val title: String get() = W.t(key)
-}
-
-@Composable
-private fun DashTabButton(
-    tab: DashTab,
-    isSelected: Boolean,
-    isPro: Boolean,
-    isMax: Boolean,
-    onClick: () -> Unit
-) {
-    val planIcon = when {
-        tab == DashTab.PLAN && isMax -> "◆"
-        tab == DashTab.PLAN && isPro -> "♛"
-        else -> ""
-    }
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) SacredGold else CosmicCharcoal,
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Text(
-            text = if (planIcon.isNotEmpty()) "$planIcon ${tab.title}" else tab.title,
-            color = if (isSelected) CosmicDeepBlue else StarlightWhite.copy(alpha = 0.8f),
-            fontSize = 13.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-        )
-    }
-}
-
-// ============ HOME TAB ============
-
-@Composable
-private fun HomeTabContent(
-    totalInr: Double,
-    paidInr: Double,
-    bonusInr: Double,
-    savedCharts: List<SavedChart>,
-    isLoading: Boolean,
-    onTabSelect: (DashTab) -> Unit,
-    onKundaliClick: (String) -> Unit,
-    onAddMoney: () -> Unit,
-    onVastuClick: () -> Unit,
-    onPalmistryClick: () -> Unit,
-    onFaceReadingClick: () -> Unit,
-    // 2026-10-10 navigation audit: Numerology hub + Astro Health were reachable
-    // only via the drawer (Numerology tools needed 3 taps; Astro Health had no
-    // entry point at all). Prominent dashboard cards make every feature ≤2 taps.
-    onNumerologyClick: () -> Unit,
-    onAstroHealthClick: () -> Unit,
-    // App storage: unified on-device My Data (Kundalis, readings, numerology).
-    onMyDataClick: () -> Unit,
-    onDeleteChart: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Wallet hero card (orange gradient like website)
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color(0xFFFF6B00),
-                                Color(0xFFFF8C00)
-                            )
-                        )
-                    )
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Text(
-                        text = W.t("money_my_wallet"),
-                        color = StarlightWhite.copy(alpha = 0.85f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "₹${String.format("%.2f", totalInr)}",
-                        color = StarlightWhite,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = W.tf("money_paid_bonus", "₹${String.format("%.2f", paidInr)}", "₹${String.format("%.2f", bonusInr)}"),
-                        color = StarlightWhite.copy(alpha = 0.8f),
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        }
-
-        // Add Money card
-        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = W.t("money_wallet_title"),
-                        color = StarlightWhite,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = W.t("money_add_money_hint"),
-                        color = StarlightWhite.copy(alpha = 0.6f),
-                        fontSize = 12.sp
-                    )
-                }
-                Button(
-                    onClick = onAddMoney,
-                    colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
-                ) {
-                    Text(
-                        text = W.t("Add Money"),
-                        color = CosmicDeepBlue,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        }
-
-        // Quick actions grid
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            QuickActionButton(
-                title = "Activity",
-                modifier = Modifier.weight(1f),
-                onClick = { onTabSelect(DashTab.ACTIVITY) }
-            )
-            QuickActionButton(
-                title = "Wallet",
-                modifier = Modifier.weight(1f),
-                onClick = { onTabSelect(DashTab.BILLING) }
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            QuickActionButton(
-                title = "Edit Profile",
-                modifier = Modifier.weight(1f),
-                onClick = { onTabSelect(DashTab.PROFILE) }
-            )
-            QuickActionButton(
-                title = "Change Password",
-                modifier = Modifier.weight(1f),
-                onClick = { onTabSelect(DashTab.PASSWORD) }
-            )
-        }
-        // Navigation audit 2026-10-10: feature shortcuts so nothing is buried.
-        // Numerology hub here (1 tap) puts all 12 tools at 2 taps; Astro Health
-        // had no entry point before — now 1 tap from the dashboard.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            QuickActionButton(
-                title = "Numerology",
-                modifier = Modifier.weight(1f),
-                onClick = onNumerologyClick
-            )
-            QuickActionButton(
-                title = "Astro Health",
-                modifier = Modifier.weight(1f),
-                onClick = onAstroHealthClick
-            )
-        }
-
-        // ============ NEW: AI-POWERED READINGS ============
-        // World-class photo/home readings (Vastu, Palmistry, Face Reading) —
-        // previously only reachable from the nav drawer; now prominent on the
-        // dashboard, above the fold.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = SacredGold
-            ) {
-                Text(
-                    text = W.t("dash_new_badge"),
-                    color = CosmicDeepBlue,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(
-                    text = W.t("dash_ai_readings_title"),
-                    color = StarlightWhite,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = W.t("dash_ai_readings_sub"),
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 12.sp
-                )
-            }
-        }
-        AiReadingCard(
-            icon = Screen.Vastu.icon,
-            title = W.t("vastu_title"),
-            subtitle = W.t("dash_vastu_sub"),
-            onClick = onVastuClick
-        )
-        AiReadingCard(
-            icon = Screen.Palmistry.icon,
-            title = W.t("palm_title"),
-            subtitle = W.t("dash_palm_sub"),
-            onClick = onPalmistryClick
-        )
-        AiReadingCard(
-            icon = Screen.FaceReading.icon,
-            title = W.t("face_title"),
-            subtitle = W.t("dash_face_sub"),
-            onClick = onFaceReadingClick
-        )
-
-        // ============ APP STORAGE: MY DATA ============
-        // One-tap entry to all on-device data — Kundalis, Vastu/Palmistry/Face
-        // readings and numerology results saved on this device.
-        AiReadingCard(
-            icon = Screen.MyData.icon,
-            title = W.t("mydata_title"),
-            subtitle = W.t("mydata_sub"),
-            onClick = onMyDataClick
-        )
-
-        // Recent Kundalis
-        Text(
-            text = W.t("Recent Kundalis"),
-            color = StarlightWhite,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
-        if (isLoading) {
-            CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = W.t("Loading..."),
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        } else if (savedCharts.isEmpty()) {
-            CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = W.t("No kundalis yet"),
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        } else {
-            savedCharts.take(5).forEach { chart ->
-                SavedChartRow(
-                    chart = chart,
-                    onClick = { onKundaliClick(chart.id) },
-                    onDelete = { onDeleteChart(chart.id) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickActionButton(
-    title: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    CosmicCard(
-        modifier = modifier.clickable { onClick() }
-    ) {
-        Text(
-            // 2026-10-10 navigation audit: quick-action titles are bilingual via
-            // the same LangPrefs menu-label system (auto-switches with Settings
-            // language; DashboardScreen already recomposes on language change).
-            text = com.omastro.app.data.local.LangPrefs.label(title),
-            color = StarlightWhite,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-/** Prominent dashboard card for one AI-powered reading (Vastu / Palmistry / Face Reading). */
-@Composable
-private fun AiReadingCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector?,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    CosmicCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        borderGold = true
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(SacredGold.copy(alpha = 0.16f)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = title,
-                        tint = SacredGold,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = StarlightWhite,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = subtitle,
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = SacredGold,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SavedChartRow(
-    chart: SavedChart,
-    onClick: () -> Unit,
-    onDelete: (() -> Unit)? = null
-) {
-    CosmicCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = chart.name.ifBlank { W.t("Kundali") },
-                    color = StarlightWhite,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = chart.birthDate,
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 12.sp
-                )
-            }
-            onDelete?.let { del ->
-                IconButton(onClick = del) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = W.t("dashboard_delete_chart"),
-                        tint = Color(0xFFE53935),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = W.t("Open"),
-                tint = SacredGold
-            )
-        }
-    }
-}
-
-// ============ ACTIVITY TAB ============
-
-@Composable
-private fun ActivityTabContent(
-    subTab: ActivitySubTab,
-    onSubTabSelect: (ActivitySubTab) -> Unit,
-    savedCharts: List<SavedChart>,
-    aiChats: List<SavedChatSession>,
-    transactions: List<WalletTransaction>,
-    totalInr: Double,
-    onDeleteChat: (String) -> Unit,
-    onClearAllChats: () -> Unit,
-    onDeleteChart: (String) -> Unit,
-    onKundaliClick: (String) -> Unit,
-    onChatClick: () -> Unit,
-    onAddMoney: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Sub-tab navigation
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(ActivitySubTab.values()) { tab ->
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (subTab == tab) SacredGold else CosmicCharcoal,
-                    modifier = Modifier.clickable { onSubTabSelect(tab) }
-                ) {
-                    Text(
-                        text = tab.title,
-                        color = if (subTab == tab) CosmicDeepBlue else StarlightWhite.copy(alpha = 0.8f),
-                        fontSize = 12.sp,
-                        fontWeight = if (subTab == tab) FontWeight.Bold else FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                    )
-                }
-            }
-        }
-
-        when (subTab) {
-            ActivitySubTab.KUNDALI -> {
-                Text(
-                    text = W.tf("dash_count_kundalis", savedCharts.size),
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                if (savedCharts.isEmpty()) {
-                    CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = W.t("No kundalis yet"),
-                                color = StarlightWhite.copy(alpha = 0.6f),
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = { onKundaliClick("") },
-                                colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
-                            ) {
-                                Text(W.t("Make Kundali"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                } else {
-                    savedCharts.forEach { chart ->
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            SavedChartRow(
-                                chart = chart,
-                                onClick = { onKundaliClick(chart.id) },
-                                onDelete = { onDeleteChart(chart.id) }
+                            Icon(
+                                imageVector = Icons.Default.AccountBalanceWallet,
+                                contentDescription = "Wallet",
+                                tint = SacredGold,
+                                modifier = Modifier.size(16.dp)
                             )
-                        }
-                    }
-                }
-            }
-            ActivitySubTab.CHATS -> {
-                Text(
-                    text = W.tf("dash_count_chats", aiChats.size),
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                if (aiChats.isEmpty()) {
-                    CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = W.t("No saved chats"),
-                                color = StarlightWhite.copy(alpha = 0.6f),
-                                fontSize = 14.sp
+                                text = "₹${String.format(Locale.getDefault(), "%.0f", totalInr)}",
+                                color = SacredGold,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = onChatClick,
-                                colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
-                            ) {
-                                Text(W.t("Start Chat"), color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                } else {
-                    aiChats.forEach { chat ->
-                        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = chat.displayTitle,
-                                        color = StarlightWhite,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "${chat.mode ?: "general"} · ${chat.updatedAt ?: ""}",
-                                        color = StarlightWhite.copy(alpha = 0.6f),
-                                        fontSize = 11.sp
-                                    )
-                                }
-                                IconButton(onClick = { onDeleteChat(chat.id) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = W.t("Delete"),
-                                        tint = Color(0xFFE53935),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = onClearAllChats,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE53935))
-                    ) {
-                        Text(W.t("Clear All Chats"))
-                    }
-                }
-            }
-            ActivitySubTab.WALLET -> {
-                // Wallet balance hero
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFFFF6B00), Color(0xFFFF8C00))
-                                )
-                            )
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = W.t("money_total_balance"),
-                                    color = StarlightWhite.copy(alpha = 0.85f),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "₹${String.format("%.2f", totalInr)}",
-                                    color = StarlightWhite,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                            }
-                            Button(
-                                onClick = onAddMoney,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = StarlightWhite.copy(alpha = 0.2f)
-                                )
-                            ) {
-                                Text("Add Money", color = StarlightWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            }
                         }
                     }
                 }
-                // Transactions
-                if (transactions.isEmpty()) {
-                    CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = W.t("No transactions yet"),
-                            color = StarlightWhite.copy(alpha = 0.6f),
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+            )
+
+            // Main scrollable content
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = 100.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                // Async shimmer placeholder if initial load
+                if (isLoading && savedCharts.isEmpty() && profile == null) {
+                    item {
+                        ShimmerCard(modifier = Modifier.fillMaxWidth())
                     }
-                } else {
-                    transactions.take(20).forEach { txn ->
-                        TransactionRow(transaction = txn)
+                    item {
+                        ShimmerListItem(modifier = Modifier.fillMaxWidth())
                     }
                 }
-            }
-            ActivitySubTab.STATS -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    StatCard(
-                        value = "${savedCharts.size}",
-                        label = W.t("dash_stat_kundalis"),
-                        modifier = Modifier.weight(1f)
-                    )
-                    StatCard(
-                        value = "${aiChats.size}",
-                        label = W.t("dash_stat_chats"),
-                        modifier = Modifier.weight(1f)
+
+                // 2. Today's Cosmic Energy Card
+                item {
+                    CosmicEnergyCard(
+                        onExplorePanchang = onNavigateToPanchang
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    StatCard(
-                        value = "₹${String.format("%.0f", totalInr)}",
-                        label = W.t("dash_stat_wallet"),
-                        modifier = Modifier.weight(1f)
+
+                // 3. Quick Actions Grid (2x4 grid)
+                item {
+                    QuickActionsSection(
+                        onNavigateToKundali = onNavigateToKundali,
+                        onNavigateToHoroscope = onNavigateToHoroscope,
+                        onNavigateToAiChat = onNavigateToAiChat,
+                        onNavigateToMatching = onNavigateToMatching,
+                        onNavigateToPanchang = onNavigateToPanchang,
+                        onNavigateToNumerology = onNavigateToNumerology,
+                        onNavigateToVastu = onNavigateToVastu,
+                        onNavigateToAstrologers = onNavigateToAstrologers
                     )
-                    StatCard(
-                        value = "${transactions.size}",
-                        label = W.t("dash_stat_txns"),
-                        modifier = Modifier.weight(1f)
+                }
+
+                // 4. Today's Horoscope Strip
+                item {
+                    HoroscopeStripSection(
+                        selectedIndex = selectedZodiacIndex,
+                        onSelectZodiac = { selectedZodiacIndex = it },
+                        onViewFullHoroscope = onNavigateToHoroscope
+                    )
+                }
+
+                // 5. AI Chat Promo Card
+                item {
+                    AiChatPromoCard(
+                        onChatNow = onNavigateToAiChat
+                    )
+                }
+
+                // 6. Live Astrologers Strip
+                item {
+                    LiveAstrologersSection(
+                        astrologers = liveAstrologers,
+                        onAstrologerClick = onNavigateToAstrologers,
+                        onViewAll = onNavigateToAstrologers
+                    )
+                }
+
+                // 7. Premium Features Section (Palmistry, Face Reading, Vastu)
+                item {
+                    PremiumFeaturesSection(
+                        onNavigateToPalmistry = onNavigateToPalmistry,
+                        onNavigateToFaceReading = onNavigateToFaceReading,
+                        onNavigateToVastu = onNavigateToVastu
+                    )
+                }
+
+                // 8. Reading History (last 2-3 entries from local DB)
+                item {
+                    ReadingHistorySection(
+                        localReadings = localReadings,
+                        savedCharts = savedCharts,
+                        onKundaliClick = { chartId ->
+                            savedCharts.find { it.id == chartId }?.let {
+                                PendingChartHolder.set(it)
+                            }
+                            onNavigateToKundali()
+                        },
+                        onReadingClick = { readingType ->
+                            when (readingType) {
+                                ReadingFeatureType.PALMISTRY -> onNavigateToPalmistry()
+                                ReadingFeatureType.FACE -> onNavigateToFaceReading()
+                                ReadingFeatureType.VASTU -> onNavigateToVastu()
+                                else -> onNavigateToKundali()
+                            }
+                        },
+                        onStartNewReading = onNavigateToKundali
                     )
                 }
             }
@@ -1066,510 +252,1174 @@ private fun ActivityTabContent(
     }
 }
 
+/**
+ * Backward-compatible overload for [DashboardScreen] matching existing NavHost call sites.
+ */
 @Composable
-private fun StatCard(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier
+fun DashboardScreen(
+    navController: NavController,
+    viewModel: DashboardViewModel = viewModel(),
+    onMenuClick: (() -> Unit)? = null
 ) {
-    CosmicCard(modifier = modifier) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
+    DashboardScreen(
+        onNavigateToKundali = { navController.navigate(Screen.Kundali.route) },
+        onNavigateToHoroscope = { navController.navigate(Screen.Horoscope.route) },
+        onNavigateToAiChat = { navController.navigate(Screen.AiChat.route) { launchSingleTop = true } },
+        onNavigateToMatching = { navController.navigate(Screen.Matchmaking.route) },
+        onNavigateToPanchang = { navController.navigate(Screen.Panchang.route) },
+        onNavigateToNumerology = { navController.navigate(Screen.Numerology.route) },
+        onNavigateToVastu = { navController.navigate(Screen.Vastu.route) },
+        onNavigateToAstrologers = { navController.navigate(Screen.Astrologers.route) },
+        onNavigateToPalmistry = { navController.navigate(Screen.Palmistry.route) },
+        onNavigateToFaceReading = { navController.navigate(Screen.FaceReading.route) },
+        onNavigateToWallet = { navController.navigate(Screen.Wallet.route) },
+        onNavigateToProfile = { onMenuClick?.invoke() ?: navController.navigate(Screen.Settings.route) },
+        onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+        viewModel = viewModel
+    )
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SECTION 2: TODAY'S COSMIC ENERGY CARD
+// ══════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun CosmicEnergyCard(
+    onExplorePanchang: () -> Unit
+) {
+    AnimatedGlassCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onExplorePanchang),
+        cornerRadius = 18.dp
+    ) {
+        // Card Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(SacredGoldSubtle)
+                        .border(1.dp, SacredGold.copy(alpha = 0.6f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "ॐ", color = SacredGold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    GoldText(text = "आज का ब्रह्मांडीय ऊर्जा", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Cosmic Alignment & Daily Panchang",
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = SacredGold.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, SacredGold.copy(alpha = 0.4f))
+            ) {
+                Text(
+                    text = "शुभ दिन",
+                    color = AuspiciousGreen,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Moon Phase + Nakshatra Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Moon phase box
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CosmicElevated.copy(alpha = 0.8f))
+                    .border(1.dp, CosmicCardBorder, RoundedCornerShape(12.dp))
+                    .padding(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🌔", fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(text = "चंद्र कला (Moon)", color = TextSecondary, fontSize = 10.sp)
+                        Text(
+                            text = "शुक्ल अष्टमी",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Text(text = "Waxing 58%", color = TextGold, fontSize = 10.sp)
+                    }
+                }
+            }
+
+            // Nakshatra box
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CosmicElevated.copy(alpha = 0.8f))
+                    .border(1.dp, CosmicCardBorder, RoundedCornerShape(12.dp))
+                    .padding(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = "🌟", fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(text = "नक्षत्र (Nakshatra)", color = TextSecondary, fontSize = 10.sp)
+                        Text(
+                            text = "रोहिणी",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Text(text = "चंद्र देव स्वामी", color = CosmicVioletLight, fontSize = 10.sp)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Panchang snippet pills
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            PanchangSnippetPill(label = "तिथि", value = "शुक्ल अष्टमी", icon = "🕉️")
+            PanchangSnippetPill(label = "वार", value = "बुधवार", icon = "⏳")
+            PanchangSnippetPill(label = "योग", value = "सिद्धि योग", icon = "🌀")
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Graha Transits Strip
+        Text(
+            text = "ग्रह गोचर (Planetary Transits)",
+            color = SacredGold,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            PlanetTransitChip(name = "सूर्य", planetColor = SunColor, sign = "मेष 12°", icon = "☀️")
+            PlanetTransitChip(name = "चंद्र", planetColor = MoonColor, sign = "वृषभ 08° (उच्च)", icon = "🌙")
+            PlanetTransitChip(name = "मंगल", planetColor = MarsColor, sign = "मिथुन 24°", icon = "♂️")
+            PlanetTransitChip(name = "बुध", planetColor = MercuryColor, sign = "मीन 16°", icon = "☿")
+            PlanetTransitChip(name = "गुरु", planetColor = JupiterColor, sign = "वृषभ 21°", icon = "♃")
+            PlanetTransitChip(name = "शुक्र", planetColor = VenusColor, sign = "मीन 28° (उच्च)", icon = "♀️")
+            PlanetTransitChip(name = "शनि", planetColor = SaturnColor, sign = "कुंभ 18°", icon = "♄")
+        }
+    }
+}
+
+@Composable
+private fun PanchangSnippetPill(
+    label: String,
+    value: String,
+    icon: String
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = CosmicCardBg.copy(alpha = 0.7f),
+        border = BorderStroke(1.dp, CosmicCardBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = icon, fontSize = 11.sp)
+            Spacer(modifier = Modifier.width(4.dp))
+            Column {
+                Text(text = label, color = TextSecondary, fontSize = 9.sp)
+                Text(
+                    text = value,
+                    color = TextPrimary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlanetTransitChip(
+    name: String,
+    planetColor: Color,
+    sign: String,
+    icon: String
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = CosmicElevated.copy(alpha = 0.6f),
+        border = BorderStroke(1.dp, planetColor.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = icon, fontSize = 12.sp)
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = value,
-                color = SacredGold,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Black
+                text = "$name: ",
+                color = planetColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
             )
             Text(
-                text = label,
-                color = StarlightWhite.copy(alpha = 0.6f),
+                text = sign,
+                color = TextPrimary,
                 fontSize = 11.sp
             )
         }
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+//  SECTION 3: QUICK ACTIONS GRID (2x4 Grid)
+// ══════════════════════════════════════════════════════════════════════
+
+private data class QuickActionItem(
+    val title: String,
+    val subtitle: String,
+    val icon: String,
+    val onClick: () -> Unit
+)
+
 @Composable
-private fun TransactionRow(transaction: WalletTransaction) {
-    val isCredit = transaction.type.equals("credit", ignoreCase = true)
-    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+private fun QuickActionsSection(
+    onNavigateToKundali: () -> Unit,
+    onNavigateToHoroscope: () -> Unit,
+    onNavigateToAiChat: () -> Unit,
+    onNavigateToMatching: () -> Unit,
+    onNavigateToPanchang: () -> Unit,
+    onNavigateToNumerology: () -> Unit,
+    onNavigateToVastu: () -> Unit,
+    onNavigateToAstrologers: () -> Unit
+) {
+    val actions = remember {
+        listOf(
+            QuickActionItem("Kundali", "जन्म कुंडली", "⭐", onNavigateToKundali),
+            QuickActionItem("Horoscope", "दैनिक राशिफल", "☀️", onNavigateToHoroscope),
+            QuickActionItem("AI Chat", "AI ज्योतिषी", "🤖", onNavigateToAiChat),
+            QuickActionItem("Matching", "गुण मिलान", "💑", onNavigateToMatching),
+            QuickActionItem("Panchang", "दैनिक पंचांग", "📅", onNavigateToPanchang),
+            QuickActionItem("Numerology", "अंक ज्योतिष", "🔢", onNavigateToNumerology),
+            QuickActionItem("Vastu", "गृह वास्तु", "🏠", onNavigateToVastu),
+            QuickActionItem("Astrologers", "लाइव ज्योतिषी", "👨‍💼", onNavigateToAstrologers)
+        )
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "त्वरित सेवाएं (Quick Services)",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Text(
+                text = "वैदिक साधन",
+                color = TextGold,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        // 2x4 grid layout (4 rows of 2 columns)
+        for (i in actions.indices step 2) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickActionCard(
+                    item = actions[i],
+                    modifier = Modifier.weight(1f)
+                )
+                if (i + 1 < actions.size) {
+                    QuickActionCard(
+                        item = actions[i + 1],
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionCard(
+    item: QuickActionItem,
+    modifier: Modifier = Modifier
+) {
+    GlassCard(
+        modifier = modifier.clickable(onClick = item.onClick),
+        cornerRadius = 14.dp,
+        glowColor = SacredGold,
+        glowAlpha = 0.25f
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (isCredit) Color(0xFF2E7D32).copy(alpha = 0.15f)
-                        else Color(0xFFC62828).copy(alpha = 0.15f)
+                    .background(SacredGoldSubtle)
+                    .border(1.dp, SacredGold.copy(alpha = 0.5f), CircleShape)
+                    .shadow(
+                        elevation = 6.dp,
+                        shape = CircleShape,
+                        ambientColor = SacredGoldGlow.copy(alpha = 0.3f),
+                        spotColor = SacredGold.copy(alpha = 0.4f)
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (isCredit) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                    contentDescription = null,
-                    tint = if (isCredit) Color(0xFF4CAF50) else Color(0xFFE53935),
-                    modifier = Modifier.size(18.dp)
-                )
+                Text(text = item.icon, fontSize = 20.sp)
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = transaction.description.ifBlank { transaction.type },
-                    color = StarlightWhite,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
+                    text = item.title,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = transaction.date,
-                    color = StarlightWhite.copy(alpha = 0.5f),
+                    text = item.subtitle,
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SECTION 4: TODAY'S HOROSCOPE STRIP (LazyRow)
+// ══════════════════════════════════════════════════════════════════════
+
+private data class ZodiacCardData(
+    val emoji: String,
+    val hindi: String,
+    val english: String,
+    val elementColor: Color,
+    val luckyNumber: Int,
+    val luckyColor: String,
+    val auspiciousTime: String,
+    val summary: String
+)
+
+private val ZODIAC_SIGNS = listOf(
+    ZodiacCardData("♈", "मेष", "Aries", FireElement, 9, "लाल (Red)", "10:30 AM - 12:00 PM", "कार्यक्षेत्र में नए अवसर और सकारात्मक ऊर्जा रहेगी। वित्तीय लाभ के योग हैं।"),
+    ZodiacCardData("♉", "वृषभ", "Taurus", EarthElement, 6, "सफेद (White)", "02:15 PM - 03:45 PM", "पारिवारिक जीवन में सुख-शांति रहेगी। रुके हुए कार्य पूरे होंगे।"),
+    ZodiacCardData("♊", "मिथुन", "Gemini", AirElement, 5, "हरा (Green)", "09:00 AM - 10:30 AM", "संवाद कौशल से लाभ होगा। व्यापार में नई योजनाएं सफल रहेंगी।"),
+    ZodiacCardData("♋", "कर्क", "Cancer", WaterElement, 2, "चांदी (Silver)", "04:00 PM - 05:30 PM", "मानसिक शांति बनी रहेगी। भावनात्मक निर्णय सोच-समझकर लें।"),
+    ZodiacCardData("♌", "सिंह", "Leo", FireElement, 1, "सुनहरा (Gold)", "11:45 AM - 01:15 PM", "आत्मविश्वास में वृद्धि होगी। नेतृत्व क्षमता की सराहना होगी।"),
+    ZodiacCardData("♍", "कन्या", "Virgo", EarthElement, 7, "गहरा हरा (Green)", "08:15 AM - 09:45 AM", "योजनाबद्ध तरीके से काम करें। स्वास्थ्य के प्रति सचेत रहें।"),
+    ZodiacCardData("♎", "तुला", "Libra", AirElement, 6, "गुलाबी (Pink)", "03:30 PM - 05:00 PM", "रिश्तों में मधुरता आएगी। साझेदारी से लाभ प्राप्त हो सकता है।"),
+    ZodiacCardData("♏", "वृश्चिक", "Scorpio", WaterElement, 9, "केसरिया (Saffron)", "01:00 PM - 02:30 PM", "साहस और पराक्रम में वृद्धि होगी। गुप्त शत्रुओं से सावधान रहें।"),
+    ZodiacCardData("♐", "धनु", "Sagittarius", FireElement, 3, "पीला (Yellow)", "07:30 AM - 09:00 AM", "भाग्य का पूरा साथ मिलेगा। आध्यात्मिक कार्यों में रुचि बढ़ेगी।"),
+    ZodiacCardData("♑", "मकर", "Capricorn", EarthElement, 8, "नीला (Blue)", "12:30 PM - 02:00 PM", "कड़ी मेहनत का फल मिलेगा। वरिष्ठ अधिकारियों का सहयोग प्राप्त होगा।"),
+    ZodiacCardData("♒", "कुंभ", "Aquarius", AirElement, 4, "आसमानी (Sky)", "05:00 PM - 06:30 PM", "नवीन विचारों से उन्नति होगी। मित्रों से सहयोग मिलेगा।"),
+    ZodiacCardData("♓", "मीन", "Pisces", WaterElement, 3, "हल्दी पीला", "09:30 AM - 11:00 AM", "रचनात्मक कार्यों में सफलता मिलेगी। अंतर्ज्ञान पर विश्वास रखें।")
+)
+
+@Composable
+private fun HoroscopeStripSection(
+    selectedIndex: Int,
+    onSelectZodiac: (Int) -> Unit,
+    onViewFullHoroscope: () -> Unit
+) {
+    val selectedSign = ZODIAC_SIGNS.getOrElse(selectedIndex) { ZODIAC_SIGNS.first() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "दैनिक राशिफल (Today's Horoscope)",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Text(
+                text = "सभी देखें →",
+                color = SacredGold,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable(onClick = onViewFullHoroscope)
+            )
+        }
+
+        // Horizontal zodiac strip
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            itemsIndexed(ZODIAC_SIGNS) { index, sign ->
+                val isSelected = index == selectedIndex
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isSelected) CosmicVioletDim.copy(alpha = 0.6f) else CosmicCardBg.copy(alpha = 0.8f),
+                    border = BorderStroke(
+                        width = if (isSelected) 1.5.dp else 1.dp,
+                        color = if (isSelected) SacredGold else CosmicCardBorder
+                    ),
+                    modifier = Modifier
+                        .width(86.dp)
+                        .clickable { onSelectZodiac(index) }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(text = sign.emoji, fontSize = 22.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = sign.hindi,
+                            color = if (isSelected) SacredGold else TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = sign.english,
+                            color = TextSecondary,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Selected sign preview card
+        GlassCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onViewFullHoroscope),
+            cornerRadius = 14.dp,
+            glowColor = SacredGold,
+            glowAlpha = 0.2f
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = selectedSign.emoji, fontSize = 26.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "${selectedSign.hindi} (${selectedSign.english})",
+                            color = SacredGold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = selectedSign.elementColor.copy(alpha = 0.2f)
+                        ) {
+                            Text(
+                                text = "आज का फल",
+                                color = TextPrimary,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = selectedSign.summary,
+                        color = TextPrimary.copy(alpha = 0.9f),
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Lucky items pill row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "लकी नंबर: ${selectedSign.luckyNumber} • रंग: ${selectedSign.luckyColor}",
+                    color = TextSecondary,
                     fontSize = 11.sp
+                )
+                Text(
+                    text = "विस्तार से पढ़ें →",
+                    color = SacredGold,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SECTION 5: AI CHAT PROMO CARD (PremiumCard)
+// ══════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun AiChatPromoCard(
+    onChatNow: () -> Unit
+) {
+    PremiumCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 18.dp
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(SacredGoldSubtle)
+                        .border(1.5.dp, SacredGold, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "🤖", fontSize = 24.sp)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    GoldText(
+                        text = "AI ज्योतिषी से बात करें",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "अपने सवालों के जवाब पाएं - Lite, Pro, Expert मॉडल",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Model highlights
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AiModelPill(title = "Lite", desc = "त्वरित प्रश्न", color = NeutralBlue, modifier = Modifier.weight(1f))
+                AiModelPill(title = "Pro", desc = "गहन विश्लेषण", color = CosmicVioletLight, modifier = Modifier.weight(1f))
+                AiModelPill(title = "Expert", desc = "सटीक कुंडली", color = SacredGold, modifier = Modifier.weight(1f))
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            GradientButton(
+                text = "Chat Now / अभी बात करें ✨",
+                onClick = onChatNow,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun AiModelPill(
+    title: String,
+    desc: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = CosmicCardBg.copy(alpha = 0.8f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = title,
+                color = color,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+            )
+            Text(
+                text = desc,
+                color = TextSecondary,
+                fontSize = 9.sp,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SECTION 6: LIVE ASTROLOGERS STRIP (LazyRow)
+// ══════════════════════════════════════════════════════════════════════
+
+private data class DemoAstrologer(
+    val name: String,
+    val specialty: String,
+    val rating: Double,
+    val reviews: Int,
+    val experience: Int,
+    val rate: String,
+    val initials: String,
+    val avatarBg: Color
+)
+
+private val DEMO_ASTROLOGERS = listOf(
+    DemoAstrologer("Pt. Radhey Shyam", "Vedic & Kundali", 4.9, 1240, 15, "₹15/min", "RS", CosmicVioletDim),
+    DemoAstrologer("Acharya Devrat", "Vastu & Muhurat", 4.8, 980, 12, "₹20/min", "AD", SacredGoldDim),
+    DemoAstrologer("Dr. Sunita Sharma", "Tarot & Career", 4.9, 1560, 18, "₹25/min", "SS", SacredSaffronDim),
+    DemoAstrologer("Swami Anand", "KP & Prashna", 4.8, 830, 10, "₹18/min", "SA", CosmicElevated),
+    DemoAstrologer("Jyotish Shastri", "Milan & Vivah", 4.7, 720, 14, "₹12/min", "JS", CosmicViolet)
+)
+
+@Composable
+private fun LiveAstrologersSection(
+    astrologers: List<Astrologer>,
+    onAstrologerClick: () -> Unit,
+    onViewAll: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(AuspiciousGreen)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "लाइव ज्योतिषी (Live Astrologers)",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
             }
             Text(
-                text = "₹${String.format("%.2f", transaction.amount / 100.0)}",
-                color = if (isCredit) Color(0xFF4CAF50) else Color(0xFFE53935),
-                fontSize = 14.sp,
+                text = "सभी देखें →",
+                color = SacredGold,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable(onClick = onViewAll)
+            )
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (astrologers.isNotEmpty()) {
+                items(astrologers.take(6)) { astro ->
+                    AstrologerMiniCard(
+                        name = astro.name,
+                        specialty = astro.specialisations.firstOrNull() ?: "Vedic Astrologer",
+                        rating = if (astro.rating > 0) astro.rating else 4.8,
+                        rate = astro.displayRate,
+                        initials = astro.name.take(2).uppercase(),
+                        avatarBg = CosmicVioletDim,
+                        avatarUrl = astro.img.ifBlank { null },
+                        onClick = onAstrologerClick
+                    )
+                }
+            } else {
+                items(DEMO_ASTROLOGERS) { demo ->
+                    AstrologerMiniCard(
+                        name = demo.name,
+                        specialty = demo.specialty,
+                        rating = demo.rating,
+                        rate = demo.rate,
+                        initials = demo.initials,
+                        avatarBg = demo.avatarBg,
+                        avatarUrl = null,
+                        onClick = onAstrologerClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AstrologerMiniCard(
+    name: String,
+    specialty: String,
+    rating: Double,
+    rate: String,
+    initials: String,
+    avatarBg: Color,
+    avatarUrl: String?,
+    onClick: () -> Unit
+) {
+    GlassCard(
+        modifier = Modifier
+            .width(160.dp)
+            .clickable(onClick = onClick),
+        cornerRadius = 16.dp,
+        glowColor = CosmicVioletLight,
+        glowAlpha = 0.2f
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Avatar with online green dot
+            Box {
+                if (avatarUrl != null) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = name,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .border(1.5.dp, SacredGold, CircleShape)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(avatarBg)
+                            .border(1.5.dp, SacredGold, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = initials,
+                            color = StarlightWhite,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                }
+                // Online indicator
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(AuspiciousGreen)
+                        .border(2.dp, CosmicBackground, CircleShape)
+                        .align(Alignment.BottomEnd)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = name,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = specialty,
+                color = TextSecondary,
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(text = "⭐ ${String.format(Locale.getDefault(), "%.1f", rating)}", color = TextGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = "• $rate", color = TextSecondary, fontSize = 10.sp)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = SacredGold,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick)
+            ) {
+                Text(
+                    text = "Chat / बात करें",
+                    color = CosmicBackground,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SECTION 7: PREMIUM FEATURES SECTION (Palmistry, Face Reading, Vastu)
+// ══════════════════════════════════════════════════════════════════════
+
+private data class PremiumFeatureItem(
+    val title: String,
+    val hindiTitle: String,
+    val subtitle: String,
+    val icon: String,
+    val gradientColors: List<Color>,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun PremiumFeaturesSection(
+    onNavigateToPalmistry: () -> Unit,
+    onNavigateToFaceReading: () -> Unit,
+    onNavigateToVastu: () -> Unit
+) {
+    val features = remember {
+        listOf(
+            PremiumFeatureItem(
+                title = "Palmistry",
+                hindiTitle = "हस्तरेखा",
+                subtitle = "Life & Fate lines",
+                icon = "✋",
+                gradientColors = listOf(Color(0xFF2A1647), Color(0xFF130F2A)),
+                onClick = onNavigateToPalmistry
+            ),
+            PremiumFeatureItem(
+                title = "Face Reading",
+                hindiTitle = "सामुद्रिक शास्त्र",
+                subtitle = "Face wisdom",
+                icon = "👤",
+                gradientColors = listOf(Color(0xFF381E25), Color(0xFF130F2A)),
+                onClick = onNavigateToFaceReading
+            ),
+            PremiumFeatureItem(
+                title = "Vastu Shastra",
+                hindiTitle = "वास्तु दोष",
+                subtitle = "Home energy audit",
+                icon = "🏠",
+                gradientColors = listOf(Color(0xFF16323B), Color(0xFF130F2A)),
+                onClick = onNavigateToVastu
+            )
+        )
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "प्रीमियम विश्लेषण (AI Vision & Readings)",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = SacredGoldSubtle
+            ) {
+                Text(
+                    text = "AI Vision",
+                    color = SacredGold,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            features.forEach { feature ->
+                PremiumFeatureCard(
+                    feature = feature,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumFeatureCard(
+    feature: PremiumFeatureItem,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                brush = Brush.verticalGradient(colors = feature.gradientColors)
+            )
+            .border(1.dp, SacredGold.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            .clickable(onClick = feature.onClick)
+            .padding(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(SacredGoldSubtle)
+                    .border(1.dp, SacredGold.copy(alpha = 0.5f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = feature.icon, fontSize = 22.sp)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = feature.title,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = feature.hindiTitle,
+                color = SacredGold,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Tap to explore →",
+                color = TextGold,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold
             )
         }
     }
 }
 
-// ============ PROFILE TAB ============
+// ══════════════════════════════════════════════════════════════════════
+//  SECTION 8: READING HISTORY (Local DB + Saved Charts)
+// ══════════════════════════════════════════════════════════════════════
+
+private data class UnifiedHistoryItem(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val icon: String,
+    val type: String,
+    val chartId: String? = null
+)
 
 @Composable
-private fun ProfileTabContent(
-    displayName: String,
-    username: String,
-    email: String,
-    avatarUrl: String
+private fun ReadingHistorySection(
+    localReadings: List<ReadingHistoryRepository.SavedReading>,
+    savedCharts: List<com.omastro.app.data.remote.SavedChart>,
+    onKundaliClick: (String) -> Unit,
+    onReadingClick: (String) -> Unit,
+    onStartNewReading: () -> Unit
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Avatar
-        Box(
-            modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(CosmicNavy),
-            contentAlignment = Alignment.Center
-        ) {
-            if (avatarUrl.isNotBlank()) {
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = W.t("Avatar"),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                )
-            } else {
-                Text(
-                    text = displayName.take(1).uppercase(),
-                    color = SacredGold,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+    // Combine saved charts and local vision readings into top 3 entries
+    val displayItems = remember(localReadings, savedCharts) {
+        val list = mutableListOf<UnifiedHistoryItem>()
 
-        ProfileField(label = W.t("Full Name"), value = displayName)
-        ProfileField(label = W.t("Username"), value = username.ifBlank { "—" })
-        ProfileField(label = W.t("Email"), value = email.ifBlank { "—" })
-    }
-}
-
-@Composable
-private fun ProfileField(label: String, value: String) {
-    CosmicCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = label,
-                color = StarlightWhite.copy(alpha = 0.6f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                color = StarlightWhite,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium
+        // Add saved kundalis
+        savedCharts.take(2).forEach { chart ->
+            list.add(
+                UnifiedHistoryItem(
+                    id = chart.id,
+                    title = chart.name.ifBlank { "Janam Kundali" },
+                    subtitle = "जन्म पत्रिका • ${chart.birthDate}",
+                    icon = "⭐",
+                    type = "kundali",
+                    chartId = chart.id
+                )
             )
         }
-    }
-}
 
-// ============ PASSWORD TAB ============
-
-@Composable
-private fun PasswordTabContent(
-    currentEmail: String,
-    navController: NavController
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = W.t("Current Email"),
-                    color = Color(0xFF1E88E5),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = currentEmail.ifBlank { "—" },
-                    color = StarlightWhite,
-                    fontSize = 14.sp
-                )
+        // Add vision readings
+        localReadings.take(2).forEach { reading ->
+            val icon = when (reading.featureType) {
+                ReadingFeatureType.PALMISTRY -> "✋"
+                ReadingFeatureType.FACE -> "👤"
+                ReadingFeatureType.VASTU -> "🏠"
+                else -> "🔮"
             }
-        }
+            val dateStr = try {
+                SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(reading.createdAt))
+            } catch (_: Exception) { "Recent" }
 
-        // Cycle 4: the old Current/New/Confirm password fields were dead UI —
-        // no REST endpoint exists for in-app password change (probed 2026-10-09:
-        // /wp-json/omastro/v1 has forgot-password / reset-password-otp /
-        // set-password but no change-password route). Removed rather than
-        // faking it. Honest flow: send a secure reset link to the email.
-        Text(
-            text = W.t("Password change is handled via a secure reset link sent to your email."),
-            color = StarlightWhite.copy(alpha = 0.6f),
-            fontSize = 12.sp,
-            lineHeight = 18.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Button(
-            onClick = { navController.navigate(Screen.Auth.FORGOT_ROUTE) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5))
-        ) {
-            Text(W.t("Send Password Reset Link"), color = StarlightWhite, fontWeight = FontWeight.Bold)
-        }
-
-        Text(
-            text = W.t("Forgot password? Use reset link"),
-            color = StarlightWhite.copy(alpha = 0.6f),
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { navController.navigate(Screen.Auth.FORGOT_ROUTE) }
-        )
-    }
-}
-
-// ============ PLAN TAB ============
-
-@Composable
-private fun PlanTabContent(
-    planName: String,
-    isPro: Boolean,
-    isMax: Boolean,
-    onAddMoney: () -> Unit,
-    onBuyPlan: (MembershipPlan) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CosmicCard(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = when {
-                        isMax -> "◆"
-                        isPro -> "♛"
-                        else -> "★"
-                    },
-                    color = SacredGold,
-                    fontSize = 32.sp,
-                    modifier = Modifier.padding(end = 14.dp)
+            list.add(
+                UnifiedHistoryItem(
+                    id = reading.id,
+                    title = reading.label,
+                    subtitle = "AI विश्लेषण • $dateStr",
+                    icon = icon,
+                    type = reading.featureType
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = planName,
-                        color = StarlightWhite,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = W.t("Add money to wallet to start chatting"),
-                        color = StarlightWhite.copy(alpha = 0.6f),
-                        fontSize = 12.sp
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = onAddMoney,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = SacredGold)
-            ) {
-                Text("Add Money", color = CosmicDeepBlue, fontWeight = FontWeight.Bold)
-            }
+            )
         }
 
-        // Membership plans — Flutter-exact checkout flow (product ids
-        // 208/209/210/211, plan keys pro_monthly/pro_yearly/max_monthly/
-        // max_yearly). Display prices are estimates; the server quote in the
-        // sheet is authoritative.
-        Text(
-            text = W.t("checkout_plans_title"),
-            color = StarlightWhite,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
-        MEMBERSHIP_PLANS.forEach { plan ->
-            MembershipPlanCard(plan = plan, onBuy = { onBuyPlan(plan) })
+        // If completely empty, provide fallback demo history
+        if (list.isEmpty()) {
+            listOf(
+                UnifiedHistoryItem("demo1", "Aarav - Janam Kundali", "वैदिक जन्म पत्रिका • 14 Oct 2026", "⭐", "kundali"),
+                UnifiedHistoryItem("demo2", "Home Vastu Analysis", "ईशान कोण ऊर्जा संतुलन • 12 Oct 2026", "🏠", "vastu"),
+                UnifiedHistoryItem("demo3", "AI Palmistry Reading", "हस्तरेखा व भाग्य रेखा • 10 Oct 2026", "✋", "palmistry")
+            )
+        } else {
+            list.take(3)
         }
-        Text(
-            text = W.t("checkout_plans_note"),
-            color = StarlightWhite.copy(alpha = 0.55f),
-            fontSize = 11.sp
-        )
     }
-}
 
-@Composable
-private fun MembershipPlanCard(
-    plan: MembershipPlan,
-    onBuy: () -> Unit
-) {
-    CosmicCard(modifier = Modifier.fillMaxWidth()) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = W.t(plan.titleKey),
-                    color = StarlightWhite,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = SacredGold,
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "₹${"%.0f".format(plan.displayPriceInr)} ${W.t(plan.billingKey)}",
-                    color = RadiantAmber,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = "हालिया अध्ययन (Reading History)",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = onBuy,
-                colors = ButtonDefaults.buttonColors(containerColor = SacredGold),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Text(
-                    text = W.t("checkout_buy"),
-                    color = CosmicDeepBlue,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
-            }
+            Text(
+                text = "नया बनाएं +",
+                color = SacredGold,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable(onClick = onStartNewReading)
+            )
         }
-    }
-}
 
-// ============ BILLING TAB ============
-
-@Composable
-private fun BillingTabContent(
-    totalInr: Double,
-    paidInr: Double,
-    bonusInr: Double,
-    transactions: List<WalletTransaction>,
-    onAddMoney: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Wallet hero
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-        ) {
-            Box(
+        displayItems.forEach { item ->
+            GlassCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(Color(0xFFFF6B00), Color(0xFFFF8C00))
-                        )
-                    )
-                    .padding(20.dp)
+                    .clickable {
+                        if (item.chartId != null) {
+                            onKundaliClick(item.chartId)
+                        } else {
+                            onReadingClick(item.type)
+                        }
+                    },
+                cornerRadius = 14.dp,
+                glowColor = SacredGold,
+                glowAlpha = 0.15f
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = W.t("MY WALLET"),
-                        color = StarlightWhite.copy(alpha = 0.9f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "₹${String.format("%.2f", totalInr)}",
-                        color = StarlightWhite,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                    Text(
-                        text = W.t("Total Balance"),
-                        color = StarlightWhite.copy(alpha = 0.8f),
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = W.tf("dash_paid_bonus_fmt", "₹${String.format("%.2f", paidInr)}", "₹${String.format("%.2f", bonusInr)}"),
-                        color = StarlightWhite.copy(alpha = 0.8f),
-                        fontSize = 11.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = onAddMoney,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = StarlightWhite.copy(alpha = 0.2f)
-                        )
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(SacredGoldSubtle)
+                            .border(1.dp, SacredGold.copy(alpha = 0.4f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text("Add Money", color = StarlightWhite, fontWeight = FontWeight.Bold)
+                        Text(text = item.icon, fontSize = 18.sp)
                     }
-                }
-            }
-        }
 
-        // Transaction history
-        Text(
-            text = W.t("Transaction History"),
-            color = StarlightWhite,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
+                    Spacer(modifier = Modifier.width(12.dp))
 
-        if (transactions.isEmpty()) {
-            CosmicCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = W.t("No transactions yet"),
-                    color = StarlightWhite.copy(alpha = 0.6f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        } else {
-            transactions.forEach { txn ->
-                TransactionRow(transaction = txn)
-            }
-        }
-    }
-}
-
-// ============ ACCOUNT TAB ============
-
-@Composable
-private fun AccountTabContent(
-    navController: NavController
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Danger zone
-        CosmicCard(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = W.t("Danger Zone"),
-                    color = Color(0xFFE53935),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = W.t("Deleting your account will permanently remove all your data, kundalis, and chat history. This cannot be undone."),
-                    color = StarlightWhite.copy(alpha = 0.7f),
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                // No DELETE /me endpoint exists on the server (probed 2026-10-09),
-                // so no delete button is shown — a fake button would be dishonest.
-                // Account deletion is handled via the website support channel.
-                Text(
-                    text = W.t("To delete your account, please contact support via the website. In-app deletion will appear here once the server supports it."),
-                    color = StarlightWhite.copy(alpha = 0.5f),
-                    fontSize = 12.sp,
-                    lineHeight = 18.sp
-                )
-            }
-        }
-
-        // Logout — must clear the session token first, otherwise the user
-        // stays silently logged in and a cold start lands back on home.
-        CosmicCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    AppContainer.authRepository.logout()
-                    navController.navigate(Screen.Auth.route) {
-                        popUpTo(0) { inclusive = true }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = item.title,
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = item.subtitle,
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                }
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Logout,
-                    contentDescription = W.t("Logout"),
-                    tint = Color(0xFFE53935),
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = W.t("Logout"),
-                    color = StarlightWhite,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
 
-        // Settings
-        CosmicCard(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { navController.navigate(Screen.Settings.route) }
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = W.t("Settings"),
-                    tint = SacredGold,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = W.t("Settings"),
-                    color = StarlightWhite,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Open",
+                        tint = SacredGold,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

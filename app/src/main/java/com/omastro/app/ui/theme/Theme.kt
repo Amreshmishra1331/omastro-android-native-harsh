@@ -1,81 +1,90 @@
 package com.omastro.app.ui.theme
 
 import android.app.Activity
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private fun cosmicColorScheme(dark: Boolean) = if (dark) {
-    darkColorScheme(
-        primary = SacredGold,
-        onPrimary = CosmicBackground,
-        primaryContainer = SacredGoldDark,
-        onPrimaryContainer = SacredGoldLight,
-        secondary = SacredSaffron,
-        onSecondary = CosmicBackground,
-        secondaryContainer = MysticPurple,
-        onSecondaryContainer = SacredGoldLight,
-        tertiary = MysticPurpleLight,
-        background = CosmicBackground,
-        onBackground = TextPrimary,
-        surface = CosmicSurface,
-        onSurface = TextPrimary,
-        surfaceVariant = CosmicCardBg,
-        onSurfaceVariant = TextSecondary,
-        outline = CosmicBorder
-    )
-} else {
-    lightColorScheme(
-        primary = SacredGold,
-        onPrimary = CosmicBackground,
-        primaryContainer = SacredGoldDark,
-        onPrimaryContainer = CosmicBackground,
-        secondary = SacredSaffron,
-        onSecondary = CosmicBackground,
-        secondaryContainer = MysticPurpleLight,
-        onSecondaryContainer = CosmicBackground,
-        tertiary = MysticPurple,
-        background = CosmicBackground,
-        onBackground = TextPrimary,
-        surface = CosmicSurface,
-        onSurface = TextPrimary,
-        surfaceVariant = CosmicCardBg,
-        onSurfaceVariant = TextSecondary,
-        outline = CosmicBorder
-    )
-}
+// ═══════════════════════════════════════════════
+//  OmAstro AI — Material3 Theme
+// ═══════════════════════════════════════════════
 
-/**
- * App theme with working dark/light mode. Applies the palette (custom tokens)
- * before composing so every screen picks up the active mode.
- */
+private val CosmicDarkColorScheme = darkColorScheme(
+    primary          = SacredGold,
+    onPrimary        = CosmicBackground,
+    primaryContainer = SacredGoldSubtle,
+    onPrimaryContainer = SacredGoldGlow,
+    secondary        = CosmicViolet,
+    onSecondary      = TextPrimary,
+    secondaryContainer = CosmicVioletSubtle,
+    onSecondaryContainer = CosmicVioletLight,
+    tertiary         = SacredSaffron,
+    onTertiary       = TextPrimary,
+    background       = CosmicBackground,
+    onBackground     = TextPrimary,
+    surface          = CosmicSurface,
+    onSurface        = TextPrimary,
+    surfaceVariant   = CosmicCardBg,
+    onSurfaceVariant = TextSecondary,
+    outline          = CosmicCardBorder,
+    outlineVariant   = Color(0xFF1E1740),
+    error            = InauspiciousRed,
+    onError          = TextPrimary,
+    errorContainer   = Color(0x33EF4444),
+    onErrorContainer = InauspiciousRed,
+    inverseSurface   = TextPrimary,
+    inverseOnSurface = CosmicBackground,
+    inversePrimary   = SacredGoldDim,
+    scrim            = Color(0xCC05030F),
+    surfaceTint      = CosmicViolet
+)
+
+private val CosmicLightColorScheme = lightColorScheme(
+    primary          = LightGold,
+    onPrimary        = Color.White,
+    primaryContainer = Color(0xFFFFF3D0),
+    onPrimaryContainer = Color(0xFF7A4E00),
+    secondary        = CosmicVioletDim,
+    onSecondary      = Color.White,
+    background       = LightBackground,
+    onBackground     = LightText,
+    surface          = LightSurface,
+    onSurface        = LightText,
+    surfaceVariant   = LightCard,
+    onSurfaceVariant = LightTextSecondary,
+    outline          = LightBorder,
+    error            = InauspiciousRed,
+    onError          = Color.White
+)
+
 @Composable
 fun OmAstroTheme(
-    darkTheme: Boolean = true,
+    darkTheme: Boolean = true,   // Default dark for astro apps
     content: @Composable () -> Unit
 ) {
-    applyAppPalette(darkTheme)
+    val colorScheme = if (darkTheme) CosmicDarkColorScheme else CosmicLightColorScheme
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as? Activity)?.window
-            window?.let {
-                it.statusBarColor = CosmicBackground.toArgb()
-                it.navigationBarColor = CosmicBackground.toArgb()
-                WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = !darkTheme
-                WindowCompat.getInsetsController(it, view).isAppearanceLightNavigationBars = !darkTheme
+            val window = (view.context as Activity).window
+            window.statusBarColor     = CosmicBackground.toArgb()
+            window.navigationBarColor = CosmicBackground.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars     = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
             }
         }
     }
 
     MaterialTheme(
-        colorScheme = cosmicColorScheme(darkTheme),
-        typography = Typography,
-        content = content
+        colorScheme = colorScheme,
+        typography  = OmAstroTypography,
+        content     = content
     )
 }

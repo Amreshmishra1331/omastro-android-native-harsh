@@ -28,6 +28,10 @@ class DashboardViewModel : ViewModel() {
     val walletRepository = AppContainer.walletRepository
     val chatRepository: ChatRepository = AppContainer.chatRepository
     val savedChartsRepository = AppContainer.savedChartsRepository
+    val consultationRepository = AppContainer.consultationRepository
+
+    private val _astrologers = MutableStateFlow<List<com.omastro.app.data.model.Astrologer>>(emptyList())
+    val astrologers: StateFlow<List<com.omastro.app.data.model.Astrologer>> = _astrologers.asStateFlow()
 
     private val _profile = MutableStateFlow<MeData?>(null)
     val profile: StateFlow<MeData?> = _profile.asStateFlow()
@@ -72,6 +76,10 @@ class DashboardViewModel : ViewModel() {
                 // AI chats
                 chatRepository.listSavedChats()
                     .onSuccess { _aiChats.value = it }
+
+                // Astrologers
+                consultationRepository.getAstrologers()
+                    .onSuccess { _astrologers.value = it }
             } catch (e: Exception) {
                 _error.value = e.message
             } finally {

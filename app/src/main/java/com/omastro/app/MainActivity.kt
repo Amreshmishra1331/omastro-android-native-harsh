@@ -101,13 +101,11 @@ class MainActivity : ComponentActivity() {
 
                 when (isLoggedIn) {
                     null -> {
-                        // Show splash/loading while checking auth
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = androidx.compose.ui.Alignment.Center
-                        ) {
-                            androidx.compose.material3.CircularProgressIndicator()
-                        }
+                        com.omastro.app.ui.screens.splash.SplashScreen(
+                            onNavigateNext = { loggedIn ->
+                                isLoggedIn = loggedIn
+                            }
+                        )
                     }
                     else -> {
                         // Deep link: notification taps land on the relevant
@@ -115,7 +113,7 @@ class MainActivity : ComponentActivity() {
                         val startDestination = if (isLoggedIn == true) {
                             launchDeepLink ?: Screen.Home.route
                         } else {
-                            Screen.Auth.route
+                            Screen.Onboarding.route
                         }
 
                         // Navigation drawer state
@@ -443,6 +441,29 @@ class MainActivity : ComponentActivity() {
                                         popUpTo(Screen.ReadingHistory.route) {
                                             inclusive = false
                                         }
+                                    }
+                                }
+                            )
+                        }
+                        composable(Screen.Splash.route) {
+                            com.omastro.app.ui.screens.splash.SplashScreen(
+                                onNavigateToHome = {
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
+                                },
+                                onNavigateToOnboarding = {
+                                    navController.navigate(Screen.Onboarding.route) {
+                                        popUpTo(Screen.Splash.route) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                        composable(Screen.Onboarding.route) {
+                            com.omastro.app.ui.screens.onboarding.OnboardingScreen(
+                                onNavigateToAuth = {
+                                    navController.navigate(Screen.Auth.route) {
+                                        popUpTo(Screen.Onboarding.route) { inclusive = true }
                                     }
                                 }
                             )
